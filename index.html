@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="game-container">
+    <div id="game-area">
+	    <div id="stage-info"></div>
+        <button id="ability-button" style="display: none;">Use Ability</button>
+    </div>
+    <div id="holy-shield-aura" class="holy-shield-aura" style="display: none;"></div>
+    <div id="ui">
+        <div id="player-stats"></div>
+        <button id="debug-skip-wave">(Debug)</button>
+        <button id="debug-level-up">(Debug2)</button>
+    </div>
+    <div id="souls-menu"></div>
+    <div id="qol-menu"></div>
+    <div id="inventory-menu"></div>
+</div>
+
+<div id="class-selection" class="modal">
+    <div id="selection-content">
+            <h2 id="destiny-text">Choose Your Destiny</h2>
+        <div id="class-options">
+        <div class="class-option" data-class="Acolyte">
+            <img src="img/acol.png" alt="Acolyte">
+            <span class="class-name">Acolyte</span>
+        </div>
+        <div class="class-option" data-class="Sorceress">
+            <img src="img/sorc.png" alt="Sorceress">
+            <span class="class-name">Sorceress</span>
+            <span class="unlock-text">( Beat stage 3 to unlock )</span>
+        </div>
+        <div class="class-option" data-class="Divine Knight">
+            <img src="img/divi.png" alt="Divine Knight">
+            <span class="class-name">Divine Knight</span>
+            <span class="unlock-text">( Beat stage 5 to unlock )</span>
+        </div>
+    </div>
+        <button id="hard-reset-btn">Hard Reset</button>
+    </div>
+</div>
+
+<div id="achievements-menu" class="overlay">
+    <div class="overlay-content">
+        <span class="close-btn">&times;</span>
+        <h2>Achievements</h2>
+        <div id="achievements-list">
+        </div>
+    </div>
+</div>
+
+<script src="player.js"></script>
+<script src="classes.js"></script>
+<script src="enemies.js"></script>
+<script src="weapons.js"></script>
+<script src="upgrades.js"></script>
+<script src="ui.js"></script>
+<script src="main.js"></script>
+	
+</body>
+</html>
