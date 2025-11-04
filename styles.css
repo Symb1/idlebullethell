@@ -120,6 +120,7 @@ body {
     position: absolute;
     font-weight: bold;
     opacity: 0;
+	scale: 110%;
     transition: opacity 0.5s, top 0.5s;
     pointer-events: none;
     text-shadow: 1px 1px 2px black;
@@ -261,6 +262,21 @@ body {
     transform: scale(2.7); /* or whatever looks right */
 }
 
+#player.acolyte {
+    width: 128px;
+    height: 128px;
+}
+
+/* Divine Knight and Sorceress stay 36x42 */
+#player.divine-knight {
+    width: 36px;
+    height: 42px;
+}
+
+#player.sorceress {
+    width: 36px;
+    height: 42px;
+}
 
 #player.acolyte.attacking {
     width: 128px;
@@ -286,6 +302,26 @@ body {
 #player.acolyte.attacking.facing-left {
     transform: translate(-50%, -50%) scaleX(-1); /* Add centering back! */
 }
+
+.hit-sprite {
+    position: absolute;
+    width: 66px;        /* 726 / 11 frames = 66px per frame */
+    height: 66px;
+    background-image: url('img/acowep.png'); /* your 11-frame sprite */
+    background-size: 726px 66px; 
+    animation: hitSpriteAnim 0.45s steps(11) forwards;
+    pointer-events: none;
+    z-index: 3;
+	scale: 75%;
+    transform: translate(-50%, -50%); /* center on enemy */
+}
+
+@keyframes hitSpriteAnim {
+    0%   { background-position: 0 0; }
+    100% { background-position: -726px 0; }
+}
+
+
 
 #debug-skip-wave {
     background-color: #ff69b4;

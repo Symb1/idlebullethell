@@ -2,7 +2,7 @@ let enemies = [];
 
 class Enemy {
     constructor() {
-        this.baseSpeed = 35;
+        this.baseSpeed = 30;
         this.radius = 10;
         this.speedEffects = [];
         this.resetEnemy();
@@ -156,28 +156,21 @@ class Enemy {
 }
 
     takeDamage(amount, isCritical = false) {
+
+    // ✅ Ignore hits on dying/dead enemies
+    if (this.hp <= 0 || this.isDying) return;
+
     const actualDamage = Math.max(0, amount);
     this.hp = Math.max(0, this.hp - actualDamage);
-    console.log(`Enemy took ${actualDamage.toFixed(2)} damage. HP remaining: ${this.hp.toFixed(2)}`);
-    
+
     this.updateHpText();
     this.showDamageIndicator(actualDamage, isCritical);
-    
-    // Only play hit animation if not already playing
-    if (!this.element.classList.contains('hit') && !this.isPlayingHitAnimation) {
-        this.isPlayingHitAnimation = true;
-        this.element.classList.add('hit');
-        
-        setTimeout(() => {
-            this.element.classList.remove('hit');
-            this.isPlayingHitAnimation = false;
-        }, 500); // Match the animation duration
-    }
-    
+    this.createHitSprite();
+
     if (this.hp <= 0 && !this.isDying) {
         this.die();
     }
-  }
+}
 
 showDamageIndicator(amount, isCritical) {
     const damageIndicator = document.createElement('div');
@@ -215,6 +208,25 @@ showDamageIndicator(amount, isCritical) {
         this.damageIndicators = this.damageIndicators.filter(di => di !== damageIndicator);
     }, 1000);
 }
+
+
+createHitSprite() {
+    const sprite = document.createElement("div");
+    sprite.className = "hit-sprite";
+
+    // center of enemy (no upward movement)
+    sprite.style.left = `50%`;
+    sprite.style.top = `50%`;
+
+    this.element.appendChild(sprite);
+
+    // remove after animation ends
+    setTimeout(() => {
+        if (sprite.parentNode) sprite.remove();
+    }, 450); // matches animation duration
+}
+
+
 
     getExpMultiplier() {
         const multiplier = 1 + (gameState.currentStage - 1) * 0.5;

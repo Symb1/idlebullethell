@@ -167,9 +167,7 @@ getAmuletDamageBonus() {
         showLevelUpScreen();
         }
     
-        if (!gameState.autoCardEnabled) {
-            requestAnimationFrame(gameLoop);
-        }
+        
     }
 
     takeDamage(amount) {

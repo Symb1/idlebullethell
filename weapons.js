@@ -212,15 +212,18 @@ class BasicStaff extends Weapon {
     }
 
     findNearestEnemy() {
-        return enemies.reduce((nearest, enemy) => {
+    return enemies
+        .filter(e => !e.isDying && e.hp > 0)   
+        .reduce((nearest, enemy) => {
             const distance = calculateDistance(player.position, enemy.position);
             if (!nearest || distance < calculateDistance(player.position, nearest.position)) {
                 return enemy;
             }
             return nearest;
         }, null);
-    }
 }
+}
+
 
 class BasicWand extends Weapon {
     constructor() {
@@ -393,7 +396,7 @@ function selectWeaponEvolution(weapon) {
     initializeWeapon(player.class, weapon.name);
     hideWeaponEvolutionScreen();
     gameState.isPaused = false;
-    requestAnimationFrame(gameLoop);
+    
 }
 
 function autoSelectWeaponEvolution(weaponOptions) {

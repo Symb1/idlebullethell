@@ -283,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadGameState();
 	createInventoryMenu();
     showClassSelection();
-    document.getElementById('debug-level-up').addEventListener('click', debugLevelUp);
+    //document.getElementById('debug-level-up').addEventListener('click', debugLevelUp);
     const autoCastToggle = document.getElementById('auto-cast-toggle');
     if (autoCastToggle) {
         autoCastToggle.checked = gameState.autoCastEnabled;
@@ -294,13 +294,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Debug for lvl up
+ /* Debug for lvl up
 function debugLevelUp() {
     if (player) {
         player.exp = player.expToNextLevel;
         player.gainExp(0);
     }
-}
+}*/
 
 function showClassSelection() {
     document.getElementById('class-selection').style.display = 'flex';
@@ -538,7 +538,7 @@ function gameLoop(timestamp) {
     }
 }
 
-//For Debug temp only
+/*For Debug temp only
 function skipWave() {
     // Clear existing enemies
     enemies.forEach(enemy => enemy.element.remove());
@@ -556,6 +556,7 @@ function skipWave() {
     startWave();
     updateUI();
 }
+*/
 
 // Modify the checkClassUnlock function
 function checkClassUnlock() {
@@ -602,6 +603,10 @@ function gameOver() {
     // Hide stage info
     const stageInfo = document.getElementById('stage-info');
     if (stageInfo) stageInfo.style.display = 'none';
+    
+    // Hide game area - ADD THIS LINE
+    const gameArea = document.getElementById('game-area');
+    if (gameArea) gameArea.style.display = 'none';
    
     // Always show inventory menu, regardless of QoL menu status
     const inventoryMenu = document.getElementById('inventory-menu');
@@ -610,7 +615,7 @@ function gameOver() {
         updateInventoryUI();
     }
 	
-	saveGameState();
+    saveGameState();
     showClassSelection();
     updateSoulsUI();
 }
