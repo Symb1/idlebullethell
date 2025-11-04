@@ -104,10 +104,12 @@ function getRarity() {
 }
 
 function getRandomUpgrades(count) {
-    if (player.level === 10) {    
+    if (player.level === 10) {
+        // Offer weapon evolution at level 10
         showWeaponEvolutionScreen();
         return [];
     } else if (player.level >= 15 && (player.level - 15) % 10 === 0) {
+        // Offer class upgrade at level 15 and every 10 levels after that
         const classUpgradeOptions = classUpgrades[player.class];
         const shuffled = [...classUpgradeOptions].sort(() => 0.5 - Math.random());
         return shuffled.slice(0, count).map(upgrade => ({
@@ -115,9 +117,10 @@ function getRandomUpgrades(count) {
             isClassUpgrade: true
         }));
     } else {
+        // Offer regular upgrades
         const availableUpgrades = upgrades.filter(upgrade => {
             if (upgrade.name === 'Boss Damage' && !gameState.amuletEquipped) {
-                return false;
+                return false; // Don't offer Boss Damage upgrade if amulet is not equipped
             }
             return !upgrade.condition || upgrade.condition();
         });
@@ -254,7 +257,7 @@ function showLevelUpScreen() {
 
     const gameArea = document.getElementById('game-area');
     let levelUpScreen = document.getElementById('level-up');
-    
+
     if (!levelUpScreen) {
         levelUpScreen = document.createElement('div');
         levelUpScreen.id = 'level-up';
@@ -262,105 +265,7 @@ function showLevelUpScreen() {
     }
 
     levelUpScreen.innerHTML = '<h2 class="level-up-title">Level Up!</h2>';
-    
-    const upgradeOptions = document.createElement('div');
-    upgradeOptions.id = 'upgrade-options';
-    levelUpScreen.appendChild(upgradeOptions);
 
-    const availableUpgrades = getRandomUpgrades(3);
-
-    availableUpgrades.forEach((upgrade, index) => {
-        const card = document.createElement('div');
-        card.className = upgrade.isClassUpgrade ? 'upgrade-card class-upgrade' : `upgrade-card ${upgrade.rarity.toLowerCase()}`;
-        card.dataset.index = index;
-
-        if (upgrade.isClassUpgrade) {
-            card.innerHTML = `
-                <div class="upgrade-rarity-label">Class Upgrade</div>
-                <hr>
-                <div class="upgrade-name">${upgrade.name}</div>
-                <hr>
-                <div class="upgrade-description">${upgrade.description()}</div>
-            `;
-        } else {
-            card.innerHTML = `
-                <div class="upgrade-rarity-label">Rarity</div>
-                <div class="upgrade-rarity">${upgrade.rarity}</div>
-                <hr>
-                <div class="upgrade-name">${upgrade.name}</div>
-                <div class="upgrade-value">${upgrade.getValue(upgrade.rarity)}</div>
-                <hr>
-                <div class="upgrade-description">${upgrade.description || 'Upgrade description goes here.'}</div>
-            `;
-        }
-
-        if (upgrade.isClassUpgrade) {
-            if (!gameState.autoClassEnabled) {
-                card.addEventListener('click', () => selectUpgrade(upgrade, index));
-            } else {
-                card.classList.add('disabled');
-            }
-        } else {
-            if (!gameState.autoCardEnabled) {
-                card.addEventListener('click', () => selectUpgrade(upgrade, index));
-            } else {
-                card.classList.add('disabled');
-            }
-        }
-
-        upgradeOptions.appendChild(card);
-    });
-
-    levelUpScreen.style.display = 'flex';
-
-    if (gameState.autoClassEnabled && availableUpgrades[0].isClassUpgrade) {
-        const autoSelectedUpgrade = selectAutoClassUpgrade(availableUpgrades);
-        const selectedIndex = availableUpgrades.indexOf(autoSelectedUpgrade);
-        const selectedCard = upgradeOptions.querySelector(`[data-index="${selectedIndex}"]`);
-        
-        selectedCard.classList.add('auto-select-glow2');
-
-        setTimeout(() => {
-            selectUpgrade(autoSelectedUpgrade, selectedIndex);
-        }, 3000);
-    } else if (gameState.autoCardEnabled && !availableUpgrades[0].isClassUpgrade) {
-        const priorityOrder = gameState.upgradePriority || ['Damage Increase', 'Attack Speed', 'Health', 'Regeneration', 'Cooldown Reduction', 'Critical Damage Increase', 'Critical Strike Chance'];
-        
-        let selectedUpgrade = null;
-        for (const upgradeName of priorityOrder) {
-            selectedUpgrade = availableUpgrades.find(upgrade => upgrade.name === upgradeName);
-            if (selectedUpgrade) break;
-        }
-
-        if (!selectedUpgrade) {
-            selectedUpgrade = availableUpgrades[0];
-        }
-
-        const selectedIndex = availableUpgrades.indexOf(selectedUpgrade);
-        const selectedCard = upgradeOptions.querySelector(`[data-index="${selectedIndex}"]`);
-        
-        selectedCard.classList.add('auto-select-glow2');
-
-        setTimeout(() => {
-            selectUpgrade(selectedUpgrade, selectedIndex);
-        }, 3000);
-    }
-}
-
-function showLevelUpScreen() {
-    gameState.isPaused = true;
-
-    const gameArea = document.getElementById('game-area');
-    let levelUpScreen = document.getElementById('level-up');
-    
-    if (!levelUpScreen) {
-        levelUpScreen = document.createElement('div');
-        levelUpScreen.id = 'level-up';
-        gameArea.appendChild(levelUpScreen);
-    }
-
-    levelUpScreen.innerHTML = '<h2 class="level-up-title">Level Up!</h2>';
-    
     const upgradeOptions = document.createElement('div');
     upgradeOptions.id = 'upgrade-options';
     levelUpScreen.appendChild(upgradeOptions);
@@ -411,16 +316,19 @@ function showLevelUpScreen() {
 
     levelUpScreen.style.display = 'flex';
 
+    // Handle auto selection
     if (gameState.autoClassEnabled && availableUpgrades[0].isClassUpgrade) {
         const autoSelectedUpgrade = selectAutoClassUpgrade(availableUpgrades);
         const selectedIndex = availableUpgrades.indexOf(autoSelectedUpgrade);
         const selectedCard = upgradeOptions.querySelector(`[data-index="${selectedIndex}"]`);
         
-        selectedCard.classList.add('auto-select-glow2');
-
-        setTimeout(() => {
-            selectUpgrade(autoSelectedUpgrade, selectedIndex);
-        }, 3000);
+        if (selectedCard) {
+            selectedCard.classList.add('auto-select-glow2');
+            
+            setTimeout(() => {
+                selectUpgrade(autoSelectedUpgrade, selectedIndex);
+            }, 3000);
+        }
     } else if (gameState.autoCardEnabled && !availableUpgrades[0].isClassUpgrade) {
         const priorityOrder = gameState.upgradePriority || ['Damage Increase', 'Attack Speed', 'Health', 'Regeneration', 'Cooldown Reduction', 'Critical Damage Increase', 'Critical Strike Chance'];
         
@@ -437,11 +345,13 @@ function showLevelUpScreen() {
         const selectedIndex = availableUpgrades.indexOf(selectedUpgrade);
         const selectedCard = upgradeOptions.querySelector(`[data-index="${selectedIndex}"]`);
         
-        selectedCard.classList.add('auto-select-glow2');
-
-        setTimeout(() => {
-            selectUpgrade(selectedUpgrade, selectedIndex);
-        }, 3000);
+        if (selectedCard) {
+            selectedCard.classList.add('auto-select-glow2');
+            
+            setTimeout(() => {
+                selectUpgrade(selectedUpgrade, selectedIndex);
+            }, 3000);
+        }
     }
 }
 
@@ -456,6 +366,7 @@ function selectAutoClassUpgrade(availableUpgrades) {
         }
     }
     
+    // If no matching upgrade or no auto-choice set, return the first upgrade
     return availableUpgrades[0];
 }
 
@@ -467,6 +378,10 @@ function selectUpgrade(upgrade, index) {
     }
     hideLevelUpScreen();
     gameState.isPaused = false;
+    
+    // Cancel any existing animation frame and restart the loop
+    cancelAnimationFrame(animationFrameId);
+    lastTimestamp = performance.now();
     requestAnimationFrame(gameLoop);
 }
 
@@ -667,7 +582,8 @@ let lastPurchaseTime = 0;
 
 function purchaseSoulsUpgrade(upgradeName) {
     const now = Date.now();
-    if (now - lastPurchaseTime < 100) return;
+    if (now - lastPurchaseTime < 100) return; // Debounce
+    lastPurchaseTime = now;
 
     console.log('Attempting to purchase:', upgradeName);
     const upgrade = soulsUpgrades.find(u => u.name === upgradeName);
@@ -676,6 +592,7 @@ function purchaseSoulsUpgrade(upgradeName) {
         return;
     }
 
+    // Check if the upgrade should be visible
     if (upgrade.isVisible && !upgrade.isVisible(gameState)) {
         console.log('Upgrade is not visible');
         return;

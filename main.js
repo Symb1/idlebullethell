@@ -132,8 +132,10 @@ function loadGameState() {
 }
 
 function hardReset() {
+    // Clear local storage
     localStorage.removeItem('gameState');
 
+    // Reset gameState properties
     gameState.unlockedClasses = ['Acolyte'];
     gameState.currentStage = 1;
     gameState.currentWave = 1;
@@ -167,46 +169,62 @@ function hardReset() {
     gameState.unlockedAchievements = {};
 	gameState.bossDamageUpgrades = 0;
 
+    // Reset base HP
     Player.BASE_HP = 5;
+    
+    // Reset player
     player = null;
+
+    // Save the reset game state
     saveGameState();
+
+    // Update UI
     updateSoulsUI();
     showClassSelection();
-
+    
+    // Reset auto cast toggle
     const autoCastToggle = document.getElementById('auto-cast-toggle');
     if (autoCastToggle) {
         autoCastToggle.checked = false;
     }
 
+    // Reset auto card toggle
     const autoCardToggle = document.getElementById('auto-card-toggle');
     if (autoCardToggle) {
         autoCardToggle.checked = false;
     }
     
+    // Reset auto evo toggle
     const autoWeaponEvolutionToggle = document.getElementById('auto-weapon-evolution-toggle');
     if (autoWeaponEvolutionToggle) {
         autoWeaponEvolutionToggle.checked = false;
     }
     
+    // Reset weapon evolution choices in UI
     createWeaponEvolutionChoices();
 
+    // Reset auto class toggle
     const autoClassToggle = document.getElementById('auto-class-toggle');
     if (autoClassToggle) {
         autoClassToggle.checked = false;
     }
 
+    // Force a refresh of the QoL menu
     createQoLMenu();
+    
+    // Now create the weapon evolution choices and priority list
     createWeaponEvolutionChoices();
     createPriorityList();
 }
 
+// Handles Max Ascensions + Stages in which Ascension is possible - path: function showAscensionOverlay/ui.js
 const MAX_ASCENSIONS = 3;
 const ASCENSION_STAGES = {
     0: 4,
     1: 7,
     2: 9
 };
-
+// Additional global variables
 let animationFrameId = null;
 let lastTimestamp = Date.now();
 
@@ -229,6 +247,7 @@ function ascend() {
         gameState.ascensionLevel++;
         gameState.soulMultiplier = Math.pow(2, gameState.ascensionLevel)
         
+        // Unlock QoL features progressively
         if (gameState.ascensionLevel >= 1) {
             gameState.qolMenuUnlocked = true;
             gameState.autoCastUnlocked = true;
@@ -241,6 +260,7 @@ function ascend() {
             gameState.autoClassUnlocked = true;
         }
         
+        // Reset soul upgrades
         soulsUpgrades.forEach(upgrade => {
             const upgradeName = upgrade.name.toLowerCase().replace('+', '') + 'Upgrades';
             gameState[upgradeName] = 0;
@@ -274,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-
+// Debug for lvl up
 function debugLevelUp() {
     if (player) {
         player.exp = player.expToNextLevel;
@@ -286,6 +306,7 @@ function showClassSelection() {
     document.getElementById('class-selection').style.display = 'flex';
     document.getElementById('souls-menu').style.display = 'block';
 	
+    // Always create and show the inventory menu
     createInventoryMenu();
     const inventoryMenu = document.getElementById('inventory-menu');
     if (inventoryMenu) {
@@ -297,18 +318,20 @@ function showClassSelection() {
     if (qolMenu) {
         if (gameState.qolMenuUnlocked) {
             qolMenu.style.display = 'block';
-            createQoLMenu(); 
+            createQoLMenu(); // Ensure the menu content is created
         } else {
             qolMenu.style.display = 'none';
         }
     }
     
+    // Hide only player stats
     const playerStats = document.getElementById('player-stats');
     if (playerStats) playerStats.style.display = 'none';
     
     const stageInfo = document.getElementById('stage-info');
     if (stageInfo) stageInfo.style.display = 'none';
     
+    // Ensure ability button is hidden
     const abilityButton = document.getElementById('ability-button');
     if (abilityButton) abilityButton.style.display = 'none';
 	
@@ -317,6 +340,7 @@ function showClassSelection() {
         existingAscendButton.remove();
     }
 
+    // Add Ascend button
     const ascendButton = document.createElement('button');
     ascendButton.innerHTML = 'Ascend';
     ascendButton.id = 'ascend-button';
@@ -376,8 +400,8 @@ function showClassSelection() {
     if (!document.getElementById('achievements-button')) {
         createAchievementsButton();
     }
-    createAchievementsMenu(); 
-    checkAchievements(); 
+    createAchievementsMenu(); // Refresh the achievements menu
+    checkAchievements(); // Check for any newly unlocked achievements
 }
 
 function updateClassButtonStates() {
@@ -409,12 +433,14 @@ function startGame(playerClass) {
     document.getElementById('souls-menu').style.display = 'none';
     document.getElementById('qol-menu').style.display = 'none';
     document.getElementById('inventory-menu').style.display = 'none';
-
+    
+    // Show player stats
     const playerStats = document.getElementById('player-stats');
     if (playerStats) playerStats.style.display = 'block';
     
     document.getElementById('ability-button').style.display = 'block';
     
+    // Clear existing enemies
     if (typeof enemies !== 'undefined') {
         enemies.forEach(enemy => {
             if (enemy.element) {
@@ -433,34 +459,39 @@ function startGame(playerClass) {
     createGameArea();
     startWave();
 
+    // Update lastTimestamp before starting the game loop
     lastTimestamp = performance.now();
     requestAnimationFrame(gameLoop);
 }
 
 function createGameArea() {
     const gameArea = document.getElementById('game-area');
-    gameArea.innerHTML = '';
-    gameArea.style.display = 'block';
+    gameArea.innerHTML = ''; // Clear any existing content
+    gameArea.style.display = 'block'; // Ensure game area is visible
     
+    // Create stage info element
     const stageInfoElement = document.createElement('div');
     stageInfoElement.id = 'stage-info';
-    stageInfoElement.style.display = 'block';
+    stageInfoElement.style.display = 'block'; // Ensure stage info is visible
     gameArea.appendChild(stageInfoElement);
 	
+    // Re-add the ability button
     const abilityButton = document.createElement('button');
     abilityButton.id = 'ability-button';
     abilityButton.style.display = 'block';
     abilityButton.textContent = 'Use Ability';
     gameArea.appendChild(abilityButton);
 
+    // Add event listener to the ability button
     abilityButton.addEventListener('click', () => {
         if (player && player.weapon) {
             player.weapon.useAbility();
         }
     });
 
-    createPlayerElement();
+    createPlayerElement(); // This will add the player to the game area
 }
+
 
 function startWave() {
     cancelAnimationFrame(animationFrameId);
@@ -469,12 +500,17 @@ function startWave() {
 }
 
 function gameLoop(timestamp) {
-    if (!gameState.gameRunning || gameState.isPaused) return;
+    if (!gameState.gameRunning || gameState.isPaused) {
+        // If we're paused, don't process game logic but still request next frame
+        if (gameState.gameRunning && gameState.isPaused) {
+            requestAnimationFrame(gameLoop);
+        }
+        return;
+    }
 
-    const deltaTime = (timestamp - lastTimestamp) / 1000; 
+    const deltaTime = (timestamp - lastTimestamp) / 1000; // Convert to seconds
     lastTimestamp = timestamp;
-	updateEnemies(deltaTime);
-
+    
     updateEnemies(deltaTime);
     updatePlayer();
     updateWeapon();
@@ -502,11 +538,13 @@ function gameLoop(timestamp) {
     }
 }
 
-
+//For Debug temp only
 function skipWave() {
+    // Clear existing enemies
     enemies.forEach(enemy => enemy.element.remove());
     enemies = [];
 
+    // Increment wave
     gameState.currentWave++;
     if (gameState.currentWave > 20) {
         gameState.currentStage++;
@@ -514,10 +552,12 @@ function skipWave() {
         checkClassUnlock();
     }
 
+    // Start the new wave
     startWave();
     updateUI();
 }
 
+// Modify the checkClassUnlock function
 function checkClassUnlock() {
     if (gameState.currentStage === 3 && !gameState.unlockedClasses.includes('Sorceress')) {
         gameState.unlockedClasses.push('Sorceress');
@@ -535,28 +575,35 @@ function gameOver() {
     gameState.currentWave = 1;
     gameState.currentStage = 1;
     
+    // Hide the ability button
     const abilityButton = document.getElementById('ability-button');
     if (abilityButton) abilityButton.style.display = 'none';
-
+    
+    // Save the current souls count to gameState
     if (player) {
         gameState.souls += player.currentRunSouls;
         player.currentRunSouls = 0;
     }
     
+    // Clear existing enemies
     enemies.forEach(enemy => {
         if (enemy.element) enemy.element.remove();
     });
     enemies = [];
-
+    
+    // Hide player element
     const playerElement = document.getElementById('player');
     if (playerElement) playerElement.style.display = 'none';
-
+    
+    // Hide player stats
     const playerStats = document.getElementById('player-stats');
     if (playerStats) playerStats.style.display = 'none';
-
+    
+    // Hide stage info
     const stageInfo = document.getElementById('stage-info');
     if (stageInfo) stageInfo.style.display = 'none';
    
+    // Always show inventory menu, regardless of QoL menu status
     const inventoryMenu = document.getElementById('inventory-menu');
     if (inventoryMenu) {
         inventoryMenu.style.display = 'block';
@@ -568,6 +615,7 @@ function gameOver() {
     updateSoulsUI();
 }
 
+// Helper functions
 function allEnemiesDefeated() {
     return enemies.length === 0;
 }

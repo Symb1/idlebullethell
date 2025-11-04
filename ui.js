@@ -1,4 +1,5 @@
 function initializeUI() {
+    // Create stage info element
     const gameArea = document.getElementById('game-area');
     let stageInfoElement = document.getElementById('stage-info');
     if (!stageInfoElement) {
@@ -21,10 +22,12 @@ function initializeUI() {
 	createAchievementsMenu();
 	createAchievementsButton();
 
+    // Add event listener for debug skip wave button
     document.getElementById('debug-skip-wave').addEventListener('click', skipWave);
 }
 
 function updateUI() {
+    // Ensure stage info is updated even if player or weapon is not initialized
     const stageInfoElement = document.getElementById('stage-info');
     if (stageInfoElement) {
         stageInfoElement.textContent = `Stage ${gameState.currentStage} / Wave ${gameState.currentWave} / Enemies: ${enemies.length}`;
@@ -45,16 +48,19 @@ function updatePlayerStats() {
             rangeText += ` / Splash ${player.weapon.splashRange}`;
         }
         
+        // Calculate total cooldown reduction
         const totalCDReduction = player.totalCooldownReduction;
         const cdReductionText = totalCDReduction >= 0.75 
             ? '75% CAP' 
             : `${(totalCDReduction * 100).toFixed(1)}%`;
 
+        // Cap crit chance at 100%
         const cappedCritChance = Math.min(player.critChance, 1);
         const critChanceText = cappedCritChance >= 1 
             ? '100% CAP' 
             : `${(cappedCritChance * 100).toFixed(1)}%`;
         
+        // Calculate total boss damage bonus
         const amuletBonus = gameState.amuletEquipped ? player.bossDamageBonus * Math.max(1, gameState.ascensionLevel + 1) : 0;
         const cardBonus = player.additionalBossDamage || 0;
         const bossDamageUpgrade = soulsUpgrades.find(u => u.name === 'Boss Damage+');
@@ -77,6 +83,7 @@ function updatePlayerStats() {
             <div><span class="stat-name">Crit Damage:</span> <span class="stat-value">${(player.critDamage * 100 - 100).toFixed(1)}%</span></div>
         `;
 
+        // Only add boss damage stat if amulet is equipped
         if (gameState.amuletEquipped) {
             statsHTML += `<div><span class="stat-name">Boss Damage:</span> <span class="stat-value">+${(totalBonus * 100).toFixed(1)}%</span></div>`;
         }
@@ -202,8 +209,9 @@ function updateSoulsUI() {
         <div id="souls-upgrades-container">`;
 
     soulsUpgrades.forEach(upgrade => {
+        // Check if the upgrade should be visible
         if (upgrade.isVisible && !upgrade.isVisible(gameState)) {
-            return; 
+            return; // Skip this upgrade if it's not visible
         }
 
         let upgradeName, currentValue, increaseText;
@@ -438,7 +446,7 @@ function createWeaponEvolutionChoices() {
         choicesContainer.id = 'weapon-evolution-choices';
         qolMenu.appendChild(choicesContainer);
     }
-    choicesContainer.innerHTML = ''; 
+    choicesContainer.innerHTML = ''; // Clear existing choices
     const classes = ['Acolyte', 'Sorceress', 'Divine Knight'];
 
     classes.forEach(className => {
@@ -493,6 +501,7 @@ function createClassUpgradeChoices() {
 }
 
 function getClassUpgradeOptions(className) {
+    // Return the class upgrades for the given class
     return classUpgrades[className] || [];
 }
 
@@ -519,7 +528,7 @@ function createPriorityList() {
         autoCardPriority.appendChild(priorityList);
     }
 
-    priorityList.innerHTML = '';
+    priorityList.innerHTML = ''; // Clear existing list items
 
     const defaultPriority = ['Damage Increase', 'Attack Speed', 'Health', 'Regeneration', 'Cooldown Reduction', 'Critical Damage Increase', 'Critical Strike Chance'];
     const upgrades = gameState.upgradePriority || defaultPriority;
@@ -598,7 +607,7 @@ function updateInventoryUI() {
     if (gameState.amuletEquipped) {
         amuletSlot.innerHTML = '<img src="img/neck.png" alt="Amulet" class="amulet-icon">';
         amuletName.textContent = 'Magic Amulet';
-        amuletName.style.color = '#00bfff'; 
+        amuletName.style.color = '#00bfff'; // Blue color
     
         const ascensionMultiplier = Math.max(1, gameState.ascensionLevel + 1);
         
@@ -610,7 +619,7 @@ function updateInventoryUI() {
         let sorceressDamage = sorceress.amuletDamage;
         let divineKnightDamage = divineKnight.amuletDamage;
 
-     
+        // Apply achievement bonuses
         if (gameState.unlockedAchievements['Sorceress Master']) {
             acolyteDamage += achievements['Sorceress Master'].amuletDamageIncrease;
         }
@@ -683,6 +692,7 @@ const achievements = {
     }
 };
 
+// Add this function to create the achievements menu
 function createAchievementsMenu() {
     const achievementsList = document.getElementById('achievements-list');
     achievementsList.innerHTML = '';
@@ -695,12 +705,14 @@ function createAchievementsMenu() {
         achievementsList.appendChild(achievementElement);
     }
 
+    // Add event listener for the close button
     const closeButton = document.querySelector('#achievements-menu .close-btn');
     closeButton.addEventListener('click', () => {
         document.getElementById('achievements-menu').style.display = 'none';
     });
 }
 
+// Add this function to check and unlock achievements
 function checkAchievements() {
     for (const [key, value] of Object.entries(achievements)) {
         if (!gameState.unlockedAchievements[key] && value.condition()) {
@@ -712,16 +724,18 @@ function checkAchievements() {
     }
 }
 
+// Add this function to unlock an achievement
 function unlockAchievement(achievementKey) {
     if (!gameState.unlockedAchievements[achievementKey]) {
         gameState.unlockedAchievements[achievementKey] = true;
         saveGameState();
         showAchievementPopup(achievementKey);
-        createAchievementsMenu();
+        createAchievementsMenu(); // Refresh the achievements menu
 		updateInventoryUI();
     }
 }
 
+// Add this function to show the achievement popup
 function showAchievementPopup(achievementKey) {
     const popup = document.createElement('div');
     popup.className = 'achievement-popup';
@@ -736,7 +750,7 @@ function showAchievementPopup(achievementKey) {
 function createAchievementsButton() {
     const existingButton = document.getElementById('achievements-button');
     if (existingButton) {
-        return;
+        return; // Button already exists, no need to create it again
     }
 
     const achievementsButton = document.createElement('button');

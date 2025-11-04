@@ -8,7 +8,7 @@ class Acolyte extends Player {
         this.critDamage += 1.2;
 		this.amuletDamage = 4;
 		this.bossDamageBonus = 0.1;
-		this.image = 'acol.png';
+		this.image = 'acoatt.png';
     }
 
     getInitialHP() {
@@ -63,9 +63,11 @@ class DivineKnight extends Player {
             aura.style.width = `${size}px`;
             aura.style.height = `${size}px`;
             
+            // Get the game area's position
             const gameArea = document.getElementById('game-area');
             const gameAreaRect = gameArea.getBoundingClientRect();
-
+            
+            // Calculate the aura's position relative to the game area
             const left = gameAreaRect.left + this.position.x - size/2;
             const top = gameAreaRect.top + this.position.y - size/2;
             
@@ -75,6 +77,6 @@ class DivineKnight extends Player {
     }
 
     getInitialHP() {
-        return super.getInitialHP() + 5;
+        return super.getInitialHP() + 5; // Divine Knight's initial HP
     }
 }

@@ -26,7 +26,8 @@ class Player {
         this.totalCooldownReduction = 0;
         this.updateCooldownReduction();
 		this.amuletDamage = 0;
-		this.bossDamageBonus = 0;	
+		this.bossDamageBonus = 0;
+		this.facingLeft = false;
     }
 
     gainExp(amount) {
@@ -65,7 +66,7 @@ getAmuletDamageBonus() {
         const multiplier = Math.max(1, gameState.ascensionLevel + 1);
         let amuletDamage = this.amuletDamage;
         
-       
+        // Apply achievement bonuses
         if (this instanceof DivineKnight && gameState.unlockedAchievements['Acolyte Master']) {
             amuletDamage += achievements['Acolyte Master'].amuletDamageIncrease;
         }
@@ -84,21 +85,21 @@ getAmuletDamageBonus() {
 
     getBossDamageBonus() {
     if (!gameState.amuletEquipped) {
-        return 0; 
+        return 0; // Return 0 if amulet is not equipped
     }
 
-    
+    // Amulet bonus (affected by ascension)
     const ascensionMultiplier = Math.max(1, gameState.ascensionLevel + 1);
     const amuletBonus = this.bossDamageBonus * ascensionMultiplier;
 
-   
+    // Card upgrades (only applied when amulet is equipped)
     const cardUpgradeBonus = this.additionalBossDamage || 0;
 
-   
+    // Soul upgrades (always applied, but only visible with amulet)
     const bossDamageUpgrade = soulsUpgrades.find(u => u.name === 'Boss Damage+');
     const soulUpgradeBonus = (gameState.bossDamageUpgrades || 0) * bossDamageUpgrade.valuePerUpgrade;
 
-    
+    // Total boss damage bonus
     const totalBonus = amuletBonus + cardUpgradeBonus + soulUpgradeBonus;
 
     return totalBonus;
@@ -133,18 +134,20 @@ getAmuletDamageBonus() {
     }
 
     heal(amount) {
+        const oldHp = this.hp;
         this.hp = Math.min(this.hp + amount, this.maxHp);
     }
 
-    updateHp(deltaTime) {
-        this.heal(this.hpRegen * deltaTime / 1000);
-    }
+        updateHp(deltaTime) {
+    const healAmount = this.hpRegen * deltaTime;
+    this.heal(healAmount);
+}
 
     levelUp() {
         this.level++;
         this.exp -= this.expToNextLevel;
 
-        
+        // Calculate the new experience required for the next level
         if (this.level < 10) {
             this.expToNextLevel *= 1.35;
         }
@@ -197,12 +200,13 @@ function initializePlayer(playerClass) {
     player.souls = gameState.souls || 0;
     player.gainSouls(0);
 
-    
+    // Apply soul upgrades
     player.maxHp = player.getInitialHP();
     player.hpRegen = (gameState.regenUpgrades || 0) * soulsUpgrades.find(u => u.name === 'Regen+').valuePerUpgrade;
+	 console.log('Initial hpRegen:', player.hpRegen);
     player.attacksPerSecond += (gameState.attackSpeedUpgrades || 0) * soulsUpgrades.find(u => u.name === 'Attack Speed+').valuePerUpgrade;
     
-    
+    // Apply crit damage upgrades on top of class-specific values
     player.critDamage += (gameState.critDamageUpgrades || 0) * soulsUpgrades.find(u => u.name === 'Critical Damage+').valuePerUpgrade;
     
     if (!(player instanceof DivineKnight)) {
@@ -225,34 +229,60 @@ function createPlayerElement() {
     playerElement.style.top = `${player.position.y}px`;
     playerElement.style.backgroundImage = `url('img/${player.image}')`;
     playerElement.style.backgroundSize = 'cover';
+    
+    // Add class-specific identifier
+    const className = player.class.toLowerCase().replace(/\s+/g, '-');
+    playerElement.classList.add(className);
+    
     gameArea.appendChild(playerElement);
 }
 
 function updatePlayer() {
     if (!player || !player.position) return;
 
-   
+    // Check for collisions with enemies
     enemies.forEach(enemy => {
         if (!enemy || !enemy.position) return;
 
         const distance = calculateDistance(player.position, enemy.position);
-        if (distance < 30 + enemy.radius) { 
+        if (distance < 30 + enemy.radius) {
             if (enemy instanceof Boss) {
                 if (!enemy.lastDamageTime || Date.now() - enemy.lastDamageTime >= 2000) {
                     player.takeDamage(5);
                     enemy.lastDamageTime = Date.now();
+                    
+                    // Trigger attack animation for Boss
+                    enemy.element.classList.add('attacking');
+                    setTimeout(() => {
+                        enemy.element.classList.remove('attacking');
+                    }, 800);
                 }
             }
-			else if (enemy instanceof EliteEnemy) {
+            else if (enemy instanceof EliteEnemy) {
                 if (!enemy.lastDamageTime || Date.now() - enemy.lastDamageTime >= 4000) {
                     player.takeDamage(3);
                     enemy.lastDamageTime = Date.now();
+                    
+                    // Trigger attack animation for Elite
+                    enemy.element.classList.add('attacking');
+                    setTimeout(() => {
+                        enemy.element.classList.remove('attacking');
+                    }, 1000);
                 }
             }
-			else {
+            else {
+                // Regular enemy attack
                 if (!enemy.lastDamageTime || Date.now() - enemy.lastDamageTime >= 2000) {
                     player.takeDamage(1);
                     enemy.lastDamageTime = Date.now();
+                    
+                    // Trigger attack animation for regular enemies
+                    if (enemy.constructor.name === 'Enemy') {
+                        enemy.element.classList.add('attacking');
+                        setTimeout(() => {
+                            enemy.element.classList.remove('attacking');
+                        }, 500);
+                    }
                 }
             }
         }
@@ -261,14 +291,21 @@ function updatePlayer() {
     if (gameState.currentStage > gameState.highestStageReached) {
         gameState.highestStageReached = gameState.currentStage;
         saveGameState();
-        checkAchievements(); 
+        checkAchievements();
     }
 
-    
+    // Update player position on screen
     const playerElement = document.getElementById('player');
     if (playerElement) {
         playerElement.style.left = `${player.position.x}px`;
         playerElement.style.top = `${player.position.y}px`;
+        
+        // Update player facing direction based on sprite flip
+        if (player.facingLeft) {
+            playerElement.classList.add('facing-left');
+        } else {
+            playerElement.classList.remove('facing-left');
+        }
     }
 
     if (player.weapon) {
@@ -277,8 +314,9 @@ function updatePlayer() {
         }
     }
 
+    // Update Holy Shield aura if the player is a Divine Knight
     if (player instanceof DivineKnight) {
-        player.showAura(); 
+        player.showAura();
         player.updateAuraVisual();
     }
 }

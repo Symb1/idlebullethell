@@ -26,8 +26,7 @@ function initializeWeapon(playerClass, weaponName = null) {
             } else {
                 player.weapon = new BasicShield();
             }
-            break;
-    }
+    }     
 	player.weapon.updateDamage();
 }
 
@@ -42,16 +41,76 @@ class Weapon {
         this.lastAbilityUseTime = 0;
         this.globalRange = globalRange;
         this.chainRange = chainRange;
-        this.updateDamage();
+        this.updateDamage(); // Call this to apply amulet bonus immediately
     }
 
     attack() {
-        const now = Date.now();
-        if (now - this.lastAttackTime >= 1000 / player.attacksPerSecond) {
-            this.performAttack();
-            this.lastAttackTime = now;
+    const now = Date.now();
+    if (now - this.lastAttackTime >= 1000 / player.attacksPerSecond) {
+        this.performAttack();
+        this.lastAttackTime = now;
+    }
+   }
+
+triggerPlayerAttackAnimation() {
+    const playerElement = document.getElementById('player');
+    if (!playerElement) return;
+    
+    // Only apply attack animation for Acolyte class
+    if (player.class !== 'Acolyte') {
+        return;
+    }
+    
+    // Find the nearest ALIVE enemy and update facing direction FIRST
+    const nearestEnemy = enemies
+        .filter(enemy => !enemy.isDying) // <-- Filter out dying enemies
+        .reduce((nearest, enemy) => {
+            const distance = calculateDistance(player.position, enemy.position);
+            if (!nearest || distance < calculateDistance(player.position, nearest.position)) {
+                return enemy;
+            }
+            return nearest;
+        }, null);
+    
+    // Update facing direction based on nearest enemy
+    if (nearestEnemy) {
+        const shouldFaceLeft = nearestEnemy.position.x < player.position.x;
+        player.facingLeft = shouldFaceLeft;
+        if (shouldFaceLeft) {
+            playerElement.classList.add('facing-left');
+        } else {
+            playerElement.classList.remove('facing-left');
         }
     }
+    
+    // Calculate animation duration based on attack speed
+    const animationDuration = (1000 / player.attacksPerSecond);
+    
+    // Clear any existing timeout
+    if (this.attackAnimationTimeout) {
+        clearTimeout(this.attackAnimationTimeout);
+    }
+    
+    // Remove attacking class first
+    playerElement.classList.remove('attacking');
+    playerElement.style.animation = '';
+    
+    // Force reflow
+    void playerElement.offsetWidth;
+    
+    // Add attacking class
+    playerElement.classList.add('attacking');
+    
+    // Set animation
+    playerElement.style.animation = `playerAttack ${animationDuration}ms steps(47) forwards`;
+    
+    // Store timeout reference
+    this.attackAnimationTimeout = setTimeout(() => {
+        playerElement.classList.remove('attacking');
+        playerElement.style.animation = '';
+        this.attackAnimationTimeout = null;
+    }, animationDuration);
+}
 
     calculateDamage() {
     const isCritical = Math.random() < player.critChance;
@@ -65,7 +124,7 @@ class Weapon {
     }
 	
     performAttack() {
-        
+        // To be implemented by subclasses
     }
 
     useAbility() {
@@ -113,7 +172,7 @@ class Weapon {
     }
 
     performAbility() {
-        
+        // To be implemented by subclasses
     }
 }
 
@@ -123,12 +182,13 @@ class BasicStaff extends Weapon {
     }
 
     performAttack() {
-        const target = this.findNearestEnemy();
-        if (target) {
-            const { damage, isCritical } = this.calculateDamage();
-            target.takeDamage(damage, isCritical);
-        }
+    const target = this.findNearestEnemy();
+    if (target) {
+        const { damage, isCritical } = this.calculateDamage();
+        target.takeDamage(damage, isCritical);
+        this.triggerPlayerAttackAnimation(); // Remove target parameter
     }
+  }
 
     performAbility() {
         const target = this.findPriorityTarget();
@@ -139,15 +199,15 @@ class BasicStaff extends Weapon {
     }
 
     findPriorityTarget() {
-  
+    // First, look for bosses
     const bossTarget = enemies.find(enemy => enemy instanceof Boss);
     if (bossTarget) return bossTarget;
 
-   
+    // If no bosses, look for elite enemies
     const eliteTarget = enemies.find(enemy => enemy instanceof EliteEnemy);
     if (eliteTarget) return eliteTarget;
 
-   
+    // If no bosses or elite enemies, find the nearest regular enemy
     return this.findNearestEnemy();
     }
 
@@ -179,7 +239,7 @@ class BasicWand extends Weapon {
         const critDamage = this.damage * player.critDamage;
         
         enemies.forEach(enemy => {
-            enemy.takeDamage(critDamage, true); 
+            enemy.takeDamage(critDamage, true); // Always crit
         });
 
         console.log(`Storm Wand ability used: ${critDamage.toFixed(2)} damage to all enemies`);
@@ -341,7 +401,7 @@ function autoSelectWeaponEvolution(weaponOptions) {
     if (autoChoice) {
         return weaponOptions.find(weapon => weapon.name === autoChoice) || weaponOptions[0];
     }
-    return weaponOptions[0];
+    return weaponOptions[0]; // Default to first option if no auto-choice is set
 }
 
 function hideWeaponEvolutionScreen() {
@@ -444,7 +504,7 @@ class EarthStaff extends BasicStaff {
     const target = this.findPriorityTarget();
     if (target) {
         const criticalDamage = this.damage * player.critDamage * 1.5;
-        target.takeDamage(criticalDamage, true); 
+        target.takeDamage(criticalDamage, true); // Always crit
     }
 }
 }
@@ -518,12 +578,12 @@ class SparkWand extends BasicWand {
 
     stunEnemy(enemy) {
         const originalSpeed = enemy.speed;
-        enemy.speed = 0; 
-        enemy.element.classList.add('stunned'); 
+        enemy.speed = 0; // Reduce speed to 0 (100% slow)
+        enemy.element.classList.add('stunned'); // Add a visual indicator
 
         setTimeout(() => {
-            enemy.speed = originalSpeed; 
-            enemy.element.classList.remove('stunned'); 
+            enemy.speed = originalSpeed; // Restore original speed after 2 seconds
+            enemy.element.classList.remove('stunned'); // Remove visual indicator
         }, 2000);
     }
 }
@@ -568,7 +628,7 @@ class SmiteShield extends BasicShield {
             if (this.isInRange(enemy)) {
                 const { damage, isCritical } = this.calculateDamage();
                 enemy.takeDamage(damage, isCritical);
-                enemy.applySpeedEffect(0.75, 1000); 
+                enemy.applySpeedEffect(0.75, 1000); // 25% slow for 1 second
             }
         });
     }
@@ -579,7 +639,7 @@ class SmiteShield extends BasicShield {
         player.updateAuraVisual();
         enemies.forEach(enemy => {
             if (this.isInRange(enemy)) {
-                enemy.applySpeedEffect(0.2, 5000); 
+                enemy.applySpeedEffect(0.2, 5000); // 80% slow for 1 second
             }
         });
         setTimeout(() => {

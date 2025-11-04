@@ -41,21 +41,71 @@ body {
 
 .enemy {
     position: absolute;
-    width: 20px;
-    height: 20px;
-    background-color: red;
-    border-radius: 50%;
+    width: 70px; /* Frame width */
+    height: 60px; /* Frame height */
+    border-radius: 10%;
     display: flex;
+	scale: 92%;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.2s;
+    background-image: url('img/skelewalk.png');
+    background-size: 960px 60px; /* Set the background size to match the sprite sheet dimensions */
+    animation: enemyWalk 1s steps(10) infinite;
 }
 
-.enemy.hit,
-.enemy.boss.hit {
-    background-color: yellow;
+.enemy.attacking {
+    background-image: url('img/skeleatt.png');
+    background-size: 960px 64px;
+    animation: enemyAttack 0.5s steps(10) forwards;
 }
+
+@keyframes enemyAttack {
+    0% { background-position: 0 0; }
+    100% { background-position: -960px 0; }
+}
+
+.enemy.facing-left {
+    transform: scaleX(-1);
+}
+
+.enemy.facing-left .enemy-hp,
+.enemy.facing-left .damage-indicator {
+    transform: scaleX(-1);
+}
+
+
+@keyframes enemyWalk {
+    0% { background-position: 0 0; }
+    100% { background-position: -960px 0; } /* Move the background 960px to the left to display all frames */
+}
+
+
+.enemy.hit {
+    background-image: url('img/skelehit.png');
+    background-size: 480px 64px;
+    background-repeat: no-repeat;
+    animation: enemyHit 0.5s steps(5) forwards;
+    width: 70px;
+    height: 60px;
+}
+
+@keyframes enemyHit {
+    0% { background-position: 0 0; }
+    100% { background-position: -480px 0; }
+}
+
+.enemy.dying {
+    background-image: url('img/skeledeath.png');
+    background-size: 1248px 64px;
+    animation: enemyDeath 1s steps(13) forwards;
+}
+
+@keyframes enemyDeath {
+    0% { background-position: 0 0; }
+    100% { background-position: -1248px 0; }
+}
+
 
 .enemy-hp {
     position: absolute;
@@ -70,15 +120,56 @@ body {
     position: absolute;
     font-weight: bold;
     opacity: 0;
-    transition: opacity 0.5s, transform 0.5s;
+    transition: opacity 0.5s, top 0.5s;
     pointer-events: none;
     text-shadow: 1px 1px 2px black;
 }
 
-.elite {
-    background-color: purple;
-    width: 35px;
-    height: 35px;
+.enemy.elite {
+    width: 96px;
+    height: 64px;
+	scale: 120%;
+    background-image: url('img/elitewalk.png');
+    background-size: 960px 64px;
+    animation: eliteWalk 1s steps(10) infinite;
+}
+
+@keyframes eliteWalk {
+    0% { background-position: 0 0; }
+    100% { background-position: -960px 0; }
+}
+
+.enemy.elite.attacking {
+    background-image: url('img/eliteatt.png');
+    background-size: 960px 64px;
+    animation: eliteAttack 1s steps(10) forwards;
+}
+
+@keyframes eliteAttack {
+    0% { background-position: 0 0; }
+    100% { background-position: -960px 0; }
+}
+
+.enemy.elite.hit {
+    background-image: url('img/elitehit.png');
+    background-size: 480px 64px;
+    animation: eliteHit 0.5s steps(5) forwards;
+}
+
+@keyframes eliteHit {
+    0% { background-position: 0 0; }
+    100% { background-position: -480px 0; }
+}
+
+.enemy.elite.dying {
+    background-image: url('img/elitedeath.png');
+    background-size: 1248px 64px;
+    animation: eliteDeath 1.3s steps(13) forwards;
+}
+
+@keyframes eliteDeath {
+    0% { background-position: 0 0; }
+    100% { background-position: -1248px 0; }
 }
 
 .hp-text {
@@ -89,14 +180,73 @@ body {
 }
 
 .enemy.boss {
-    width: 60px;
-    height: 60px;
-    background-color: #301934;
+    width: 81px;
+    height: 71px;
+    background-image: url('img/bosswalk.png');
+    background-size: 324px 71px;
+    animation: bossWalk 0.8s steps(4) infinite;
+}
+
+.enemy.boss {
+    transform: scaleX(-1);
+}
+
+.enemy.boss.facing-left {
+    transform: scaleX(1);
+}
+
+.enemy.boss.facing-left .enemy-hp,
+.enemy.boss.facing-left .damage-indicator {
+    transform: scaleX(1);
+}
+
+/* When boss is NOT facing left (default state), flip the text back */
+.enemy.boss .enemy-hp,
+.enemy.boss .damage-indicator {
+    transform: scaleX(-1);
+}
+
+@keyframes bossWalk {
+    0% { background-position: 0 0; }
+    100% { background-position: -324px 0; }
+}
+
+.enemy.boss.attacking {
+    background-image: url('img/bossatt.png');
+    background-size: 648px 71px;
+    animation: bossAttack 0.8s steps(8) forwards;
+}
+
+@keyframes bossAttack {
+    0% { background-position: 0 0; }
+    100% { background-position: -648px 0; }
+}
+
+.enemy.boss.hit {
+    background-image: url('img/bosshit.png');
+    background-size: 324px 71px;
+    animation: bossHit 0.4s steps(4) forwards;
+}
+
+@keyframes bossHit {
+    0% { background-position: 0 0; }
+    100% { background-position: -324px 0; }
+}
+
+.enemy.boss.dying {
+    background-image: url('img/bossdeath.png');
+    background-size: 567px 71px;
+    animation: bossDeath 0.6s steps(7) forwards;
+}
+
+@keyframes bossDeath {
+    0% { background-position: 0 0; }
+    100% { background-position: -567px 0; }
 }
 
 #player {
     position: absolute;
-    width: 34px;
+    width: 36px;
     height: 42px;
     background-color: transparent;
     left: 50%;
@@ -104,12 +254,37 @@ body {
     transform: translate(-50%, -50%);
     background-repeat: no-repeat;
     background-position: center;
-    transition: all 0.6s ease;
+    background-size: cover;
+}
+
+.class-option[data-class="Acolyte"] img {
+    transform: scale(2.7); /* or whatever looks right */
+}
+
+
+#player.acolyte.attacking {
+    width: 128px;
+    height: 128px;
+    background-image: url('img/acoatt.png');
+    background-size: 6016px 128px;
+    transform: translate(-50%, -50%); /* Keep centering */
+}
+
+@keyframes playerAttack {
+    0% { background-position: 0 0; }
+    100% { background-position: -6016px 0; }
 }
 
 #player.weakened {
-    width: 17px;
-    height: 21px;
+    scale: 65%;
+}
+
+#player.facing-left {
+    transform: translate(-50%, -50%) scaleX(-1);
+}
+
+#player.acolyte.attacking.facing-left {
+    transform: translate(-50%, -50%) scaleX(-1); /* Add centering back! */
 }
 
 #debug-skip-wave {

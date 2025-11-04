@@ -2,12 +2,13 @@ let enemies = [];
 
 class Enemy {
     constructor() {
-        this.baseSpeed = 14;
+        this.baseSpeed = 35;
         this.radius = 10;
         this.speedEffects = [];
         this.resetEnemy();
         this.damageIndicators = [];
         this.isDying = false;
+		this.isPlayingHitAnimation = false;
     }
 
     resetEnemy() {
@@ -22,6 +23,7 @@ class Enemy {
         this.hpElement = this.createHpElement();
         this.damageIndicator = this.createDamageIndicator();
         this.isDying = false;
+		this.isPlayingHitAnimation = false;
     }
 
     getInitialHP() {
@@ -38,15 +40,28 @@ class Enemy {
         return { x, y };
     }
 
-    createEnemyElement() {
-        const gameArea = document.getElementById('game-area');
-        const enemyElement = document.createElement('div');
-        enemyElement.className = 'enemy';
-        enemyElement.style.left = `${this.position.x}px`;
-        enemyElement.style.top = `${this.position.y}px`;
-        gameArea.appendChild(enemyElement);
-        return enemyElement;
+
+
+
+  createEnemyElement() {
+    const gameArea = document.getElementById('game-area');
+    const enemyElement = document.createElement('div');
+    
+    // All enemy types now use sprite animation
+    enemyElement.className = 'enemy sprite';
+    
+    if (this instanceof EliteEnemy) {
+        enemyElement.classList.add('elite');
     }
+    if (this instanceof Boss) {
+        enemyElement.classList.add('boss');
+    }
+    
+    enemyElement.style.left = `${this.position.x}px`;
+    enemyElement.style.top = `${this.position.y}px`;
+    gameArea.appendChild(enemyElement);
+    return enemyElement;
+   }
     
     createHpElement() {
         const hpElement = document.createElement('div');
@@ -92,9 +107,17 @@ class Enemy {
     let distance = Math.sqrt(dx * dx + dy * dy);
     
     if (distance > 0) {
+        // Flip sprite based on movement direction
+        if (dx < 0) {
+            this.element.classList.add('facing-left');
+        } else {
+            this.element.classList.remove('facing-left');
+        }
+        
         let vx = (dx / distance) * currentSpeed * deltaTime;
         let vy = (dy / distance) * currentSpeed * deltaTime;
         
+        // Check for collisions with other enemies
         enemies.forEach(otherEnemy => {
             if (otherEnemy !== this) {
                 const sepX = this.position.x - otherEnemy.position.x;
@@ -111,93 +134,110 @@ class Enemy {
                     otherEnemy.position.x -= pushX;
                     otherEnemy.position.y -= pushY;
                     
+                    // Adjust velocity to move around other enemies
                     vx += pushX * 0.1;
                     vy += pushY * 0.1;
                 }
             }
         });
         
+        // Apply the adjusted velocity
         this.position.x += vx;
         this.position.y += vy;
         
+        // Keep enemies within the game area
         this.position.x = Math.max(0, Math.min(this.position.x, 800 - this.radius * 2));
         this.position.y = Math.max(0, Math.min(this.position.y, 600 - this.radius * 2));
         
         this.element.style.left = `${this.position.x}px`;
         this.element.style.top = `${this.position.y}px`;
         this.updateHpText();
-       }
     }
+}
 
     takeDamage(amount, isCritical = false) {
-        const actualDamage = Math.max(0, amount);
-        this.hp = Math.max(0, this.hp - actualDamage);
-        console.log(`Enemy took ${actualDamage.toFixed(2)} damage. HP remaining: ${this.hp.toFixed(2)}`);
-        
-        this.updateHpText();
-        this.showDamageIndicator(actualDamage, isCritical);
+    const actualDamage = Math.max(0, amount);
+    this.hp = Math.max(0, this.hp - actualDamage);
+    console.log(`Enemy took ${actualDamage.toFixed(2)} damage. HP remaining: ${this.hp.toFixed(2)}`);
+    
+    this.updateHpText();
+    this.showDamageIndicator(actualDamage, isCritical);
+    
+    // Only play hit animation if not already playing
+    if (!this.element.classList.contains('hit') && !this.isPlayingHitAnimation) {
+        this.isPlayingHitAnimation = true;
         this.element.classList.add('hit');
-        setTimeout(() => this.element.classList.remove('hit'), 100);
         
-        if (this.hp <= 0 && !this.isDying) {
-            this.die();
-        }
+        setTimeout(() => {
+            this.element.classList.remove('hit');
+            this.isPlayingHitAnimation = false;
+        }, 500); // Match the animation duration
     }
-
-    showDamageIndicator(amount, isCritical) {
-        const damageIndicator = document.createElement('div');
-        damageIndicator.className = 'damage-indicator';
-        damageIndicator.textContent = Math.round(amount);
-        
-        if (isCritical) {
-            damageIndicator.style.color = 'orange';
-            damageIndicator.style.fontSize = '25px';
-        } else {
-            damageIndicator.style.color = 'yellow';
-            damageIndicator.style.fontSize = '16px';
-        }
-        
-        const offset = this.damageIndicators.length * 20;
-        damageIndicator.style.top = `-${20 + offset}px`;
-        damageIndicator.style.right = `${offset}px`;
-        
-        this.element.appendChild(damageIndicator);
-        this.damageIndicators.push(damageIndicator);
-
-        setTimeout(() => {
-            damageIndicator.style.opacity = 1;
-            damageIndicator.style.transform = 'translateY(-20px)';
-        }, 0);
-
-        setTimeout(() => {
-            damageIndicator.style.opacity = 0;
-            damageIndicator.style.transform = 'translateY(-40px)';
-        }, 500);
-
-        setTimeout(() => {
-            this.element.removeChild(damageIndicator);
-            this.damageIndicators = this.damageIndicators.filter(di => di !== damageIndicator);
-        }, 1000);
+    
+    if (this.hp <= 0 && !this.isDying) {
+        this.die();
     }
+  }
+
+showDamageIndicator(amount, isCritical) {
+    const damageIndicator = document.createElement('div');
+    damageIndicator.className = 'damage-indicator';
+    damageIndicator.textContent = Math.round(amount);
+    
+    if (isCritical) {
+        damageIndicator.style.color = 'orange';
+        damageIndicator.style.fontSize = '25px';
+    } else {
+        damageIndicator.style.color = 'yellow';
+        damageIndicator.style.fontSize = '16px';
+    }
+    
+    const offset = this.damageIndicators.length * 20;
+    damageIndicator.style.top = `-${20 + offset}px`;
+    damageIndicator.style.right = `${offset}px`;
+    
+    this.element.appendChild(damageIndicator);
+    this.damageIndicators.push(damageIndicator);
+
+    // Use separate properties instead of transform
+    setTimeout(() => {
+        damageIndicator.style.opacity = 1;
+        damageIndicator.style.top = `-${40 + offset}px`;
+    }, 0);
+
+    setTimeout(() => {
+        damageIndicator.style.opacity = 0;
+        damageIndicator.style.top = `-${60 + offset}px`;
+    }, 500);
+
+    setTimeout(() => {
+        this.element.removeChild(damageIndicator);
+        this.damageIndicators = this.damageIndicators.filter(di => di !== damageIndicator);
+    }, 1000);
+}
 
     getExpMultiplier() {
         const multiplier = 1 + (gameState.currentStage - 1) * 0.5;
         return multiplier;
     }
 
-    die() {
-        if (this.isDying) return;
-        this.isDying = true;
-        const soulsGained = Math.floor(this.maxHp * 0.1);
-        player.gainSouls(soulsGained); 
-        const expMultiplier = this.getExpMultiplier();
-        const expGain = 10 * expMultiplier;
-        player.gainExp(expGain);  
-        setTimeout(() => {
-            this.element.remove();
-            enemies = enemies.filter(e => e !== this);
-        }, 200);
-    }
+ die() {
+    if (this.isDying) return;
+    this.isDying = true;
+    const soulsGained = Math.floor(this.maxHp * 0.1);
+    player.gainSouls(soulsGained); 
+    const expMultiplier = this.getExpMultiplier();
+    const expGain = 10 * expMultiplier;
+    player.gainExp(expGain);
+    
+    // Add death animation for all enemy types
+    this.element.classList.add('dying');
+    
+    setTimeout(() => {
+        this.element.remove();
+        enemies = enemies.filter(e => e !== this);
+    }, 1000);
+ }
 }
 
 class EliteEnemy extends Enemy {
@@ -313,31 +353,37 @@ class EliteEnemy extends Enemy {
     }
 
     die() {
-        if (this.isDying) return;
-        this.isDying = true;
-        const soulsGained = Math.floor(this.maxHp * 0.2);
-        player.gainSouls(soulsGained);
-        this.activeEffects.forEach(effect => {
-            clearTimeout(effect.timer);
-            switch (effect.name) {
-                case 'Rally':
-                    this.endRally(1.2, effect.indicator);
-                    break;
-                case 'MindFreeze':
-                    this.endMindFreeze(player.attacksPerSecond / 0.75, effect.overlay);
-                    break;
-                case 'Weakness':
-                    this.endWeakness(player.weapon.damage / 0.75, effect.playerElement);
-                    break;
-            }
-        });
-        
-        this.activeEffects = [];
-        
-        player.gainExp(30 * this.getExpMultiplier());
+    if (this.isDying) return;
+    this.isDying = true;
+    const soulsGained = Math.floor(this.maxHp * 0.2);
+    player.gainSouls(soulsGained);
+    this.activeEffects.forEach(effect => {
+        clearTimeout(effect.timer);
+        switch (effect.name) {
+            case 'Rally':
+                this.endRally(1.2, effect.indicator);
+                break;
+            case 'MindFreeze':
+                this.endMindFreeze(player.attacksPerSecond / 0.75, effect.overlay);
+                break;
+            case 'Weakness':
+                this.endWeakness(player.weapon.damage / 0.75, effect.playerElement);
+                break;
+        }
+    });
+    
+    this.activeEffects = [];
+    
+    player.gainExp(30 * this.getExpMultiplier());
+    
+    // Add death animation
+    this.element.classList.add('dying');
+    
+    setTimeout(() => {
         this.element.remove();
         enemies = enemies.filter(e => e !== this);
-    }
+    }, 1300); // Match the animation duration (1.3s from CSS)
+}
 }
 
 class Boss extends Enemy {
@@ -364,31 +410,35 @@ class Boss extends Enemy {
 
 
     die() {
-        if (this.isDying) return;
-        this.isDying = true;
-    
-        const soulsGained = Math.floor(this.maxHp * 0.2);
-        player.gainSouls(soulsGained);
-        player.gainExp(100 * this.getExpMultiplier());
-    
-        if (!gameState.amuletDropped) {
-            gameState.amuletDropped = true;
-            player.equipAmulet();
-            updateInventoryUI();
-            showAmuletFoundText();
-        }
-    
-        setTimeout(() => {
-            this.element.remove();
-            enemies = enemies.filter(e => e !== this);
-        }, 200);
+    if (this.isDying) return;
+    this.isDying = true;
+
+    const soulsGained = Math.floor(this.maxHp * 0.2);
+    player.gainSouls(soulsGained);
+    player.gainExp(100 * this.getExpMultiplier());
+
+    if (!gameState.amuletDropped) {
+        gameState.amuletDropped = true;
+        player.equipAmulet();
+        updateInventoryUI();
+        showAmuletFoundText();
     }
+
+    // Add death animation
+    this.element.classList.add('dying');
+
+    setTimeout(() => {
+        this.element.remove();
+        enemies = enemies.filter(e => e !== this);
+    }, 600); // Match the animation duration (0.6s from CSS)
+}
 }
 
 function spawnEnemies() {
-    enemies = []; 
+    enemies = []; // Clear the enemies array before spawning new ones
     const enemyCount = 5 + gameState.currentWave - 1;
 
+    // Spawn boss at the start of each stage from stage 2 onwards
     if (gameState.currentStage >= 2 && gameState.currentWave === 1) {
         let boss = new Boss();
         enemies.push(boss);
@@ -439,7 +489,7 @@ function spawnEnemies() {
             attempts++;
         }
         enemies.push(eliteEnemy);
-        eliteEnemy.useAbilities(); 	
+        eliteEnemy.useAbilities(); // Trigger abilities immediately upon spawn		
     }
 }
 
@@ -481,8 +531,10 @@ function showAmuletFoundText() {
 
 function updateEnemies(deltaTime) {
     enemies.forEach(enemy => {
-        enemy.move(deltaTime);
-        if (enemy instanceof EliteEnemy) {
+        if (!enemy.isDying) {
+            enemy.move(deltaTime);
+        }
+        if (enemy instanceof EliteEnemy && !enemy.isDying) {
             enemy.useAbilities();
         }
     });
