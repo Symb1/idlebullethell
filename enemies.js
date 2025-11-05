@@ -2,7 +2,7 @@ let enemies = [];
 
 class Enemy {
     constructor() {
-        this.baseSpeed = 30;
+        this.baseSpeed = 24;
         this.radius = 10;
         this.speedEffects = [];
         this.resetEnemy();
