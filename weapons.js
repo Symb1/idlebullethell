@@ -67,7 +67,7 @@ triggerPlayerAttackAnimation() {
     const attackAudio = document.getElementById(`acoattmu${Weapon.attackSoundIndex}`);
     if (attackAudio) {
         attackAudio.currentTime = 0;
-        attackAudio.volume = 0.08; 
+        attackAudio.volume = 0.085; 
         // Adjust playback rate based on attack speed (normalized to 1.0 at base speed)
         attackAudio.playbackRate = player.attacksPerSecond / 1.0;
         attackAudio.play().catch(e => console.log('Audio play failed:', e));

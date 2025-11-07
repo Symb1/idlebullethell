@@ -3,6 +3,7 @@ let enemies = [];
 class Enemy {
   static hurtSoundIndex = 0;
   static currentlyPlayingHurtSounds = 0;
+  static deathSoundIndex = 0;
     constructor() {
         this.baseSpeed = 24;
         this.radius = 10;
@@ -256,13 +257,19 @@ createHitSprite() {
     if (this.isDying) return;
     this.isDying = true;
     
-    // Play death sound based on crit
-    const deathSound = isCritical ? 'skelediemu2' : 'skelediemu1';
+    // Play crit sound for crits, otherwise cycle through normal death sounds
+    let deathSound;
+    if (isCritical) {
+        deathSound = 'skelediecritmu';
+    } else {
+        Enemy.deathSoundIndex = (Enemy.deathSoundIndex % 3) + 1;
+        deathSound = `skeledieamu${Enemy.deathSoundIndex}`;
+    }
+    
     const audio = document.getElementById(deathSound);
     if (audio) {
         audio.currentTime = 0;
-        audio.volume = 0.3;
-        // Match playback speed to player's attack speed
+        audio.volume = 0.17;
         audio.playbackRate = Math.min(player.attacksPerSecond / 1.0, 3.0);
         audio.play().catch(e => console.log('Audio play failed:', e));
     }
@@ -400,8 +407,15 @@ die(isCritical = false) {
     if (this.isDying) return;
     this.isDying = true;
     
-    // Play death sound based on crit
-    const deathSound = isCritical ? 'skelediemu2' : 'skelediemu1';
+    // Play crit sound for crits, otherwise cycle through normal death sounds
+    let deathSound;
+    if (isCritical) {
+        deathSound = 'skelediecritmu';
+    } else {
+        Enemy.deathSoundIndex = (Enemy.deathSoundIndex % 3) + 1;
+        deathSound = `skeledieamu${Enemy.deathSoundIndex}`;
+    }
+    
     const audio = document.getElementById(deathSound);
     if (audio) {
         audio.currentTime = 0;
