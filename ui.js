@@ -23,7 +23,7 @@ function initializeUI() {
 	createAchievementsButton();
 
     // Add event listener for debug skip wave button
-    //document.getElementById('debug-skip-wave').addEventListener('click', skipWave);
+    document.getElementById('debug-skip-wave').addEventListener('click', skipWave);
 }
 
 function updateUI() {

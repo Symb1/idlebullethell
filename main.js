@@ -283,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadGameState();
 	createInventoryMenu();
     showClassSelection();
-    //document.getElementById('debug-level-up').addEventListener('click', debugLevelUp);
+    document.getElementById('debug-level-up').addEventListener('click', debugLevelUp);
     const autoCastToggle = document.getElementById('auto-cast-toggle');
     if (autoCastToggle) {
         autoCastToggle.checked = gameState.autoCastEnabled;
@@ -294,13 +294,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
- /* Debug for lvl up
+// Debug for lvl up
 function debugLevelUp() {
     if (player) {
         player.exp = player.expToNextLevel;
         player.gainExp(0);
     }
-}*/
+}
 
 function showClassSelection() {
     document.getElementById('class-selection').style.display = 'flex';
@@ -434,6 +434,9 @@ function startGame(playerClass) {
     document.getElementById('qol-menu').style.display = 'none';
     document.getElementById('inventory-menu').style.display = 'none';
     
+    // Play background music when starting game
+    playBackgroundMusic();
+    
     // Show player stats
     const playerStats = document.getElementById('player-stats');
     if (playerStats) playerStats.style.display = 'block';
@@ -538,7 +541,24 @@ function gameLoop(timestamp) {
     }
 }
 
-/*For Debug temp only
+function playBackgroundMusic() {
+    const bgMusic = document.getElementById('bckgloopmu');
+    if (bgMusic) {
+        bgMusic.currentTime = 0;
+        bgMusic.volume = 0.1; // Adjust volume as needed
+        bgMusic.play().catch(e => console.log('Background music play failed:', e));
+    }
+}
+
+function stopBackgroundMusic() {
+    const bgMusic = document.getElementById('bckgloopmu');
+    if (bgMusic) {
+        bgMusic.pause();
+        bgMusic.currentTime = 0;
+    }
+}
+
+//For Debug temp only
 function skipWave() {
     // Clear existing enemies
     enemies.forEach(enemy => enemy.element.remove());
@@ -556,7 +576,6 @@ function skipWave() {
     startWave();
     updateUI();
 }
-*/
 
 // Modify the checkClassUnlock function
 function checkClassUnlock() {
@@ -576,6 +595,9 @@ function gameOver() {
     gameState.currentWave = 1;
     gameState.currentStage = 1;
     
+	// Stop background music on game over
+    stopBackgroundMusic();
+	
     // Hide the ability button
     const abilityButton = document.getElementById('ability-button');
     if (abilityButton) abilityButton.style.display = 'none';

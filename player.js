@@ -167,7 +167,9 @@ getAmuletDamageBonus() {
         showLevelUpScreen();
         }
     
-        
+        if (!gameState.autoCardEnabled) {
+            requestAnimationFrame(gameLoop);
+        }
     }
 
     takeDamage(amount) {
@@ -249,6 +251,14 @@ function updatePlayer() {
                     player.takeDamage(5);
                     enemy.lastDamageTime = Date.now();
                     
+                    // Play enemy attack sound
+                    const attackAudio = document.getElementById('skeleattmu');
+                    if (attackAudio) {
+                        attackAudio.currentTime = 0;
+                        attackAudio.volume = 0.3;
+                        attackAudio.play().catch(e => console.log('Audio play failed:', e));
+                    }
+                    
                     // Trigger attack animation for Boss
                     enemy.element.classList.add('attacking');
                     setTimeout(() => {
@@ -260,6 +270,14 @@ function updatePlayer() {
                 if (!enemy.lastDamageTime || Date.now() - enemy.lastDamageTime >= 4000) {
                     player.takeDamage(3);
                     enemy.lastDamageTime = Date.now();
+                    
+                    // Play enemy attack sound
+                    const attackAudio = document.getElementById('skeleattmu');
+                    if (attackAudio) {
+                        attackAudio.currentTime = 0;
+                        attackAudio.volume = 0.3;
+                        attackAudio.play().catch(e => console.log('Audio play failed:', e));
+                    }
                     
                     // Trigger attack animation for Elite
                     enemy.element.classList.add('attacking');
@@ -273,6 +291,14 @@ function updatePlayer() {
                 if (!enemy.lastDamageTime || Date.now() - enemy.lastDamageTime >= 2000) {
                     player.takeDamage(1);
                     enemy.lastDamageTime = Date.now();
+                    
+                    // Play enemy attack sound
+                    const attackAudio = document.getElementById('skeleattmu');
+                    if (attackAudio) {
+                        attackAudio.currentTime = 0;
+                        attackAudio.volume = 0.3;
+                        attackAudio.play().catch(e => console.log('Audio play failed:', e));
+                    }
                     
                     // Trigger attack animation for regular enemies
                     if (enemy.constructor.name === 'Enemy') {

@@ -1,6 +1,8 @@
 let enemies = [];
 
 class Enemy {
+  static hurtSoundIndex = 0;
+  static currentlyPlayingHurtSounds = 0;
     constructor() {
         this.baseSpeed = 24;
         this.radius = 10;
@@ -9,6 +11,7 @@ class Enemy {
         this.damageIndicators = [];
         this.isDying = false;
 		this.isPlayingHitAnimation = false;
+		
     }
 
     resetEnemy() {
@@ -156,19 +159,35 @@ class Enemy {
 }
 
     takeDamage(amount, isCritical = false) {
-
-    // ✅ Ignore hits on dying/dead enemies
+ 
     if (this.hp <= 0 || this.isDying) return;
 
     const actualDamage = Math.max(0, amount);
+    const willDie = this.hp - actualDamage <= 0;
     this.hp = Math.max(0, this.hp - actualDamage);
 
     this.updateHpText();
     this.showDamageIndicator(actualDamage, isCritical);
     this.createHitSprite();
 
+    // Play hurt sound only if enemy doesn't die and less than 3 sounds playing
+    if (!willDie && Enemy.currentlyPlayingHurtSounds < 3) {
+        Enemy.hurtSoundIndex = (Enemy.hurtSoundIndex % 3) + 1;
+        const hurtAudio = document.getElementById(`skelehurtmu${Enemy.hurtSoundIndex}`);
+        if (hurtAudio) {
+            hurtAudio.currentTime = 0;
+            hurtAudio.volume = 0.3;
+            // Keep normal playback speed (no playbackRate adjustment)
+            
+            Enemy.currentlyPlayingHurtSounds++;
+            hurtAudio.onended = () => Enemy.currentlyPlayingHurtSounds--;
+            
+            hurtAudio.play().catch(e => console.log('Audio play failed:', e));
+        }
+    }
+
     if (this.hp <= 0 && !this.isDying) {
-        this.die();
+        this.die(isCritical);
     }
 }
 
@@ -233,9 +252,21 @@ createHitSprite() {
         return multiplier;
     }
 
- die() {
+ die(isCritical = false) {
     if (this.isDying) return;
     this.isDying = true;
+    
+    // Play death sound based on crit
+    const deathSound = isCritical ? 'skelediemu2' : 'skelediemu1';
+    const audio = document.getElementById(deathSound);
+    if (audio) {
+        audio.currentTime = 0;
+        audio.volume = 0.3;
+        // Match playback speed to player's attack speed
+        audio.playbackRate = Math.min(player.attacksPerSecond / 1.0, 3.0);
+        audio.play().catch(e => console.log('Audio play failed:', e));
+    }
+    
     const soulsGained = Math.floor(this.maxHp * 0.1);
     player.gainSouls(soulsGained); 
     const expMultiplier = this.getExpMultiplier();
@@ -364,9 +395,21 @@ class EliteEnemy extends Enemy {
     setTimeout(() => this.element.removeChild(indicator), rallyDuration);
     }
 
-    die() {
+    // EliteEnemy die method
+die(isCritical = false) {
     if (this.isDying) return;
     this.isDying = true;
+    
+    // Play death sound based on crit
+    const deathSound = isCritical ? 'skelediemu2' : 'skelediemu1';
+    const audio = document.getElementById(deathSound);
+    if (audio) {
+        audio.currentTime = 0;
+        audio.volume = 0.3;
+        audio.playbackRate = Math.min(player.attacksPerSecond / 1.0, 3.0);
+        audio.play().catch(e => console.log('Audio play failed:', e));
+    }
+    
     const soulsGained = Math.floor(this.maxHp * 0.2);
     player.gainSouls(soulsGained);
     this.activeEffects.forEach(effect => {
@@ -394,8 +437,8 @@ class EliteEnemy extends Enemy {
     setTimeout(() => {
         this.element.remove();
         enemies = enemies.filter(e => e !== this);
-    }, 1300); // Match the animation duration (1.3s from CSS)
-}
+    }, 1300);
+ }
 }
 
 class Boss extends Enemy {

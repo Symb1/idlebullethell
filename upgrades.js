@@ -254,7 +254,14 @@ const classUpgrades = {
 
 function showLevelUpScreen() {
     gameState.isPaused = true;
-
+	
+    const levelUpAudio = document.getElementById('levelupmu');
+    if (levelUpAudio) {
+        levelUpAudio.currentTime = 0;
+        levelUpAudio.volume = 0.2; // Adjust volume as needed
+        levelUpAudio.play().catch(e => console.log('Audio play failed:', e));
+    }
+	
     const gameArea = document.getElementById('game-area');
     let levelUpScreen = document.getElementById('level-up');
 

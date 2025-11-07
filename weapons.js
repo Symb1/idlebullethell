@@ -31,6 +31,7 @@ function initializeWeapon(playerClass, weaponName = null) {
 }
 
 class Weapon {
+	static attackSoundIndex = 0;
     constructor(name, damage, cooldown, abilityName, globalRange, chainRange = 0) {
         this.name = name;
         this.baseDamage = damage;
@@ -59,6 +60,17 @@ triggerPlayerAttackAnimation() {
     // Only apply attack animation for Acolyte class
     if (player.class !== 'Acolyte') {
         return;
+    }
+    
+    // Cycle through attack sounds (1, 2, 3, then back to 1)
+    Weapon.attackSoundIndex = (Weapon.attackSoundIndex % 3) + 1;
+    const attackAudio = document.getElementById(`acoattmu${Weapon.attackSoundIndex}`);
+    if (attackAudio) {
+        attackAudio.currentTime = 0;
+        attackAudio.volume = 0.08; 
+        // Adjust playback rate based on attack speed (normalized to 1.0 at base speed)
+        attackAudio.playbackRate = player.attacksPerSecond / 1.0;
+        attackAudio.play().catch(e => console.log('Audio play failed:', e));
     }
     
     // Find the nearest ALIVE enemy and update facing direction FIRST
