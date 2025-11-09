@@ -202,7 +202,7 @@ function updateSoulsUI() {
     const souls = gameState.souls;
     
     let upgradesHTML = `
-        <h3 style="color: white; padding-bottom: 10px; border-bottom: 2px solid #4CAF50; margin-bottom: 15px;">Total Souls: ${souls}</h3>
+        <h3>Total Souls: ${souls}</h3>
         <h4>Total Ascensions: ${gameState.ascensionLevel} 
             <span style="color: yellow;">(x${gameState.soulMultiplier} Multiplier)</span>
         </h4>

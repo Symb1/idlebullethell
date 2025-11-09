@@ -565,14 +565,8 @@ function spawnEnemies() {
 function showBossSpawnedText() {
     const gameArea = document.getElementById('game-area');
     const bossText = document.createElement('div');
+    bossText.className = 'boss-spawned-text';
     bossText.textContent = "Boss Spawned";
-    bossText.style.position = 'absolute';
-    bossText.style.top = '40%';
-    bossText.style.left = '50%';
-    bossText.style.transform = 'translate(-50%, -50%)';
-    bossText.style.fontSize = '30px';
-    bossText.style.color = 'red';
-    bossText.style.fontWeight = 'bold';
     gameArea.appendChild(bossText);
 
     setTimeout(() => {
@@ -583,14 +577,8 @@ function showBossSpawnedText() {
 function showAmuletFoundText() {
     const gameArea = document.getElementById('game-area');
     const amuletText = document.createElement('div');
+    amuletText.className = 'amulet-found-text';
     amuletText.textContent = "Amulet Found!";
-    amuletText.style.position = 'absolute';
-    amuletText.style.top = '60%';
-    amuletText.style.left = '50%';
-    amuletText.style.transform = 'translate(-50%, -50%)';
-    amuletText.style.fontSize = '30px';
-    amuletText.style.color = 'blue';
-    amuletText.style.fontWeight = 'bold';
     gameArea.appendChild(amuletText);
 
     setTimeout(() => {

@@ -545,7 +545,7 @@ function playBackgroundMusic() {
     const bgMusic = document.getElementById('bckgloopmu');
     if (bgMusic) {
         bgMusic.currentTime = 0;
-        bgMusic.volume = 0.1; // Adjust volume as needed
+        bgMusic.volume = 0.09; // Adjust volume as needed
         bgMusic.play().catch(e => console.log('Background music play failed:', e));
     }
 }
