@@ -6,9 +6,18 @@ class Acolyte extends Player {
         this.attacksPerSecond *= 0.9;
         this.critChance += 0.04;
         this.critDamage += 1.2;
-		this.amuletDamage = 4;
-		this.bossDamageBonus = 0.1;
-		this.image = 'acoatt.png';
+        this.amuletDamage = 4;
+        this.bossDamageBonus = 0.1;
+        this.image = 'acoatt.png';
+        this.classColor = '#9370DB'; // Purple for Acolyte
+        this.classUpgradeChosen = gameState.classUpgradeChosen || null;
+    }
+    
+    getDisplayName() {
+        if (this.classUpgradeChosen) {
+            return `${this.classUpgradeChosen} Acolyte`;
+        }
+        return 'Acolyte';
     }
 
     getInitialHP() {
@@ -24,9 +33,18 @@ class Sorceress extends Player {
         this.attacksPerSecond += 0.2; 
         this.critChance += 0.24;
         this.critDamage += 0.05;
-		this.amuletDamage = 3;
-		this.bossDamageBonus = 0.3;
-		this.image = 'sorc.png';
+        this.amuletDamage = 3;
+        this.bossDamageBonus = 0.3;
+        this.image = 'sorc.png';
+        this.classColor = '#4169E1'; // Blue for Sorceress
+        this.classUpgradeChosen = gameState.classUpgradeChosen || null;
+    }
+    
+    getDisplayName() {
+        if (this.classUpgradeChosen) {
+            return `${this.classUpgradeChosen} Sorceress`;
+        }
+        return 'Sorceress';
     }
 
     getInitialHP() {
@@ -43,9 +61,18 @@ class DivineKnight extends Player {
         this.critChance = 0;
         this.critDamage += 0;
         this.image = 'divi.png';
-		this.amuletDamage = 2;
-		this.bossDamageBonus = 0.5;
+        this.amuletDamage = 2;
+        this.bossDamageBonus = 0.5;
+        this.classColor = '#FFD700'; // Gold for Divine Knight
+        this.classUpgradeChosen = gameState.classUpgradeChosen || null;
         this.showAura();
+    }
+    
+    getDisplayName() {
+        if (this.classUpgradeChosen) {
+            return `${this.classUpgradeChosen} Divine Knight`;
+        }
+        return 'Divine Knight';
     }
 
     showAura() {

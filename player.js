@@ -28,8 +28,13 @@ class Player {
 		this.amuletDamage = 0;
 		this.bossDamageBonus = 0;
 		this.facingLeft = false;
+		this.classUpgradeChosen = null;
     }
 
+    getDisplayName() {
+        return this.class;
+    }
+	
     gainExp(amount) {
         const expUpgrade = soulsUpgrades.find(u => u.name === 'Exp+');
         const expMultiplier = 1 + ((gameState.expUpgrades || 0) * expUpgrade.valuePerUpgrade);
@@ -107,20 +112,22 @@ getAmuletDamageBonus() {
 
 
     adjustCritChance(amount) {
-        this.critChance = Math.min(1, Math.max(0, this.critChance + amount));
+        this.critChance = Math.min(1, this.critChance + amount);
     }
 
     updateCooldownReduction() {
     const cooldownUpgrade = soulsUpgrades.find(u => u.name === 'Cooldown+');
     const permanentReduction = (gameState.cooldownUpgrades || 0) * cooldownUpgrade.valuePerUpgrade;
-    this.totalCooldownReduction = Math.min(0.75, Math.max(0, permanentReduction + this.baseCooldownReduction));
+    // Remove the Math.max(0, ...) to allow negative values
+    this.totalCooldownReduction = Math.min(0.75, permanentReduction + this.baseCooldownReduction);
 }
 
-    adjustCooldownReduction(amount) {
+adjustCooldownReduction(amount) {
     const cooldownUpgrade = soulsUpgrades.find(u => u.name === 'Cooldown+');
     const permanentReduction = (gameState.cooldownUpgrades || 0) * cooldownUpgrade.valuePerUpgrade;
     const oldBase = this.baseCooldownReduction;
-    this.baseCooldownReduction = Math.min(0.75 - permanentReduction, Math.max(-permanentReduction, this.baseCooldownReduction + amount));
+    // Remove the Math.max(-permanentReduction, ...) to allow negative values
+    this.baseCooldownReduction = Math.min(0.75 - permanentReduction, this.baseCooldownReduction + amount);
     this.updateCooldownReduction();
 }
 
@@ -240,6 +247,7 @@ function createPlayerElement() {
 function updatePlayer() {
     if (!player || !player.position) return;
 
+
     // Check for collisions with enemies
     enemies.forEach(enemy => {
         if (!enemy || !enemy.position) return;
@@ -313,9 +321,17 @@ function updatePlayer() {
     });
 
     if (gameState.currentStage > gameState.highestStageReached) {
-        gameState.highestStageReached = gameState.currentStage;
-        saveGameState();
-        checkAchievements();
+    gameState.highestStageReached = gameState.currentStage;
+    
+    // Track per-class highest stage
+    if (player && player.class) {
+        if (gameState.currentStage > (gameState.highestStagePerClass[player.class] || 1)) {
+            gameState.highestStagePerClass[player.class] = gameState.currentStage;
+        }
+    }
+    
+    saveGameState();
+    checkAchievements();
     }
 
     // Update player position on screen

@@ -1,10 +1,10 @@
 function initializeWeapon(playerClass, weaponName = null) {	
     switch (playerClass) {		
         case 'Acolyte':
-            if (weaponName === 'Shatter Staff') {
-                player.weapon = new ShatterStaff();
-            } else if (weaponName === 'Earth Staff') {
-                player.weapon = new EarthStaff();
+            if (weaponName === 'Vortex Staff') {
+                player.weapon = new VortexStaff();
+            } else if (weaponName === 'Umbral Staff') {
+                player.weapon = new UmbralStaff();
             } else {
                 player.weapon = new BasicStaff();
             }
@@ -67,7 +67,7 @@ triggerPlayerAttackAnimation() {
     const attackAudio = document.getElementById(`acoattmu${Weapon.attackSoundIndex}`);
     if (attackAudio) {
         attackAudio.currentTime = 0;
-        attackAudio.volume = 0.085; 
+        attackAudio.volume = 0.12; 
         // Adjust playback rate based on attack speed (normalized to 1.0 at base speed)
         attackAudio.playbackRate = player.attacksPerSecond / 1.0;
         attackAudio.play().catch(e => console.log('Audio play failed:', e));
@@ -190,7 +190,7 @@ triggerPlayerAttackAnimation() {
 
 class BasicStaff extends Weapon {
     constructor() {
-        super('Basic Staff', 15, 12, 'Earth Blast', 475);
+        super('Basic Staff', 15, 12, 'Void Blast', 350);
     }
 
     performAttack() {
@@ -228,7 +228,8 @@ class BasicStaff extends Weapon {
         .filter(e => !e.isDying && e.hp > 0)   
         .reduce((nearest, enemy) => {
             const distance = calculateDistance(player.position, enemy.position);
-            if (!nearest || distance < calculateDistance(player.position, nearest.position)) {
+            // Add range check here
+            if (distance <= this.globalRange && (!nearest || distance < calculateDistance(player.position, nearest.position))) {
                 return enemy;
             }
             return nearest;
@@ -239,7 +240,7 @@ class BasicStaff extends Weapon {
 
 class BasicWand extends Weapon {
     constructor() {
-        super('Basic Wand', 10, 20, 'Lightning Storm', 225, 325);
+        super('Basic Wand', 10, 20, 'Lightning Storm', 200, 275);
     }
 
     performAttack() {
@@ -251,14 +252,14 @@ class BasicWand extends Weapon {
     }
 
     performAbility() {
-        const critDamage = this.damage * player.critDamage;
-        
-        enemies.forEach(enemy => {
-            enemy.takeDamage(critDamage, true); // Always crit
-        });
+    const abilityDamage = this.damage * player.critDamage; // Cannot crit, just apply as regular damage
+    
+    enemies.forEach(enemy => {
+        enemy.takeDamage(abilityDamage, false); // Changed to false - cannot crit
+    });
 
-        console.log(`Storm Wand ability used: ${critDamage.toFixed(2)} damage to all enemies`);
-    }
+    console.log(`Lightning Storm ability used: ${abilityDamage.toFixed(2)} damage to all enemies`);
+  }
 
     dealDamageWithChain(target, initialDamage, isCritical) {
     this.dealDamageToEnemy(target, initialDamage, isCritical);
@@ -270,7 +271,7 @@ class BasicWand extends Weapon {
     while (remainingTargets > 0 && enemies.length > 0) {
         const nextTarget = this.findRandomEnemyInChainRange(lastHitEnemy);
         if (nextTarget) {
-            currentDamage *= 0.60;  
+            currentDamage *= 0.70;  
             this.dealDamageToEnemy(nextTarget, currentDamage, isCritical);
             remainingTargets--;
             lastHitEnemy = nextTarget;
@@ -374,10 +375,15 @@ function showWeaponEvolutionScreen() {
         card.className = 'upgrade-card evolution-card';
         card.dataset.index = index;
 
+        // Super simple stat rendering
+        const statsHTML = weapon.stats
+            .map(stat => `<p class="stat-${stat.type}">✦ ${stat.text}</p>`)
+            .join('');
+
         card.innerHTML = `
             <div class="evolution-name">${weapon.name}</div>
-            <hr>
-            <div class="evolution-description">${weapon.description}</div>
+            ${weapon.flavor ? `<div class="upgrade-flavor">${weapon.flavor}</div>` : ''}
+            <div class="evolution-description">${statsHTML}</div>
         `;
 
         if (gameState.autoWeaponEvolutionEnabled) {
@@ -409,6 +415,11 @@ function selectWeaponEvolution(weapon) {
     hideWeaponEvolutionScreen();
     gameState.isPaused = false;
     
+    // Cancel any existing animation frame and restart the loop
+    cancelAnimationFrame(animationFrameId);
+    lastTimestamp = performance.now();
+    requestAnimationFrame(gameLoop);
+	processNextLevelUp();
 }
 
 function autoSelectWeaponEvolution(weaponOptions) {
@@ -427,69 +438,93 @@ function hideWeaponEvolutionScreen() {
 }
 
 function getWeaponEvolutionOptions(playerClass) {
-    switch (playerClass) {
-        case 'Acolyte':
-            return [
-                { 
-                    name: 'Shatter Staff', 
-                    description: '<p><strong>Splash Damage</strong></p><p><strong>Increased Ability Power</strong></p><p><strong>Medium Ability Cooldown</strong></p><p><strong>Shorter Range</strong></p>'
-                },
-                { 
-                    name: 'Earth Staff', 
-                    description: '<p><strong>High Single Target Damage</strong></p><p><strong>Ability Guaranteed to Crit</strong></p><p><strong>Longer Ability Cooldown</strong></p><p><strong>Max Range</strong></p>'
-                }
-            ];
-        case 'Sorceress':
-            return [
-                { 
-                    name: 'Chain Wand', 
-                    description: '<p><strong>More Chained Enemies</strong></p><p><strong>Lower Chain Damage Penalty</strong></p><p><strong>Longer Ability Cooldown</strong></p><p><strong>Medium Range And Chain</strong></p>'
-                },
-                { 
-                    name: 'Spark Wand', 
-                    description: '<p><strong>Hits All Enemies</strong></p><p><strong>Significant Damage Penalty</strong></p><p><strong>Ability Freezes Enemies</strong></p><p><strong>Medium Ability Cooldown</p><p><strong>Max Range No Chain</strong></p>'
-                }
-            ];
-        case 'Divine Knight':
-            return [
-                { 
-                    name: 'Blessed Shield', 
-                    description: '<p><strong>Increased Damage</strong></p><p><strong>Extended Range</strong></p>'
-                },
-                { 
-                    name: 'Smite Shield', 
-                    description: '<p><strong>Rapid Attacks</strong></p><p><strong>Enemy Slowdown</strong></p>'
-                }
-            ];
-    }
+    const weaponMap = {
+        'Acolyte': [
+            { 
+                class: VortexStaff,
+                flavor: 'Channels unstable void currents, tearing open miniature rifts that engulf everything nearby.'
+            },
+            { 
+                class: UmbralStaff,
+                flavor: 'A conduit of pure darkness, its power does not strike, it focuses void essence into a single, perfect line of annihilation.'
+            }
+        ],
+        'Sorceress': [
+            { 
+                class: ChainWand,
+                flavor: 'Weaves lightning through the battlefield, each strike seeking new prey with relentless hunger.'
+            },
+            { 
+                class: SparkWand,
+                flavor: 'A tempest bound in crystal, its fury knows no bounds but demands sacrifice for its power.'
+            }
+        ],
+        'Divine Knight': [
+            { 
+                class: BlessedShield,
+                flavor: 'Forged in sacred light, its divine protection extends far beyond mortal reach.'
+            },
+            { 
+                class: SmiteShield,
+                flavor: 'Swift as divine judgment, each strike saps the strength of those who dare approach.'
+            }
+        ]
+    };
+    
+    const weapons = weaponMap[playerClass] || [];
+    
+    return weapons.map(w => {
+        const instance = new w.class();
+        return {
+            name: instance.name,
+            flavor: w.flavor,
+            stats: instance.getEvolutionStats()
+        };
+    });
 }
 
 // New weapon classes
-class ShatterStaff extends BasicStaff {
+class VortexStaff extends BasicStaff {
     constructor() {
         super();
-        this.name = 'Shatter Staff';
+        this.name = 'Vortex Staff';
         this.baseDamage = 22;
-        this.damage = this.baseDamage;
         this.baseCooldown = 20;
-        this.globalRange = 400;
-        this.splashRange = 50;
+        this.globalRange = 350;
+        this.splashRange = 75;
+        this.damage = this.baseDamage;
         this.updateDamage();
+    }
+    
+    getEvolutionStats() {
+        return [
+            { text: `Splash Damage: 50% (${this.splashRange} range)`, type: 'positive' },
+            { text: 'Ability Power: +150%', type: 'positive' },
+            { text: `Range: ${this.globalRange}`, type: this.globalRange < 200 ? 'negative' : this.globalRange <= 400 ? 'neutral' : 'positive' },
+            { text: `Ability Cooldown: ${this.baseCooldown}s`, type: 'neutral' },
+            { text: 'Ability Cannot Crit', type: 'negative' }
+        ];
     }
 
     performAttack() {
         const target = this.findNearestEnemy();
         if (target) {
             const { damage, isCritical } = this.calculateDamage();
+            // Vortex Staff can crit on basic attacks
             target.takeDamage(damage, isCritical);
-            this.splashDamage(target, damage);
+            this.triggerPlayerAttackAnimation();
+            this.splashDamage(target, damage, isCritical);
         }
     }
 
-    splashDamage(centerEnemy, originalDamage) {
+    splashDamage(centerEnemy, originalDamage, wasCrit) {
         enemies.forEach(enemy => {
             if (enemy !== centerEnemy && calculateDistance(centerEnemy.position, enemy.position) <= this.splashRange) {
-                enemy.takeDamage(originalDamage, false);
+                // Splash damage is 50% of original damage and CAN crit independently
+                const splashBaseDamage = originalDamage * 0.5;
+                const isSplashCrit = Math.random() < player.critChance;
+                const finalSplashDamage = isSplashCrit ? splashBaseDamage * player.critDamage : splashBaseDamage;
+                enemy.takeDamage(finalSplashDamage, isSplashCrit);
             }
         });
     }
@@ -497,31 +532,39 @@ class ShatterStaff extends BasicStaff {
     performAbility() {
         const target = this.findPriorityTarget();
         if (target) {
-            const { damage, isCritical } = this.calculateDamage();
-            target.takeDamage(damage * 2.5, isCritical);
+            const abilityDamage = this.damage * 2 * 2.5;
+            target.takeDamage(abilityDamage, false); // Cannot crit
         }
     }
 }
 
-class EarthStaff extends BasicStaff {
+class UmbralStaff extends BasicStaff {
     constructor() {
         super();
-        this.name = 'Earth Staff';
+        this.name = 'Umbral Staff';
         this.baseDamage = 40;
-        this.damage = this.baseDamage;
         this.baseCooldown = 25;
-		this.globalRange = 600;
-		this.updateDamage();
-		
+        this.globalRange = 450;
+        this.damage = this.baseDamage;
+        this.updateDamage();
+    }
+    
+    getEvolutionStats() {
+        return [
+            { text: 'High Single Target Damage', type: 'positive' },
+            { text: 'Ability Guaranteed Crit', type: 'positive' },
+            { text: `Range: ${this.globalRange}`, type: 'positive' },
+            { text: `Ability Cooldown: ${this.baseCooldown}s`, type: 'neutral' }
+        ];
     }
 
     performAbility() {
-    const target = this.findPriorityTarget();
-    if (target) {
-        const criticalDamage = this.damage * player.critDamage * 1.5;
-        target.takeDamage(criticalDamage, true); // Always crit
+        const target = this.findPriorityTarget();
+        if (target) {
+            const criticalDamage = this.damage * 2 * player.critDamage;
+            target.takeDamage(criticalDamage, true);
+        }
     }
-}
 }
 
 class ChainWand extends BasicWand {
@@ -529,33 +572,55 @@ class ChainWand extends BasicWand {
         super();
         this.name = 'Chain Wand';
         this.baseDamage = 16;
+        this.baseCooldown = 28;
+        this.globalRange = 225;
+        this.chainRange = 325;
+        this.chainCount = 6;
+        this.chainDamageMultiplier = 0.85;
         this.damage = this.baseDamage;
-        this.baseCooldown = 30;
-        this.globalRange = 285;
-        this.chainRange = 360;
-		this.updateDamage();
-		
+        this.updateDamage();
     }
-
+    
+    getEvolutionStats() {
+        return [
+            { text: `Chains: +3 targets`, type: 'positive' },
+            { text: `Chain Damage: +${((this.chainDamageMultiplier - 0.70) * 100).toFixed(0)}% Increase`, type: 'positive' },
+            { text: `Ability Cooldown: ${this.baseCooldown}s`, type: 'neutral' },
+            { text: 'Ability Guaranteed Crit, -25% Damage', type: 'neutral' },
+            { text: `Range: ${this.globalRange} / Chain ${this.chainRange}`, type: this.globalRange < 200 ? 'negative' : this.globalRange <= 400 ? 'neutral' : 'positive' }
+        ];
+    }
+    
     dealDamageWithChain(target, initialDamage, isCritical) {
-    this.dealDamageToEnemy(target, initialDamage, isCritical);
+        this.dealDamageToEnemy(target, initialDamage, isCritical);
 
-    let remainingTargets = 6;
-    let currentDamage = initialDamage;
-    let lastHitEnemy = target;
+        let remainingTargets = this.chainCount;
+        let currentDamage = initialDamage;
+        let lastHitEnemy = target;
 
-    while (remainingTargets > 0 && enemies.length > 0) {
-        const nextTarget = this.findRandomEnemyInChainRange(lastHitEnemy);
-        if (nextTarget) {
-            currentDamage *= 0.80;  // 
-            this.dealDamageToEnemy(nextTarget, currentDamage, isCritical);
-            remainingTargets--;
-            lastHitEnemy = nextTarget;
-        } else {
-            break;
+        while (remainingTargets > 0 && enemies.length > 0) {
+            const nextTarget = this.findRandomEnemyInChainRange(lastHitEnemy);
+            if (nextTarget) {
+                currentDamage *= this.chainDamageMultiplier;
+                this.dealDamageToEnemy(nextTarget, currentDamage, isCritical);
+                remainingTargets--;
+                lastHitEnemy = nextTarget;
+            } else {
+                break;
+            }
         }
     }
-  }
+  
+  performAbility() {
+    const abilityDamage = this.damage * player.critDamage * 0.75; // Guaranteed crit with 25% damage reduction
+    
+    enemies.forEach(enemy => {
+        enemy.takeDamage(abilityDamage, true); // Always crit
+    });
+
+    console.log(`Lightning Storm ability used: ${abilityDamage.toFixed(2)} damage to all enemies (guaranteed crit, -25% damage)`);
+}
+  
 }
 
 class SparkWand extends BasicWand {
@@ -563,11 +628,24 @@ class SparkWand extends BasicWand {
         super();
         this.name = 'Spark Wand';
         this.baseDamage = 3;
-        this.damage = this.baseDamage;
         this.baseCooldown = 20;
         this.globalRange = 1000;
+        this.chainRange = 0;
+        this.freezeDuration = 2.5;
+        this.damage = this.baseDamage;
+        this.abilityName = 'Flash Freeze';
         this.updateDamage();
-        
+    }
+    
+    getEvolutionStats() {
+        return [
+            { text: 'Hits All Enemies', type: 'positive' },
+            { text: 'Damage: -70%', type: 'negative' },
+            { text: 'Ability: Flash Freeze', type: 'positive' },
+            { text: `Freeze Duration: ${this.freezeDuration}s`, type: 'positive' },
+            { text: `Ability Cooldown: ${this.baseCooldown}s`, type: 'neutral' },
+            { text: `Range: ${this.globalRange}`, type: 'positive' }
+        ];
     }
 
     performAttack() {
@@ -581,25 +659,25 @@ class SparkWand extends BasicWand {
     dealDamageToAllEnemies(initialDamage, isCritical) {
         enemies.forEach((enemy) => {
             this.dealDamageToEnemy(enemy, initialDamage, isCritical);
-            });
+        });
     }
 
     performAbility() {
         enemies.forEach(enemy => {
             this.stunEnemy(enemy);
         });
-        console.log('Spark Wand ability used: All enemies stunned for 2 seconds');
+        console.log('Spark Wand ability used: All enemies stunned for 2.5 seconds');
     }
 
     stunEnemy(enemy) {
-        const originalSpeed = enemy.speed;
-        enemy.speed = 0; // Reduce speed to 0 (100% slow)
-        enemy.element.classList.add('stunned'); // Add a visual indicator
+        const originalSpeed = enemy.baseSpeed;
+        enemy.applySpeedEffect(0, this.freezeDuration * 1000);
+        enemy.element.classList.add('stunned');
 
         setTimeout(() => {
-            enemy.speed = originalSpeed; // Restore original speed after 2 seconds
-            enemy.element.classList.remove('stunned'); // Remove visual indicator
-        }, 2000);
+            enemy.speed = originalSpeed; 
+            enemy.element.classList.remove('stunned');
+        }, this.freezeDuration * 1000);
     }
 }
 
@@ -608,11 +686,19 @@ class BlessedShield extends BasicShield {
         super();
         this.name = 'Blessed Shield';
         this.baseDamage = 7;
-        this.damage = this.baseDamage;
-        this.baseCooldown = 44;
+        this.baseCooldown = 45;
         this.globalRange = 200;
         this.abilityDuration = 10000;
+        this.damage = this.baseDamage;
         this.updateDamage();
+    }
+    
+    getEvolutionStats() {
+        return [
+            { text: 'Increased Damage', type: 'positive' },
+            { text: `Ability Cooldown: ${this.baseCooldown}s, duration ${this.abilityDuration/1000}s`, type: 'neutral' },
+            { text: `Range: ${this.globalRange}`, type: this.globalRange < 200 ? 'negative' : this.globalRange <= 400 ? 'neutral' : 'positive' }
+        ];
     }
 
     performAbility() {
@@ -630,31 +716,46 @@ class SmiteShield extends BasicShield {
     constructor() {
         super();
         this.name = 'Smite Shield';
-        this.baseDamage = 5;
-        this.damage = this.baseDamage;
-        this.baseCooldown = 15;
+        this.baseDamage = 4;
+        this.baseCooldown = 20;
         this.globalRange = 130;
         this.abilityDuration = 2000;
+        this.slowPercent = 25;
+        this.attackSpeedBonus = 1.0;
+        this.damage = this.baseDamage;
         this.updateDamage();
+        
+        if (player) {
+            player.attacksPerSecond += this.attackSpeedBonus;
+        }
     }
-
+    
+    getEvolutionStats() {
+        return [
+            { text: 'Rapid Attacks', type: 'positive' },
+            { text: `Slows enemies in Aura by: ${this.slowPercent}%`, type: 'positive' },
+            { text: `Ability Cooldown: ${this.baseCooldown}s, duration ${this.abilityDuration/1000}s, freezes enemies on use`, type: 'neutral' },
+            { text: `Range: ${this.globalRange}`, type: this.globalRange < 200 ? 'negative' : this.globalRange <= 400 ? 'neutral' : 'positive' }
+        ];
+    }
+    
     performAttack() {
         enemies.forEach(enemy => {
             if (this.isInRange(enemy)) {
                 const { damage, isCritical } = this.calculateDamage();
                 enemy.takeDamage(damage, isCritical);
-                enemy.applySpeedEffect(0.75, 1000); // 25% slow for 1 second
+                enemy.applySpeedEffect(1 - (this.slowPercent / 100), 1000);
             }
         });
     }
-
+    
     performAbility() {
         const originalRange = this.globalRange;
         this.globalRange *= 2.5;
         player.updateAuraVisual();
         enemies.forEach(enemy => {
             if (this.isInRange(enemy)) {
-                enemy.applySpeedEffect(0.2, 5000); // 80% slow for 1 second
+                enemy.applySpeedEffect(0.2, 5000);
             }
         });
         setTimeout(() => {

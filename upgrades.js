@@ -11,7 +11,8 @@ const upgrades = [
         getValue: (rarity) => {
             const increase = rarity === 'Epic' ? 0.25 : (rarity === 'Magic' ? 0.12 : 0.08);
             return `x${(increase * 100).toFixed(0)}%`;
-        }
+        },
+        description: 'Multiplicative damage increase'
     },
     {
         name: 'Attack Speed',
@@ -22,7 +23,8 @@ const upgrades = [
         getValue: (rarity) => {
             const increase = rarity === 'Epic' ? 0.25 : (rarity === 'Magic' ? 0.15 : 0.10);
             return `+${(increase * 100).toFixed(0)}%`;
-        }
+        },
+        description: 'Additive attack speed increase'
     },
     {
     name: 'Health',
@@ -34,7 +36,8 @@ const upgrades = [
     getValue: (rarity) => {
         const increase = rarity === 'Epic' ? 2.0 : (rarity === 'Magic' ? 1.5 : 1.0);
         return `+${increase.toFixed(1)}`;
-    }
+    },
+    description: 'Additive health increase'
 },
 	{
     name: 'Regeneration',
@@ -45,7 +48,8 @@ const upgrades = [
     getValue: (rarity) => {
         const increase = rarity === 'Epic' ? 0.1 : (rarity === 'Magic' ? 0.05 : 0.02);
         return `+${increase.toFixed(2)}/s`;
-    }
+    },
+    description: 'Additive regeneration increase'
 },
 {
     name: 'Cooldown Reduction',
@@ -56,7 +60,8 @@ const upgrades = [
     getValue: (rarity) => {
         const reduction = rarity === 'Epic' ? 0.15 : (rarity === 'Magic' ? 0.10 : 0.05);
         return `+${(reduction * 100).toFixed(0)}%`;
-    }
+    },
+    description: 'Additive cooldown reduction'
 },
     {
         name: 'Critical Damage Increase',
@@ -67,7 +72,8 @@ const upgrades = [
         getValue: (rarity) => {
             const increase = rarity === 'Epic' ? 0.40 : (rarity === 'Magic' ? 0.25 : 0.15);
             return `+${(increase * 100).toFixed(0)}%`;
-        }
+        },
+        description: 'Additive critical damage increase'
     },
     {
     name: 'Critical Strike Chance',
@@ -79,7 +85,8 @@ const upgrades = [
         const increase = rarity === 'Epic' ? 0.06 : (rarity === 'Magic' ? 0.03 : 0.01);
         return `+${(increase * 100).toFixed(1)}%`;
     },
-    condition: () => !(player instanceof DivineKnight)
+    condition: () => !(player instanceof DivineKnight) || player.critUpgradesEnabled,
+    description: 'Additive critical strike chance'
     },
 {
     name: 'Boss Damage',
@@ -90,7 +97,8 @@ const upgrades = [
     getValue: (rarity) => {
         const increase = rarity === 'Epic' ? 0.50 : (rarity === 'Magic' ? 0.25 : 0.10);
         return `+${(increase * 100).toFixed(0)}%`;
-    }
+    },
+    description: 'Additive boss damage increase'
 },
 ];
 
@@ -105,11 +113,10 @@ function getRarity() {
 
 function getRandomUpgrades(count) {
     if (player.level === 10) {
-        // Offer weapon evolution at level 10
         showWeaponEvolutionScreen();
         return [];
-    } else if (player.level >= 15 && (player.level - 15) % 10 === 0) {
-        // Offer class upgrade at level 15 and every 10 levels after that
+    } else if (player.level === 15 && !gameState.classUpgradeChosen) {
+        // Offer class upgrade only at level 15 and only once
         const classUpgradeOptions = classUpgrades[player.class];
         const shuffled = [...classUpgradeOptions].sort(() => 0.5 - Math.random());
         return shuffled.slice(0, count).map(upgrade => ({
@@ -117,10 +124,10 @@ function getRandomUpgrades(count) {
             isClassUpgrade: true
         }));
     } else {
-        // Offer regular upgrades
+        // Regular upgrades
         const availableUpgrades = upgrades.filter(upgrade => {
             if (upgrade.name === 'Boss Damage' && !gameState.amuletEquipped) {
-                return false; // Don't offer Boss Damage upgrade if amulet is not equipped
+                return false;
             }
             return !upgrade.condition || upgrade.condition();
         });
@@ -135,121 +142,218 @@ function getRandomUpgrades(count) {
 const classUpgrades = {
     Acolyte: [
         {
-            name: 'Frenzied Staff',
-            attackSpeedIncrease: 0.5,
-            critChanceDecrease: 0.02,
-            cooldownIncrease: 0.1,
+            name: 'Ravenous Shard',
+            shardName: 'Ravenous',
+            flavorText: 'The Void devours hesitation, you strike with insatiable speed, yet each blow loses its edge.',
+            attackSpeedIncrease: 0.6,
+            critChanceDecrease: 0.05,
+            cooldownIncrease: 0.3,
             effect: function() {
                 player.attacksPerSecond += this.attackSpeedIncrease;
                 player.adjustCritChance(-this.critChanceDecrease);
                 player.adjustCooldownReduction(-this.cooldownIncrease);
+                player.classUpgradeChosen = this.shardName;
+                gameState.classUpgradeChosen = this.shardName;
+                saveGameState();
             },
             description: function() {
-                return `Increased Attack Speed by ${(this.attackSpeedIncrease * 100).toFixed(0)}%, but reduces Crit Chance by ${(this.critChanceDecrease * 100).toFixed(0)}% and increases Cooldown by ${(this.cooldownIncrease * 100).toFixed(0)}%`;
+                return `<div class="upgrade-flavor">${this.flavorText}</div>
+                        <div class="stat-positive">Attack Speed +${(this.attackSpeedIncrease * 100).toFixed(0)}%</div>
+                        <div class="stat-negative">Crit Chance -${(this.critChanceDecrease * 100).toFixed(0)}%</div>
+                        <div class="stat-negative">Cooldown +${(this.cooldownIncrease * 100).toFixed(0)}%</div>`;
             }
         },
         {
-            name: 'Swift Earth',
-            damageLoss: 0.1,
-            cooldownReduction: 0.25,
+            name: 'Temporal Shard',
+            shardName: 'Temporal',
+            flavorText: 'Moments collapse into one another, you act faster than the world can breathe.',
+            damageLoss: 0.25,
+            cooldownReduction: 0.5,
             effect: function() {
                 player.weapon.damage *= (1 - this.damageLoss);
                 player.adjustCooldownReduction(this.cooldownReduction);
+                player.classUpgradeChosen = this.shardName;
+                gameState.classUpgradeChosen = this.shardName;
+                saveGameState();
             },
             description: function() {
-                return `Reduces Cooldown by ${(this.cooldownReduction * 100).toFixed(0)}% but lowers your damage by ${(this.damageLoss * 100).toFixed(0)}%`;
+                return `<div class="upgrade-flavor">${this.flavorText}</div>
+                        <div class="stat-positive">Cooldown -${(this.cooldownReduction * 100).toFixed(0)}%</div>
+                        <div class="stat-negative">Damage -${(this.damageLoss * 100).toFixed(0)}%</div>`;
             }
         },
         {
-            name: 'Critical Mastery',
+            name: 'Abyssal Shard',
+            shardName: 'Abyssal',
+            flavorText: 'The Abyss teaches patience, each strike slow and deliberate, carrying ruin in its wake.',
             critDamageIncrease: 0.5,
-            damageLoss: 0.02,
+            critChanceIncrease: 0.10,
+            attackSpeedDecrease: 0.3,
             effect: function() {
                 player.critDamage += this.critDamageIncrease;
-                player.weapon.damage *= (1 - this.damageLoss);
+                player.adjustCritChance(this.critChanceIncrease);
+                player.attacksPerSecond -= this.attackSpeedDecrease;
+                player.classUpgradeChosen = this.shardName;
+                gameState.classUpgradeChosen = this.shardName;
+                saveGameState();
             },
             description: function() {
-                return `Increased Crit Damage by ${(this.critDamageIncrease * 100).toFixed(0)}%, but lowers your damage by ${(this.damageLoss * 100).toFixed(0)}%`;
+                return `<div class="upgrade-flavor">${this.flavorText}</div>
+                        <div class="stat-positive">Crit Damage +${(this.critDamageIncrease * 100).toFixed(0)}%</div>
+                        <div class="stat-positive">Crit Chance +${(this.critChanceIncrease * 100).toFixed(0)}%</div>
+                        <div class="stat-negative">Attack Speed -${(this.attackSpeedDecrease * 100).toFixed(0)}%</div>`;
             }
         }
     ],
     Sorceress: [
-        {
-            name: 'Arcane Velocity',
-            attackSpeedIncrease: 0.5,
-            critChanceDecrease: 0.10,
-            effect: function() {
-                player.attacksPerSecond += this.attackSpeedIncrease;
-                player.adjustCritChance(-this.critChanceDecrease);
-            },
-            description: function() {
-                return `Increased Attack Speed by ${(this.attackSpeedIncrease * 100).toFixed(0)}%, but reduces Crit Chance by ${(this.critChanceDecrease * 100).toFixed(0)}%`;
-            }
+    {
+        name: 'Stormheart Crystal',
+        shardName: 'Stormheart',
+        flavorText: 'In storm\'s rhythm, spells erupt in a torrent of energy, but control slips away with every surge.',
+        attackSpeedIncrease: 0.5,
+        critChanceDecrease: 0.15,
+        effect: function() {
+            player.attacksPerSecond += this.attackSpeedIncrease;
+            player.adjustCritChance(-this.critChanceDecrease);
+            player.classUpgradeChosen = this.shardName;
+            gameState.classUpgradeChosen = this.shardName;
+            saveGameState();
         },
-        {
-            name: 'Precise Strikes',
-            critChanceIncrease: 0.1,
-            critDamageDecrease: 0.2,
-            effect: function() {
-                player.critChance += this.critChanceIncrease;
-                player.critDamage -= this.critDamageDecrease;
-            },
-            description: function() {
-                return `Increased Critical Chance by ${(this.critChanceIncrease * 100).toFixed(0)}%, but decreases Crit Damage by ${(this.critDamageDecrease * 100).toFixed(0)}%`;
-            }
-        },
-        {
-            name: 'Chain Mastery',
-            chainIncrease: 1,
-            attackSpeedDecrease: 0.2,
-            effect: function() {
-                player.weapon.remainingTargets += this.chainIncrease;
-                player.attacksPerSecond -= this.attackSpeedDecrease;
-            },
-            description: function() {
-                return `Increased the number of chain targets by ${this.chainIncrease}, but lowers Attack Speed by ${(this.attackSpeedDecrease * 100).toFixed(0)}%`;
-            }
+        description: function() {
+            return `<div class="upgrade-flavor">${this.flavorText}</div>
+                    <div class="stat-positive">Attack Speed +${(this.attackSpeedIncrease * 100).toFixed(0)}%</div>
+                    <div class="stat-negative">Crit Chance -${(this.critChanceDecrease * 100).toFixed(0)}%</div>`;
         }
-    ],
+    },
+    {
+        name: 'Spellweaver\'s Sigil',
+        shardName: 'Spellweaver\'s',
+        flavorText: 'Each strike finds its mark, though the storm\'s fury wanes in precision.',
+        critChanceIncrease: 0.2,
+        critDamageDecrease: 0.5,
+        effect: function() {
+            player.adjustCritChance(this.critChanceIncrease);
+            player.critDamage -= this.critDamageDecrease;
+            player.classUpgradeChosen = this.shardName;
+            gameState.classUpgradeChosen = this.shardName;
+            saveGameState();
+        },
+        description: function() {
+            return `<div class="upgrade-flavor">${this.flavorText}</div>
+                    <div class="stat-positive">Crit Chance +${(this.critChanceIncrease * 100).toFixed(0)}%</div>
+                    <div class="stat-negative">Crit Damage -${(this.critDamageDecrease * 100).toFixed(0)}%</div>`;
+        }
+    },
+{    
+    name: 'Nexus Crystal',
+    shardName: 'Nexus',
+    flavorText: 'At the center of the arcane current, strikes resonate with devastating precision, though the tempo slows.',
+    attackSpeedDecrease: 0.35,
+    chainCountBonus: 1,
+    effect: function() {
+        player.attacksPerSecond -= this.attackSpeedDecrease;
+        
+        // Set chain damage multiplier to 0.9 if weapon has chain mechanics
+        if (player.weapon && player.weapon.chainDamageMultiplier !== undefined) {
+            player.weapon.chainDamageMultiplier = 0.90;
+        }
+        
+        // Add +1 chain count if weapon has chain mechanics
+        if (player.weapon && player.weapon.chainCount !== undefined) {
+            player.weapon.chainCount += this.chainCountBonus;
+        }
+        
+        player.classUpgradeChosen = this.shardName;
+        gameState.classUpgradeChosen = this.shardName;
+        saveGameState();
+    },
+    description: function() {
+        return `<div class="upgrade-flavor">${this.flavorText}</div>
+		        <div class="stat-positive">Chains: +1 target</div>
+                <div class="stat-positive">Chain Damage +5%</div>
+                <div class="stat-negative">Attack Speed -${(this.attackSpeedDecrease * 100).toFixed(0)}%</div>`;
+    }
+}
+  ],
     'Divine Knight': [
-        {
-            name: 'Swift Shield',
-            attackSpeedIncrease: 0.5,
-            damageLoss: 0.1,
-            effect: function() {
-                player.attacksPerSecond += this.attackSpeedIncrease;
-                player.weapon.damage *= (1 - this.damageLoss);
-            },
-            description: function() {
-                return `Increased Attack Speed by ${(this.attackSpeedIncrease * 100).toFixed(0)}%, but lowers your damage by ${(this.damageLoss * 100).toFixed(0)}%`;
-            }
+    {
+        name: 'Vigilant Crest',
+        shardName: 'Vigilant',
+        flavorText: 'The Light quickens your resolve, you strike swiftly and endlessly, though each blow carries less might.',
+        attackSpeedIncrease: 1.25,
+        damageLoss: 0.25,
+        effect: function() {
+            player.attacksPerSecond += this.attackSpeedIncrease;
+            player.weapon.damage *= (1 - this.damageLoss);
+            player.classUpgradeChosen = this.shardName;
+            gameState.classUpgradeChosen = this.shardName;
+            saveGameState();
         },
-        {
-            name: 'Divine Precision',
-            critChanceIncrease: 0.02,
-            attackSpeedDecrease: 0.5,
-            effect: function() {
-                player.adjustCritChance(this.critChanceIncrease);
-                player.attacksPerSecond -= this.attackSpeedDecrease;
-            },
-            description: function() {
-                return `Critical Chance increased by ${(this.critChanceIncrease * 100).toFixed(0)}%, but lowers your Attack Speed by ${this.attackSpeedDecrease.toFixed(1)}`;
-            }
-        },
-        {
-            name: 'Holy Fortitude',
-            healthIncrease: 10,
-            damageLoss: 0.10,
-            effect: function() {
-                player.hp += this.healthIncrease;
-                player.maxHp += this.healthIncrease;
-                player.weapon.damage *= (1 - this.damageLoss);
-            },
-            description: function() {
-                return `Health +${this.healthIncrease}, but damage reduced by ${(this.damageLoss * 100).toFixed(0)}%`;
-            }
+        description: function() {
+            return `<div class="upgrade-flavor">${this.flavorText}</div>
+                    <div class="stat-positive">Attack Speed +${(this.attackSpeedIncrease * 100).toFixed(0)}%</div>
+                    <div class="stat-negative">Damage -${(this.damageLoss * 100).toFixed(0)}%</div>`;
         }
-    ]
+    },
+    {
+    name: 'Sanctified Oath',
+    shardName: 'Sanctified',
+    flavorText: 'Divine judgment sharpens your strikes, but the weight of faith slows your hand.',
+    damageLoss: 0.1,
+    attackSpeedDecrease: 0.15,
+    cooldownIncrease: 0.15,
+    enablesCritUpgrades: true,
+    effect: function() {
+        player.weapon.damage *= (1 - this.damageLoss);
+        player.attacksPerSecond -= this.attackSpeedDecrease;
+        player.adjustCooldownReduction(-this.cooldownIncrease);
+        
+        // Enable crit upgrades for Divine Knight
+        player.critUpgradesEnabled = true;
+        gameState.critUpgradesEnabled = true;
+        
+        // Apply retroactive crit chance from soul upgrades
+        const retroactiveCritChance = (gameState.critChanceUpgrades || 0) * 0.01;
+        if (retroactiveCritChance > 0) {
+            player.adjustCritChance(retroactiveCritChance);
+        }
+        
+        player.classUpgradeChosen = this.shardName;
+        gameState.classUpgradeChosen = this.shardName;
+        saveGameState();
+    },
+    description: function() {
+        return `<div class="upgrade-flavor">${this.flavorText}</div>
+                <div class="stat-positive">Enables Crit Globally</div>
+                <div class="stat-negative">Damage -${(this.damageLoss * 100).toFixed(0)}%</div>
+                <div class="stat-negative">Attack Speed -${(this.attackSpeedDecrease * 100).toFixed(0)}%</div>
+                <div class="stat-negative">Cooldown +${(this.cooldownIncrease * 100).toFixed(0)}%</div>`;
+    }
+    },
+    {
+        name: 'Eternal Bastion',
+        shardName: 'Eternal',
+        flavorText: 'The eternal flame dwells within you — your form unyielding, your strength resounding through ages.',
+        healthIncrease: 10,
+        damageIncrease: 0.25,
+        cooldownIncrease: 1.0,
+        effect: function() {
+            player.hp += this.healthIncrease;
+            player.maxHp += this.healthIncrease;
+            player.weapon.damage *= (1 + this.damageIncrease);
+            player.adjustCooldownReduction(-this.cooldownIncrease);
+            player.classUpgradeChosen = this.shardName;
+            gameState.classUpgradeChosen = this.shardName;
+            saveGameState();
+        },
+        description: function() {
+            return `<div class="upgrade-flavor">${this.flavorText}</div>
+                    <div class="stat-positive">Health +${this.healthIncrease}</div>
+                    <div class="stat-positive">Damage +${(this.damageIncrease * 100).toFixed(0)}%</div>
+                    <div class="stat-negative">Cooldown +${(this.cooldownIncrease * 100).toFixed(0)}%</div>`;
+        }
+    }
+]
 };
 
 function showLevelUpScreen() {
@@ -258,7 +362,7 @@ function showLevelUpScreen() {
     const levelUpAudio = document.getElementById('levelupmu');
     if (levelUpAudio) {
         levelUpAudio.currentTime = 0;
-        levelUpAudio.volume = 0.2; // Adjust volume as needed
+        levelUpAudio.volume = 0.2;
         levelUpAudio.play().catch(e => console.log('Audio play failed:', e));
     }
 	
@@ -281,7 +385,14 @@ function showLevelUpScreen() {
 
     availableUpgrades.forEach((upgrade, index) => {
         const card = document.createElement('div');
-        card.className = upgrade.isClassUpgrade ? 'upgrade-card class-upgrade' : `upgrade-card ${upgrade.rarity.toLowerCase()}`;
+        let cardClass = upgrade.isClassUpgrade ? 'upgrade-card class-upgrade' : `upgrade-card ${upgrade.rarity.toLowerCase()}`;
+        
+        if (upgrade.isClassUpgrade) {
+            const playerClassLower = player.class.toLowerCase().replace(/\s+/g, '-');
+            cardClass += ` ${playerClassLower}-upgrade`;
+        }
+        
+        card.className = cardClass;
         card.dataset.index = index;
 
         if (upgrade.isClassUpgrade) {
@@ -384,12 +495,9 @@ function selectUpgrade(upgrade, index) {
         upgrade.effect(upgrade.rarity);
     }
     hideLevelUpScreen();
-    gameState.isPaused = false;
     
-    // Cancel any existing animation frame and restart the loop
-    cancelAnimationFrame(animationFrameId);
-    lastTimestamp = performance.now();
-    requestAnimationFrame(gameLoop);
+    // Process next level-up if there's enough XP
+    processNextLevelUp();
 }
 
 function hideLevelUpScreen() {
@@ -440,23 +548,23 @@ const soulsUpgrades = [
         }
     },
     {
-        name: 'Crit Chance+',
-        maxPurchases: 5,
-        baseCost: 250,
-        valuePerUpgrade: 0.01,
-        effect: (gameState) => {
-            gameState.critChanceUpgrades = (gameState.critChanceUpgrades || 0) + 1;
-            if (player && !(player instanceof DivineKnight)) {
-                player.adjustCritChance(this.valuePerUpgrade);
-            }
-        },
-        getCost: function(gameState) {
-            return Math.floor(this.baseCost * Math.pow(3.5, gameState.critChanceUpgrades || 0));
-        },
-        canPurchase: (gameState) => {
-            const maxPurchases = gameState.ascensionLevel > 0 ? 10 : 5;
-            return (gameState.critChanceUpgrades || 0) < maxPurchases && gameState.playerClass !== 'Divine Knight';
+    name: 'Crit Chance+',
+    maxPurchases: 5,
+    baseCost: 250,
+    valuePerUpgrade: 0.01,
+    effect: (gameState) => {
+        gameState.critChanceUpgrades = (gameState.critChanceUpgrades || 0) + 1;
+        if (player && (!(player instanceof DivineKnight) || player.critUpgradesEnabled)) {
+            player.adjustCritChance(this.valuePerUpgrade);
         }
+    },
+    getCost: function(gameState) {
+        return Math.floor(this.baseCost * Math.pow(3.5, gameState.critChanceUpgrades || 0));
+    },
+    canPurchase: (gameState) => {
+        const maxPurchases = gameState.ascensionLevel > 0 ? 10 : 5;
+        return (gameState.critChanceUpgrades || 0) < maxPurchases;
+    }
     },
     {
         name: 'Critical Damage+',
@@ -525,7 +633,7 @@ const soulsUpgrades = [
             
         },
         getCost: function(gameState) {
-            return Math.floor(this.baseCost * Math.pow(3.5, gameState.expUpgrades || 0));
+            return Math.floor(this.baseCost * Math.pow(1.5, gameState.expUpgrades || 0));
         },
         canPurchase: (gameState) => {
             const maxPurchases = gameState.ascensionLevel > 1 ? 15 : (gameState.ascensionLevel > 0 ? 10 : 5);

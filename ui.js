@@ -40,35 +40,62 @@ function updateUI() {
 function updatePlayerStats() {
     const playerStatsElement = document.getElementById('player-stats');
     
-    if (player && player.weapon) {
+        if (player && player.weapon) {
         let rangeText = `${player.weapon.globalRange.toFixed(0)}`;
-        if (player.weapon instanceof ChainWand || player.weapon instanceof BasicWand) {
+        
+        // Only show chain range for weapons that actually use chaining
+        if ((player.weapon instanceof ChainWand || player.weapon instanceof BasicWand) && player.weapon.chainRange) {
             rangeText += ` / Chain ${player.weapon.chainRange}`;
-        } else if (player.weapon instanceof ShatterStaff) {
+        } else if (player.weapon instanceof VortexStaff && player.weapon.splashRange) {
             rangeText += ` / Splash ${player.weapon.splashRange}`;
         }
         
-        // Calculate total cooldown reduction
+        // Calculate total cooldown reduction with color coding
         const totalCDReduction = player.totalCooldownReduction;
-        const cdReductionText = totalCDReduction >= 0.75 
-            ? '75% CAP' 
-            : `${(totalCDReduction * 100).toFixed(1)}%`;
+        let cdReductionText = '';
+        let cdReductionStyle = '';
+        
+        if (totalCDReduction >= 0.75) {
+            cdReductionText = '75% CAP';
+            cdReductionStyle = ' style="color: #4A6741;"'; // Dark medieval green for cap
+        } else if (totalCDReduction < 0) {
+            // Negative value means cooldown increase
+            cdReductionText = `${(totalCDReduction * 100).toFixed(1)}%`;
+            cdReductionStyle = ' style="color: #DC143C;"'; // Red color for negative
+        } else {
+            cdReductionText = `${(totalCDReduction * 100).toFixed(1)}%`;
+        }
 
-        // Cap crit chance at 100%
+        // Cap crit chance at 100% with color coding
         const cappedCritChance = Math.min(player.critChance, 1);
-        const critChanceText = cappedCritChance >= 1 
-            ? '100% CAP' 
-            : `${(cappedCritChance * 100).toFixed(1)}%`;
+        let critChanceText = '';
+        let critChanceStyle = '';
+        
+        if (cappedCritChance >= 1) {
+            critChanceText = '100% CAP';
+            critChanceStyle = ' style="color: #4A6741;"'; // Dark medieval green for cap
+        } else if (player.critChance < 0) {
+            critChanceText = `${(player.critChance * 100).toFixed(1)}%`;
+            critChanceStyle = ' style="color: #DC143C;"'; // Red color for negative
+        } else {
+            critChanceText = `${(cappedCritChance * 100).toFixed(1)}%`;
+        }
+        
+        // Crit damage with color coding for negative values
+        const critDamagePercent = (player.critDamage * 100 - 100);
+        let critDamageStyle = '';
+        if (critDamagePercent < 0) {
+            critDamageStyle = ' style="color: #DC143C;"'; // Red color for negative
+        }
         
         // Calculate total boss damage bonus
-        const amuletBonus = gameState.amuletEquipped ? player.bossDamageBonus * Math.max(1, gameState.ascensionLevel + 1) : 0;
-        const cardBonus = player.additionalBossDamage || 0;
-        const bossDamageUpgrade = soulsUpgrades.find(u => u.name === 'Boss Damage+');
-        const upgradeBonus = (gameState.bossDamageUpgrades || 0) * bossDamageUpgrade.valuePerUpgrade;
         const totalBonus = player.getBossDamageBonus();
 
+        const displayName = player.getDisplayName();
+        const classColor = player.classColor || '#FFD700';
+
         let statsHTML = `
-            <h3>${player.class}</h3>
+            			<h3 style="color: ${classColor};">${displayName}</h3>
             <div><span class="stat-name">Level:</span> <span class="stat-value">${player.level}</span></div>
             <div><span class="stat-name">Exp:</span> <span class="stat-value">${player.exp.toFixed(0)} / ${player.expToNextLevel.toFixed(0)}</span></div>
             <div><span class="stat-name">Souls:</span> <span class="stat-value">${player.currentRunSouls}</span></div>
@@ -78,9 +105,10 @@ function updatePlayerStats() {
             <div><span class="stat-name">Damage:</span> <span class="stat-value">${player.weapon.damage.toFixed(1)}</span></div>
             <div><span class="stat-name">Range:</span> <span class="stat-value">${rangeText}</span></div>
             <div><span class="stat-name">Attacks/Sec:</span> <span class="stat-value">${player.attacksPerSecond.toFixed(2)}</span></div>
-            <div><span class="stat-name">CD Reduction:</span> <span class="stat-value">${cdReductionText}</span></div>
-            <div><span class="stat-name">Crit Chance:</span> <span class="stat-value">${critChanceText}</span></div>
-            <div><span class="stat-name">Crit Damage:</span> <span class="stat-value">${(player.critDamage * 100 - 100).toFixed(1)}%</span></div>
+            <div><span class="stat-name">CD Reduction:</span> <span class="stat-value"${cdReductionStyle}>${cdReductionText}</span></div>
+            <div><span class="stat-name">Crit Chance:</span> <span class="stat-value"${critChanceStyle}>${critChanceText}</span></div>
+            <div><span class="stat-name">Crit Damage:</span> <span class="stat-value"${critDamageStyle}>${critDamagePercent.toFixed(1)}%</span></div>
+
         `;
 
         // Only add boss damage stat if amulet is equipped
@@ -167,14 +195,14 @@ function showAscensionOverlay() {
     content.id = 'ascension-content';
     
     content.innerHTML = `
-        <h2>Ascension ${gameState.ascensionLevel + 1}</h2>
-        <p>Resetting everything except unlocked classes.</p>
-        <p>${amuletUpgradeText}</p>
-        <p>Soul gain multiplier: x${Math.pow(2, gameState.ascensionLevel + 1)}</p>
-        <p>${maxUpgradesText}</p>
-        <p>${unlockText}</p>
-        <p>${qolUnlockText}</p>  
-        <button onclick="ascend()">Confirm Ascension</button>
+    <h2>Ascension ${gameState.ascensionLevel + 1}</h2>
+    <p>Resetting everything except unlocked classes.</p>
+    <p>${amuletUpgradeText}</p>
+    <p>Soul gain multiplier: x${SOUL_MULTIPLIERS[gameState.ascensionLevel + 1] || SOUL_MULTIPLIERS[SOUL_MULTIPLIERS.length - 1]}</p>
+    <p>${maxUpgradesText}</p>
+    <p>${unlockText}</p>
+    <p>${qolUnlockText}</p>  
+    <button onclick="ascend()">Confirm Ascension</button>
     `;
     
     overlay.appendChild(content);
@@ -311,15 +339,24 @@ function createQoLMenu() {
     let menuHTML = `<h3>Quality of Life</h3>`;
 
     if (gameState.autoCastUnlocked) {
-        menuHTML += `
+    menuHTML += `
+        <div class="toggle-container">
+            <span>Auto Cast Ability</span>
+            <label class="switch">
+                <input type="checkbox" id="auto-cast-toggle">
+                <span class="slider round"></span>
+            </label>
+        </div>
+        <div id="auto-cast-elite-boss-container" style="display: ${gameState.autoCastEnabled ? 'block' : 'none'}; margin-left: 20px; font-size: 13px;">
             <div class="toggle-container">
-                <span>Auto Cast Ability</span>
+                <span>Elite/Boss Only</span>
                 <label class="switch">
-                    <input type="checkbox" id="auto-cast-toggle">
+                    <input type="checkbox" id="auto-cast-elite-boss-toggle">
                     <span class="slider round"></span>
                 </label>
-            </div>`;
-    }
+            </div>
+        </div>`;
+  }
 
     if (gameState.autoCardUnlocked) {
         menuHTML += `
@@ -372,13 +409,28 @@ function createQoLMenu() {
     qolMenu.innerHTML = menuHTML;
 
     const autoCastToggle = document.getElementById('auto-cast-toggle');
-    if (autoCastToggle) {
-        autoCastToggle.checked = gameState.autoCastEnabled || false;
-        autoCastToggle.addEventListener('change', () => {
-            gameState.autoCastEnabled = autoCastToggle.checked;
-            saveGameState();
-        });
-    }
+ if (autoCastToggle) {
+    autoCastToggle.checked = gameState.autoCastEnabled || false;
+    autoCastToggle.addEventListener('change', () => {
+        gameState.autoCastEnabled = autoCastToggle.checked;
+        // Show/hide Elite/Boss toggle based on Auto Cast state
+        const eliteBossContainer = document.getElementById('auto-cast-elite-boss-container');
+        if (eliteBossContainer) {
+            eliteBossContainer.style.display = autoCastToggle.checked ? 'block' : 'none';
+        }
+        saveGameState();
+    });
+ }
+
+// Add this new toggle
+  const autoCastEliteBossToggle = document.getElementById('auto-cast-elite-boss-toggle');
+  if (autoCastEliteBossToggle) {
+    autoCastEliteBossToggle.checked = gameState.autoCastEliteBossOnly || false;
+    autoCastEliteBossToggle.addEventListener('change', () => {
+        gameState.autoCastEliteBossOnly = autoCastEliteBossToggle.checked;
+        saveGameState();
+    });
+  }
 
     if (gameState.autoCardUnlocked) {
         const autoCardToggle = document.getElementById('auto-card-toggle');
@@ -530,7 +582,7 @@ function createPriorityList() {
 
     priorityList.innerHTML = ''; // Clear existing list items
 
-    const defaultPriority = ['Damage Increase', 'Attack Speed', 'Health', 'Regeneration', 'Cooldown Reduction', 'Critical Damage Increase', 'Critical Strike Chance'];
+    const defaultPriority = ['Damage Increase', 'Attack Speed', 'Health', 'Regeneration', 'Cooldown Reduction', 'Critical Damage Increase','Boss Damage'];
     const upgrades = gameState.upgradePriority || defaultPriority;
     
     upgrades.forEach((upgrade, index) => {
@@ -669,27 +721,27 @@ const achievements = {
         condition: () => gameState.ascensionLevel >= 1
     },
     'Ascend Novice': {
-        description: 'Ascend 2 Times',
+        description: 'Ascend 3 Times',
         condition: () => gameState.ascensionLevel >= 3
     },
-	    'Acolyte Master': {
-        description: 'Divine Knight Base Amulet Damage +0.2',
-        condition: () => gameState.highestStageReached >= 6 && player instanceof Acolyte,
-        amuletDamageIncrease: 0.2,
-        affectedClass: 'Divine Knight'
-    },
-    'Sorceress Master': {
-        description: 'Acolyte Base Amulet Damage +0.6',
-        condition: () => gameState.highestStageReached >= 7 && player instanceof Sorceress,
-        amuletDamageIncrease: 0.6,
-        affectedClass: 'Acolyte'
-    },
-    'Divine Knight Master': {
-        description: 'Sorceress Base Amulet Damage +0.4',
-        condition: () => gameState.highestStageReached >= 8 && player instanceof DivineKnight,
-        amuletDamageIncrease: 0.4,
-        affectedClass: 'Sorceress'
-    }
+	 'Acolyte Master': {
+    description: 'Divine Knight Base Amulet Damage +1',
+    condition: () => (gameState.highestStagePerClass['Acolyte'] || 1) >= 6,
+    amuletDamageIncrease: 1,
+    affectedClass: 'Divine Knight'
+ },
+ 'Sorceress Master': {
+    description: 'Acolyte Base Amulet Damage +3',
+    condition: () => (gameState.highestStagePerClass['Sorceress'] || 1) >= 7,
+    amuletDamageIncrease: 3,
+    affectedClass: 'Acolyte'
+ },
+ 'Divine Knight Master': {
+    description: 'Sorceress Base Amulet Damage +2',
+    condition: () => (gameState.highestStagePerClass['Divine Knight'] || 1) >= 8,
+    amuletDamageIncrease: 2,
+    affectedClass: 'Sorceress'
+ }
 };
 
 // Add this function to create the achievements menu

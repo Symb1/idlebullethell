@@ -5,7 +5,7 @@ class Enemy {
   static currentlyPlayingHurtSounds = 0;
   static deathSoundIndex = 0;
     constructor() {
-        this.baseSpeed = 24;
+        this.baseSpeed = 26;
         this.radius = 10;
         this.speedEffects = [];
         this.resetEnemy();
@@ -270,11 +270,10 @@ createHitSprite() {
     if (audio) {
         audio.currentTime = 0;
         audio.volume = 0.17;
-        audio.playbackRate = Math.min(player.attacksPerSecond / 1.0, 3.0);
         audio.play().catch(e => console.log('Audio play failed:', e));
     }
     
-    const soulsGained = Math.floor(this.maxHp * 0.1);
+    const soulsGained = Math.floor(this.maxHp * 10);
     player.gainSouls(soulsGained); 
     const expMultiplier = this.getExpMultiplier();
     const expGain = 10 * expMultiplier;
@@ -420,7 +419,6 @@ die(isCritical = false) {
     if (audio) {
         audio.currentTime = 0;
         audio.volume = 0.3;
-        audio.playbackRate = Math.min(player.attacksPerSecond / 1.0, 3.0);
         audio.play().catch(e => console.log('Audio play failed:', e));
     }
     
