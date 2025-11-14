@@ -1,114 +1,145 @@
 const upgrades = [
     {
         name: 'Damage Increase',
-        effect: (rarity) => {
-            const increase = rarity === 'Epic' ? 0.25 : (rarity === 'Magic' ? 0.12 : 0.08);
+        effect: (rarity, secondaryUpgrade, secondaryRarity) => {
+            const increase = rarity === 'Legendary' || rarity === 'Epic' ? 0.25 : (rarity === 'Magic' ? 0.12 : 0.08);
             player.damageModifier *= (1 + increase);
-	    if (player.weapon) {
-            player.weapon.updateDamage();
-        }
+            if (player.weapon) {
+                player.weapon.updateDamage();
+            }
+            // Apply secondary effect for Legendary
+            if (rarity === 'Legendary' && secondaryUpgrade) {
+                secondaryUpgrade.effect(secondaryRarity);
+            }
         },
         getValue: (rarity) => {
-            const increase = rarity === 'Epic' ? 0.25 : (rarity === 'Magic' ? 0.12 : 0.08);
+            const increase = rarity === 'Legendary' || rarity === 'Epic' ? 0.25 : (rarity === 'Magic' ? 0.12 : 0.08);
             return `x${(increase * 100).toFixed(0)}%`;
         },
         description: 'Multiplicative damage increase'
     },
     {
         name: 'Attack Speed',
-        effect: (rarity) => {
-            const increase = rarity === 'Epic' ? 0.25 : (rarity === 'Magic' ? 0.15 : 0.10);
+        effect: (rarity, secondaryUpgrade, secondaryRarity) => {
+            const increase = rarity === 'Legendary' || rarity === 'Epic' ? 0.25 : (rarity === 'Magic' ? 0.15 : 0.10);
             player.attacksPerSecond += increase;
+            if (rarity === 'Legendary' && secondaryUpgrade) {
+                secondaryUpgrade.effect(secondaryRarity);
+            }
         },
         getValue: (rarity) => {
-            const increase = rarity === 'Epic' ? 0.25 : (rarity === 'Magic' ? 0.15 : 0.10);
+            const increase = rarity === 'Legendary' || rarity === 'Epic' ? 0.25 : (rarity === 'Magic' ? 0.15 : 0.10);
             return `+${(increase * 100).toFixed(0)}%`;
         },
         description: 'Additive attack speed increase'
     },
     {
-    name: 'Health',
-    effect: (rarity) => {
-        const increase = rarity === 'Epic' ? 2.0 : (rarity === 'Magic' ? 1.5 : 1.0);
-        player.maxHp += increase;
-        player.heal(increase);
-    },
-    getValue: (rarity) => {
-        const increase = rarity === 'Epic' ? 2.0 : (rarity === 'Magic' ? 1.5 : 1.0);
-        return `+${increase.toFixed(1)}`;
-    },
-    description: 'Additive health increase'
-},
-	{
-    name: 'Regeneration',
-    effect: (rarity) => {
-        const increase = rarity === 'Epic' ? 0.1 : (rarity === 'Magic' ? 0.05 : 0.02);
-        player.hpRegen += increase;
-    },
-    getValue: (rarity) => {
-        const increase = rarity === 'Epic' ? 0.1 : (rarity === 'Magic' ? 0.05 : 0.02);
-        return `+${increase.toFixed(2)}/s`;
-    },
-    description: 'Additive regeneration increase'
-},
-{
-    name: 'Cooldown Reduction',
-    effect: (rarity) => {
-        const reduction = rarity === 'Epic' ? 0.15 : (rarity === 'Magic' ? 0.10 : 0.05);
-        player.adjustCooldownReduction(reduction);
-    },
-    getValue: (rarity) => {
-        const reduction = rarity === 'Epic' ? 0.15 : (rarity === 'Magic' ? 0.10 : 0.05);
-        return `+${(reduction * 100).toFixed(0)}%`;
-    },
-    description: 'Additive cooldown reduction'
-},
-    {
-        name: 'Critical Damage Increase',
-        effect: (rarity) => {
-            const increase = rarity === 'Epic' ? 0.40 : (rarity === 'Magic' ? 0.25 : 0.15);
-            player.critDamage += increase;
+        name: 'Health',
+        effect: (rarity, secondaryUpgrade, secondaryRarity) => {
+            const increase = rarity === 'Legendary' || rarity === 'Epic' ? 2.0 : (rarity === 'Magic' ? 1.5 : 1.0);
+            player.maxHp += increase;
+            player.heal(increase);
+            if (rarity === 'Legendary' && secondaryUpgrade) {
+                secondaryUpgrade.effect(secondaryRarity);
+            }
         },
         getValue: (rarity) => {
-            const increase = rarity === 'Epic' ? 0.40 : (rarity === 'Magic' ? 0.25 : 0.15);
+            const increase = rarity === 'Legendary' || rarity === 'Epic' ? 2.0 : (rarity === 'Magic' ? 1.5 : 1.0);
+            return `+${increase.toFixed(1)}`;
+        },
+        description: 'Additive health increase'
+    },
+    {
+        name: 'Regeneration',
+        effect: (rarity, secondaryUpgrade, secondaryRarity) => {
+            const increase = rarity === 'Legendary' || rarity === 'Epic' ? 0.1 : (rarity === 'Magic' ? 0.05 : 0.02);
+            player.hpRegen += increase;
+            if (rarity === 'Legendary' && secondaryUpgrade) {
+                secondaryUpgrade.effect(secondaryRarity);
+            }
+        },
+        getValue: (rarity) => {
+            const increase = rarity === 'Legendary' || rarity === 'Epic' ? 0.1 : (rarity === 'Magic' ? 0.05 : 0.02);
+            return `+${increase.toFixed(2)}/s`;
+        },
+        description: 'Additive regeneration increase'
+    },
+    {
+        name: 'Cooldown Reduction',
+        effect: (rarity, secondaryUpgrade, secondaryRarity) => {
+            const reduction = rarity === 'Legendary' || rarity === 'Epic' ? 0.15 : (rarity === 'Magic' ? 0.10 : 0.05);
+            player.adjustCooldownReduction(reduction);
+            if (rarity === 'Legendary' && secondaryUpgrade) {
+                secondaryUpgrade.effect(secondaryRarity);
+            }
+        },
+        getValue: (rarity) => {
+            const reduction = rarity === 'Legendary' || rarity === 'Epic' ? 0.15 : (rarity === 'Magic' ? 0.10 : 0.05);
+            return `+${(reduction * 100).toFixed(0)}%`;
+        },
+        description: 'Additive cooldown reduction'
+    },
+    {
+        name: 'Critical Damage Increase',
+        effect: (rarity, secondaryUpgrade, secondaryRarity) => {
+            const increase = rarity === 'Legendary' || rarity === 'Epic' ? 0.40 : (rarity === 'Magic' ? 0.25 : 0.15);
+            player.critDamage += increase;
+            if (rarity === 'Legendary' && secondaryUpgrade) {
+                secondaryUpgrade.effect(secondaryRarity);
+            }
+        },
+        getValue: (rarity) => {
+            const increase = rarity === 'Legendary' || rarity === 'Epic' ? 0.40 : (rarity === 'Magic' ? 0.25 : 0.15);
             return `+${(increase * 100).toFixed(0)}%`;
         },
         description: 'Additive critical damage increase'
     },
     {
-    name: 'Critical Strike Chance',
-    effect: (rarity) => {
-        const increase = rarity === 'Epic' ? 0.06 : (rarity === 'Magic' ? 0.03 : 0.01);
-        player.adjustCritChance(increase);
+        name: 'Critical Strike Chance',
+        effect: (rarity, secondaryUpgrade, secondaryRarity) => {
+            const increase = rarity === 'Legendary' || rarity === 'Epic' ? 0.06 : (rarity === 'Magic' ? 0.03 : 0.01);
+            player.adjustCritChance(increase);
+            if (rarity === 'Legendary' && secondaryUpgrade) {
+                secondaryUpgrade.effect(secondaryRarity);
+            }
+        },
+        getValue: (rarity) => {
+            const increase = rarity === 'Legendary' || rarity === 'Epic' ? 0.06 : (rarity === 'Magic' ? 0.03 : 0.01);
+            return `+${(increase * 100).toFixed(1)}%`;
+        },
+        condition: () => !(player instanceof DivineKnight) || player.critUpgradesEnabled,
+        description: 'Additive critical strike chance'
     },
-    getValue: (rarity) => {
-        const increase = rarity === 'Epic' ? 0.06 : (rarity === 'Magic' ? 0.03 : 0.01);
-        return `+${(increase * 100).toFixed(1)}%`;
+    {
+        name: 'Boss Damage',
+        effect: (rarity, secondaryUpgrade, secondaryRarity) => {
+            const increase = rarity === 'Legendary' || rarity === 'Epic' ? 0.50 : (rarity === 'Magic' ? 0.25 : 0.10);
+            player.additionalBossDamage = (player.additionalBossDamage || 0) + increase;
+            if (rarity === 'Legendary' && secondaryUpgrade) {
+                secondaryUpgrade.effect(secondaryRarity);
+            }
+        },
+        getValue: (rarity) => {
+            const increase = rarity === 'Legendary' || rarity === 'Epic' ? 0.50 : (rarity === 'Magic' ? 0.25 : 0.10);
+            return `+${(increase * 100).toFixed(0)}%`;
+        },
+        description: 'Additive boss damage increase'
     },
-    condition: () => !(player instanceof DivineKnight) || player.critUpgradesEnabled,
-    description: 'Additive critical strike chance'
-    },
-{
-    name: 'Boss Damage',
-    effect: (rarity) => {
-        const increase = rarity === 'Epic' ? 0.50 : (rarity === 'Magic' ? 0.25 : 0.10);
-        player.additionalBossDamage = (player.additionalBossDamage || 0) + increase;
-    },
-    getValue: (rarity) => {
-        const increase = rarity === 'Epic' ? 0.50 : (rarity === 'Magic' ? 0.25 : 0.10);
-        return `+${(increase * 100).toFixed(0)}%`;
-    },
-    description: 'Additive boss damage increase'
-},
 ];
 
 function getRarity() {
     const rarityUpgrade = soulsUpgrades.find(u => u.name === 'Rarity+');
     const rarityBonus = (gameState.rarityUpgrades || 0) * rarityUpgrade.valuePerUpgrade;
     const roll = Math.random();
-    if (roll < 0.60 - rarityBonus * 2) return 'Normal';
-    if (roll < 0.90 - rarityBonus) return 'Magic';
-    return 'Epic';
+    
+    // Legendary: 1% base chance, affected by rarity bonus
+    if (roll < 0.01 + rarityBonus * 0.5) return 'Legendary';
+    // Epic: 10% base chance
+    if (roll < 0.11 + rarityBonus) return 'Epic';
+    // Magic: 30% base chance
+    if (roll < 0.41 + rarityBonus * 2) return 'Magic';
+    // Normal: remaining chance
+    return 'Normal';
 }
 
 function getRandomUpgrades(count) {
@@ -132,10 +163,24 @@ function getRandomUpgrades(count) {
             return !upgrade.condition || upgrade.condition();
         });
         const shuffled = [...availableUpgrades].sort(() => 0.5 - Math.random());
-        return shuffled.slice(0, count).map(upgrade => ({
-            ...upgrade,
-            rarity: getRarity()
-        }));
+        return shuffled.slice(0, count).map(upgrade => {
+            const rarity = getRarity();
+            const result = {
+                ...upgrade,
+                rarity: rarity
+            };
+            
+            // If Legendary, add a secondary stat with Magic quality
+            if (rarity === 'Legendary') {
+                // Get a different random upgrade for the secondary stat
+                const secondaryOptions = availableUpgrades.filter(u => u.name !== upgrade.name);
+                const secondaryUpgrade = secondaryOptions[Math.floor(Math.random() * secondaryOptions.length)];
+                result.secondaryUpgrade = secondaryUpgrade;
+                result.secondaryRarity = 'Magic';
+            }
+            
+            return result;
+        });
     }
 }
 
@@ -384,53 +429,73 @@ function showLevelUpScreen() {
     const availableUpgrades = getRandomUpgrades(3);
 
     availableUpgrades.forEach((upgrade, index) => {
-        const card = document.createElement('div');
-        let cardClass = upgrade.isClassUpgrade ? 'upgrade-card class-upgrade' : `upgrade-card ${upgrade.rarity.toLowerCase()}`;
-        
-        if (upgrade.isClassUpgrade) {
-            const playerClassLower = player.class.toLowerCase().replace(/\s+/g, '-');
-            cardClass += ` ${playerClassLower}-upgrade`;
-        }
-        
-        card.className = cardClass;
-        card.dataset.index = index;
+    const card = document.createElement('div');
+    let cardClass = upgrade.isClassUpgrade ? 'upgrade-card class-upgrade' : `upgrade-card ${upgrade.rarity.toLowerCase()}`;
+    
+    if (upgrade.isClassUpgrade) {
+        const playerClassLower = player.class.toLowerCase().replace(/\s+/g, '-');
+        cardClass += ` ${playerClassLower}-upgrade`;
+    }
+    
+    card.className = cardClass;
+    card.dataset.index = index;
 
-        if (upgrade.isClassUpgrade) {
-            card.innerHTML = `
-                <div class="upgrade-rarity-label">Class Upgrade</div>
-                <hr>
-                <div class="upgrade-name">${upgrade.name}</div>
-                <hr>
-                <div class="upgrade-description">${upgrade.description.call(upgrade)}</div>
-            `;
+    if (upgrade.isClassUpgrade) {
+    card.innerHTML = `
+        <div class="upgrade-rarity-label">Class Upgrade</div>
+        <hr>
+        <div class="upgrade-name">${upgrade.name}</div>
+        <hr>
+        <div class="upgrade-description">${upgrade.description.call(upgrade)}</div>
+    `;
+} else {
+    let cardContent = `
+        <div class="upgrade-rarity-label">Rarity</div>
+        <div class="upgrade-rarity">${upgrade.rarity}</div>
+        <hr>
+        <div class="upgrade-name">${upgrade.name}</div>
+        <hr>
+        <div class="upgrade-value">${upgrade.getValue(upgrade.rarity)}</div>
+    `;
+    
+    // Add secondary stat for Legendary
+    if (upgrade.rarity === 'Legendary' && upgrade.secondaryUpgrade) {
+        cardContent += `
+            <div style="padding: 10px 0; border-top: 2px solid #8B7355; border-image: linear-gradient(90deg, transparent, #D4AF37, transparent) 1; margin-top: auto;"></div>
+            <div style="font-size: 14px; color: #D4AF37; margin-top: 8px; font-style: italic; text-align: center;">
+                ${upgrade.secondaryUpgrade.name}
+            </div>
+            <div class="upgrade-value" style="font-size: 18px; color: #87CEEB; margin-top: 5px;">
+                ${upgrade.secondaryUpgrade.getValue(upgrade.secondaryRarity)}
+            </div>
+        `;
+    } else {
+        // Only add description if not Legendary
+        cardContent += `
+            <div style="padding: 10px 0; border-top: 2px solid #8B7355; border-image: linear-gradient(90deg, transparent, #D4AF37, transparent) 1; margin-top: auto;"></div>
+            <div class="upgrade-description">${upgrade.description || 'Upgrade description goes here.'}</div>
+        `;
+    }
+    
+    card.innerHTML = cardContent;
+ }
+
+    if (upgrade.isClassUpgrade) {
+        if (!gameState.autoClassEnabled) {
+            card.addEventListener('click', () => selectUpgrade(upgrade, index));
         } else {
-            card.innerHTML = `
-                <div class="upgrade-rarity-label">Rarity</div>
-                <div class="upgrade-rarity">${upgrade.rarity}</div>
-                <hr>
-                <div class="upgrade-name">${upgrade.name}</div>
-                <div class="upgrade-value">${upgrade.getValue(upgrade.rarity)}</div>
-                <hr>
-                <div class="upgrade-description">${upgrade.description || 'Upgrade description goes here.'}</div>
-            `;
+            card.classList.add('disabled');
         }
-
-        if (upgrade.isClassUpgrade) {
-            if (!gameState.autoClassEnabled) {
-                card.addEventListener('click', () => selectUpgrade(upgrade, index));
-            } else {
-                card.classList.add('disabled');
-            }
+    } else {
+        if (!gameState.autoCardEnabled) {
+            card.addEventListener('click', () => selectUpgrade(upgrade, index));
         } else {
-            if (!gameState.autoCardEnabled) {
-                card.addEventListener('click', () => selectUpgrade(upgrade, index));
-            } else {
-                card.classList.add('disabled');
-            }
+            card.classList.add('disabled');
         }
+    }
 
-        upgradeOptions.appendChild(card);
-    });
+    upgradeOptions.appendChild(card);
+  });
 
     levelUpScreen.style.display = 'flex';
 
@@ -492,7 +557,8 @@ function selectUpgrade(upgrade, index) {
     if (upgrade.isClassUpgrade) {
         upgrade.effect();
     } else {
-        upgrade.effect(upgrade.rarity);
+        // Pass secondary upgrade info for Legendary cards
+        upgrade.effect(upgrade.rarity, upgrade.secondaryUpgrade, upgrade.secondaryRarity);
     }
     hideLevelUpScreen();
     
@@ -507,6 +573,23 @@ function hideLevelUpScreen() {
     }
 }
 
+// Global cost calculation function for all soul upgrades
+function calculateSoulUpgradeCost(baseCost, currentLevel) {
+    let cost = baseCost;
+    
+    for (let i = 1; i <= currentLevel; i++) {
+        let multiplier;
+        if (i <= 5) multiplier = 1.75;      // Levels 1-5: 75% increase
+        else if (i <= 10) multiplier = 1.35; // Levels 6-10: 35% increase
+        else if (i <= 15) multiplier = 1.25; // Levels 11-15: 25% increase
+        else multiplier = 1.15;              // Levels 16-20: 15% increase
+        
+        cost *= multiplier;
+    }
+    
+    return Math.floor(cost);
+}
+
 const soulsUpgrades = [
     {
         name: 'Health+',
@@ -519,9 +602,6 @@ const soulsUpgrades = [
                 player.maxHp = player.getInitialHP();
                 player.hp += this.valuePerUpgrade;
             }
-        },
-        getCost: function(gameState) {
-            return Math.floor(this.baseCost * Math.pow(3, gameState.healthUpgrades || 0));
         },
         canPurchase: (gameState) => {
             const maxPurchases = gameState.ascensionLevel > 0 ? 10 : 5;
@@ -539,32 +619,26 @@ const soulsUpgrades = [
                 player.hpRegen = gameState.regenUpgrades * this.valuePerUpgrade;
             }
         },
-        getCost: function(gameState) {
-            return Math.floor(this.baseCost * Math.pow(3, gameState.regenUpgrades || 0));
-        },
         canPurchase: (gameState) => {
             const maxPurchases = gameState.ascensionLevel > 0 ? 10 : 5;
             return (gameState.regenUpgrades || 0) < maxPurchases;
         }
     },
     {
-    name: 'Crit Chance+',
-    maxPurchases: 5,
-    baseCost: 250,
-    valuePerUpgrade: 0.01,
-    effect: (gameState) => {
-        gameState.critChanceUpgrades = (gameState.critChanceUpgrades || 0) + 1;
-        if (player && (!(player instanceof DivineKnight) || player.critUpgradesEnabled)) {
-            player.adjustCritChance(this.valuePerUpgrade);
+        name: 'Crit Chance+',
+        maxPurchases: 5,
+        baseCost: 250,
+        valuePerUpgrade: 0.01,
+        effect: (gameState) => {
+            gameState.critChanceUpgrades = (gameState.critChanceUpgrades || 0) + 1;
+            if (player && (!(player instanceof DivineKnight) || player.critUpgradesEnabled)) {
+                player.adjustCritChance(this.valuePerUpgrade);
+            }
+        },
+        canPurchase: (gameState) => {
+            const maxPurchases = gameState.ascensionLevel > 0 ? 10 : 5;
+            return (gameState.critChanceUpgrades || 0) < maxPurchases;
         }
-    },
-    getCost: function(gameState) {
-        return Math.floor(this.baseCost * Math.pow(3.5, gameState.critChanceUpgrades || 0));
-    },
-    canPurchase: (gameState) => {
-        const maxPurchases = gameState.ascensionLevel > 0 ? 10 : 5;
-        return (gameState.critChanceUpgrades || 0) < maxPurchases;
-    }
     },
     {
         name: 'Critical Damage+',
@@ -576,9 +650,6 @@ const soulsUpgrades = [
             if (player) {
                 player.critDamage += this.valuePerUpgrade;
             }
-        },
-        getCost: function(gameState) {
-            return Math.floor(this.baseCost * Math.pow(3.5, gameState.critDamageUpgrades || 0));
         },
         canPurchase: (gameState) => {
             const maxPurchases = gameState.ascensionLevel > 0 ? 10 : 5;
@@ -596,9 +667,6 @@ const soulsUpgrades = [
                 player.attacksPerSecond += this.valuePerUpgrade;
             }
         },
-        getCost: function(gameState) {
-            return Math.floor(this.baseCost * Math.pow(3.5, gameState.attackSpeedUpgrades || 0));
-        },
         canPurchase: (gameState) => {
             const maxPurchases = gameState.ascensionLevel > 0 ? 10 : 5;
             return (gameState.attackSpeedUpgrades || 0) < maxPurchases;
@@ -615,33 +683,28 @@ const soulsUpgrades = [
                 player.updateCooldownReduction();
             }
         },
-        getCost: function(gameState) {
-            return Math.floor(this.baseCost * Math.pow(3.5, gameState.cooldownUpgrades || 0));
-        },
         canPurchase: (gameState) => {
             const maxPurchases = gameState.ascensionLevel > 0 ? 10 : 5;
             return (gameState.cooldownUpgrades || 0) < maxPurchases;
         }
     },
-    {
-        name: 'Exp+',
-        maxPurchases: 5,
-        baseCost: 500,
-        valuePerUpgrade: 0.05,
-        effect: (gameState) => {
-            gameState.expUpgrades = (gameState.expUpgrades || 0) + 1;
-            
-        },
-        getCost: function(gameState) {
-            return Math.floor(this.baseCost * Math.pow(1.5, gameState.expUpgrades || 0));
-        },
-        canPurchase: (gameState) => {
-            const maxPurchases = gameState.ascensionLevel > 1 ? 15 : (gameState.ascensionLevel > 0 ? 10 : 5);
-            return (gameState.expUpgrades || 0) < maxPurchases;
-        },
-        isVisible: (gameState) => gameState.ascensionLevel >= 1
+       {
+    name: 'Exp+',
+    maxPurchases: 5,
+    baseCost: 500,
+    valuePerUpgrade: 0.25,
+    effect: (gameState) => {
+        gameState.expUpgrades = (gameState.expUpgrades || 0) + 1;
     },
-	{
+    canPurchase: (gameState) => {
+        const maxPurchases = gameState.ascensionLevel > 2 ? 20 : (gameState.ascensionLevel > 1 ? 15 : (gameState.ascensionLevel > 0 ? 10 : 5));
+        return (gameState.expUpgrades || 0) < maxPurchases;
+    },
+    isVisible: (gameState) => gameState.ascensionLevel >= 1
+},
+
+// Replace the Boss Damage+ upgrade definition:
+{
     name: 'Boss Damage+',
     maxPurchases: 5,
     baseCost: 500,
@@ -649,48 +712,44 @@ const soulsUpgrades = [
     effect: (gameState) => {
         gameState.bossDamageUpgrades = (gameState.bossDamageUpgrades || 0) + 1;
     },
-    getCost: function(gameState) {
-        return Math.floor(this.baseCost * Math.pow(2.5, gameState.bossDamageUpgrades || 0));
-    },
     canPurchase: (gameState) => {
-        const maxPurchases = gameState.ascensionLevel > 1 ? 15 : (gameState.ascensionLevel > 0 ? 10 : 5);
+        const maxPurchases = gameState.ascensionLevel > 2 ? 20 : (gameState.ascensionLevel > 1 ? 15 : (gameState.ascensionLevel > 0 ? 10 : 5));
         return (gameState.bossDamageUpgrades || 0) < maxPurchases;
     },
     isVisible: (gameState) => gameState.ascensionLevel >= 1
 },
-    {
-        name: 'Rarity+',
-        maxPurchases: 5,
-        baseCost: 750,
-        valuePerUpgrade: 0.01,
-        effect: (gameState) => {
-            gameState.rarityUpgrades = (gameState.rarityUpgrades || 0) + 1;
-        },
-        getCost: function(gameState) {
-            return Math.floor(this.baseCost * Math.pow(2.5, gameState.rarityUpgrades || 0));
-        },
-        canPurchase: (gameState) => {
-            const maxPurchases = gameState.ascensionLevel > 1 ? 15 : (gameState.ascensionLevel > 0 ? 10 : 5);
-            return (gameState.rarityUpgrades || 0) < maxPurchases;
-        },
-        isVisible: (gameState) => gameState.ascensionLevel >= 2
+
+// Replace the Rarity+ upgrade definition:
+{
+    name: 'Rarity+',
+    maxPurchases: 5,
+    baseCost: 750,
+    valuePerUpgrade: 0.01,
+    effect: (gameState) => {
+        gameState.rarityUpgrades = (gameState.rarityUpgrades || 0) + 1;
     },
-    {
-        name: 'Starting Wave+',
-        maxPurchases: 10,
-        baseCost: 750,
-        valuePerUpgrade: 1,
-        effect: (gameState) => {
-            gameState.startingWaveUpgrades = (gameState.startingWaveUpgrades || 0) + 1;
-        },
-        getCost: function(gameState) {
-            return Math.floor(this.baseCost * Math.pow(2, gameState.startingWaveUpgrades || 0));
-        },
-        canPurchase: (gameState) => {
-            return gameState.ascensionLevel > 0 && (gameState.startingWaveUpgrades || 0) < 10;
-        },
-        isVisible: (gameState) => gameState.ascensionLevel >= 3
-    }
+    canPurchase: (gameState) => {
+        const maxPurchases = gameState.ascensionLevel > 2 ? 20 : (gameState.ascensionLevel > 1 ? 15 : (gameState.ascensionLevel > 0 ? 10 : 5));
+        return (gameState.rarityUpgrades || 0) < maxPurchases;
+    },
+    isVisible: (gameState) => gameState.ascensionLevel >= 2
+},
+
+// Replace the Starting Wave+ upgrade definition:
+{
+    name: 'Starting Wave+',
+    maxPurchases: 10,
+    baseCost: 750,
+    valuePerUpgrade: 1,
+    effect: (gameState) => {
+        gameState.startingWaveUpgrades = (gameState.startingWaveUpgrades || 0) + 1;
+    },
+    canPurchase: (gameState) => {
+        const maxPurchases = gameState.ascensionLevel > 2 ? 20 : 10;
+        return (gameState.startingWaveUpgrades || 0) < maxPurchases;
+    },
+    isVisible: (gameState) => gameState.ascensionLevel >= 3
+}
 ];
 
 let lastPurchaseTime = 0;
@@ -713,7 +772,22 @@ function purchaseSoulsUpgrade(upgradeName) {
         return;
     }
 
-    const cost = upgrade.getCost(gameState);
+    // Get the current level for this upgrade based on its name
+    const upgradeKey = upgradeName.replace('+', 'Upgrades').replace(/\s/g, '').replace('Upgrades', 'Upgrades');
+    const properKey = upgradeName === 'Health+' ? 'healthUpgrades' :
+                      upgradeName === 'Regen+' ? 'regenUpgrades' :
+                      upgradeName === 'Crit Chance+' ? 'critChanceUpgrades' :
+                      upgradeName === 'Critical Damage+' ? 'critDamageUpgrades' :
+                      upgradeName === 'Attack Speed+' ? 'attackSpeedUpgrades' :
+                      upgradeName === 'Cooldown+' ? 'cooldownUpgrades' :
+                      upgradeName === 'Exp+' ? 'expUpgrades' :
+                      upgradeName === 'Boss Damage+' ? 'bossDamageUpgrades' :
+                      upgradeName === 'Rarity+' ? 'rarityUpgrades' :
+                      upgradeName === 'Starting Wave+' ? 'startingWaveUpgrades' : null;
+
+    const currentLevel = gameState[properKey] || 0;
+    const cost = calculateSoulUpgradeCost(upgrade.baseCost, currentLevel);
+    
     console.log('Upgrade cost:', cost, 'Total souls:', gameState.souls);
     if (gameState.souls >= cost && upgrade.canPurchase(gameState)) {
         gameState.souls -= cost;

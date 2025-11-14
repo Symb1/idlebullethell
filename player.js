@@ -69,20 +69,20 @@ class Player {
 getAmuletDamageBonus() {
     if (gameState.amuletEquipped) {
         const multiplier = Math.max(1, gameState.ascensionLevel + 1);
-        let amuletDamage = this.amuletDamage;
+        let baseAmuletDamage = this.amuletDamage * multiplier; // Multiply base first
         
-        // Apply achievement bonuses
+        // Add achievement bonuses AFTER multiplication (flat bonus)
         if (this instanceof DivineKnight && gameState.unlockedAchievements['Acolyte Master']) {
-            amuletDamage += achievements['Acolyte Master'].amuletDamageIncrease;
+            baseAmuletDamage += achievements['Acolyte Master'].amuletDamageIncrease;
         }
         if (this instanceof Acolyte && gameState.unlockedAchievements['Sorceress Master']) {
-            amuletDamage += achievements['Sorceress Master'].amuletDamageIncrease;
+            baseAmuletDamage += achievements['Sorceress Master'].amuletDamageIncrease;
         }
         if (this instanceof Sorceress && gameState.unlockedAchievements['Divine Knight Master']) {
-            amuletDamage += achievements['Divine Knight Master'].amuletDamageIncrease;
+            baseAmuletDamage += achievements['Divine Knight Master'].amuletDamageIncrease;
         }
         
-        return amuletDamage * multiplier;
+        return baseAmuletDamage;
     } else {
         return 0;
     }

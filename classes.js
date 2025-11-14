@@ -1,3 +1,24 @@
+// Class descriptions - accessible globally
+const classDescriptions = {
+    'Acolyte': `
+        <p>Void caster with slower base attack speed but heavy single-target damage. Starts with lower critical chance but far higher critical damage.</p>
+        <p><em>Ability:</em> Void Blast automatically launches into elites and bosses for instant elimination.</p>
+        <p><em>Weapon Evolutions: (Level 10)</em></p>
+        <ul>
+            <li>Single target path: Guaranteed crits with Void Blast.</li>
+            <li>Splash variant: Removes crit with Void Blast, adds area effect at 50% power.</li>
+        </ul>
+        <p><em>Class Evolutions: (Level 15)</em> Focus either on speed, crit, or cooldown mastery.</p>
+    `,
+    'Sorceress': `
+        <p>A versatile spellcaster with balanced offensive capabilities.</p>
+        <p>Swift attacks and magical prowess.</p>
+    `,
+    'Divine Knight': `
+        <p>A holy warrior combining defensive prowess with righteous fury.</p>
+        <p>Unmatched endurance and divine power.</p>
+    `
+};
 class Acolyte extends Player {
     constructor() {
         super('Acolyte');
@@ -11,6 +32,10 @@ class Acolyte extends Player {
         this.image = 'acoatt.png';
         this.classColor = '#9370DB'; // Purple for Acolyte
         this.classUpgradeChosen = gameState.classUpgradeChosen || null;
+    }
+    
+    static getDescription() {
+        return classDescriptions['Acolyte'];
     }
     
     getDisplayName() {

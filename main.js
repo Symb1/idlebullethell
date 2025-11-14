@@ -392,24 +392,52 @@ function showClassSelection() {
     hardResetButton.parentNode.insertBefore(ascendButton, hardResetButton);
     
     const classOptions = document.querySelectorAll('.class-option');
-    classOptions.forEach(option => {
-        const className = option.getAttribute('data-class');
-        const unlockText = option.querySelector('.unlock-text');
+classOptions.forEach(option => {
+    const className = option.getAttribute('data-class');
+    const unlockText = option.querySelector('.unlock-text');
+    
+    if (gameState.unlockedClasses.includes(className)) {
+        option.classList.remove('locked');
+        if (unlockText) unlockText.style.display = 'none';
         
-        if (gameState.unlockedClasses.includes(className)) {
-            option.classList.remove('locked');
-            if (unlockText) unlockText.style.display = 'none';
-        } else {
-            option.classList.add('locked');
-            if (unlockText) unlockText.style.display = 'block';
-        }
+        // Remove old tooltip if it exists
+        const oldTooltip = document.getElementById(`tooltip-${className}`);
+        if (oldTooltip) oldTooltip.remove();
         
-        option.addEventListener('click', () => {
-            if (gameState.unlockedClasses.includes(className)) {
-                startGame(className);
-            }
+        // Create tooltip as a direct child of body
+        const tooltip = document.createElement('div');
+        tooltip.id = `tooltip-${className}`;
+        tooltip.className = 'class-tooltip';
+        tooltip.innerHTML = `
+            <div class="class-tooltip-title">${className}</div>
+            <div>${classDescriptions[className] || 'A mysterious warrior...'}</div>
+        `;
+        document.body.appendChild(tooltip);
+        
+        // Add hover listeners to show/hide and position tooltip
+        option.addEventListener('mouseenter', (e) => {
+            const rect = option.getBoundingClientRect();
+            tooltip.style.top = `${rect.top + rect.height / 2}px`;
+            tooltip.style.left = `${rect.right + 25}px`;
+            tooltip.style.opacity = '1';
+            tooltip.style.visibility = 'visible';
         });
+        
+        option.addEventListener('mouseleave', () => {
+            tooltip.style.opacity = '0';
+            tooltip.style.visibility = 'hidden';
+        });
+    } else {
+        option.classList.add('locked');
+        if (unlockText) unlockText.style.display = 'block';
+    }
+    
+    option.addEventListener('click', () => {
+        if (gameState.unlockedClasses.includes(className)) {
+            startGame(className);
+        }
     });
+});
 
     document.getElementById('hard-reset-btn').addEventListener('click', () => {
         if (confirm('Are you sure you want to reset all progress? This cannot be undone.')) {

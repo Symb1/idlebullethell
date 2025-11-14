@@ -23,11 +23,13 @@ function initializeWeapon(playerClass, weaponName = null) {
                 player.weapon = new BlessedShield();
             } else if (weaponName === 'Smite Shield') {
                 player.weapon = new SmiteShield();
+                // Apply the attack speed bonus here, when actually equipping
+                player.attacksPerSecond += player.weapon.attackSpeedBonus;
             } else {
                 player.weapon = new BasicShield();
             }
     }     
-	player.weapon.updateDamage();
+    player.weapon.updateDamage();
 }
 
 class Weapon {
@@ -131,9 +133,13 @@ triggerPlayerAttackAnimation() {
     }
     
 	updateDamage() {
-        const amuletBonus = player.getAmuletDamageBonus();
-        this.damage = (this.baseDamage + amuletBonus) * player.damageModifier;
+    if (!player) {
+        this.damage = this.baseDamage; // Explicitly set to base damage
+        return;
     }
+    const amuletBonus = player.getAmuletDamageBonus();
+    this.damage = (this.baseDamage + amuletBonus) * player.damageModifier;
+  }
 	
     performAttack() {
         // To be implemented by subclasses
@@ -725,9 +731,7 @@ class SmiteShield extends BasicShield {
         this.damage = this.baseDamage;
         this.updateDamage();
         
-        if (player) {
-            player.attacksPerSecond += this.attackSpeedBonus;
-        }
+        
     }
     
     getEvolutionStats() {

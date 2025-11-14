@@ -273,7 +273,7 @@ createHitSprite() {
         audio.play().catch(e => console.log('Audio play failed:', e));
     }
     
-    const soulsGained = Math.floor(this.maxHp * 10);
+    const soulsGained = Math.floor(this.maxHp * 0.15);
     player.gainSouls(soulsGained); 
     const expMultiplier = this.getExpMultiplier();
     const expGain = 10 * expMultiplier;

@@ -309,15 +309,19 @@ function updateSoulsUI() {
             maxPurchases = gameState.ascensionLevel > 0 ? 10 : 5;
         }
 
+        // Use the global calculateSoulUpgradeCost function
+        const currentLevel = gameState[upgradeName] || 0;
+        const upgradeCost = calculateSoulUpgradeCost(upgrade.baseCost, currentLevel);
+
         upgradesHTML += `
             <div class="souls-upgrade">
                 <h4>${upgrade.name}</h4>
                 <hr>
                 <p>${increaseText}  ${currentValue}</p>
-                <p>Required Souls: ${upgrade.getCost(gameState)}</p>
+                <p>Required Souls: ${upgradeCost}</p>
                 <p>Upgrades: ${purchased}/${maxPurchases}</p>
                 <button onclick="purchaseSoulsUpgrade('${upgrade.name}')" 
-                    ${(!upgrade.canPurchase(gameState) || souls < upgrade.getCost(gameState)) ? 'disabled' : ''}>
+                    ${(!upgrade.canPurchase(gameState) || souls < upgradeCost) ? 'disabled' : ''}>
                     Purchase
                 </button>
             </div>
@@ -667,11 +671,12 @@ function updateInventoryUI() {
         const sorceress = new Sorceress();
         const divineKnight = new DivineKnight();
         
-        let acolyteDamage = acolyte.amuletDamage;
-        let sorceressDamage = sorceress.amuletDamage;
-        let divineKnightDamage = divineKnight.amuletDamage;
+        // Calculate base damage * ascension multiplier FIRST
+        let acolyteDamage = acolyte.amuletDamage * ascensionMultiplier;
+        let sorceressDamage = sorceress.amuletDamage * ascensionMultiplier;
+        let divineKnightDamage = divineKnight.amuletDamage * ascensionMultiplier;
 
-        // Apply achievement bonuses
+        // THEN add flat achievement bonuses
         if (gameState.unlockedAchievements['Sorceress Master']) {
             acolyteDamage += achievements['Sorceress Master'].amuletDamageIncrease;
         }
@@ -682,9 +687,9 @@ function updateInventoryUI() {
             divineKnightDamage += achievements['Acolyte Master'].amuletDamageIncrease;
         }
 
-        const acolyteDamageDisplay = (acolyteDamage * ascensionMultiplier).toFixed(1);
-        const sorceressDamageDisplay = (sorceressDamage * ascensionMultiplier).toFixed(1);
-        const divineKnightDamageDisplay = (divineKnightDamage * ascensionMultiplier).toFixed(1);
+        const acolyteDamageDisplay = acolyteDamage.toFixed(1);
+        const sorceressDamageDisplay = sorceressDamage.toFixed(1);
+        const divineKnightDamageDisplay = divineKnightDamage.toFixed(1);
         
         const acolyteBossDamage = (acolyte.bossDamageBonus * 100 * ascensionMultiplier).toFixed(0);
         const sorceressBossDamage = (sorceress.bossDamageBonus * 100 * ascensionMultiplier).toFixed(0);

@@ -115,6 +115,15 @@ body {
     100% { background-position: -1248px 0; }
 }
 
+hr {
+    margin: 5px 0;
+    border: 0;
+    background: none;
+    height: 0;
+    opacity: 0;
+}
+
+
 .enemy-hp {
     position: absolute;
     top: -20px;
@@ -453,7 +462,7 @@ body {
     border-radius: 8px;
     display: flex;
     flex-direction: column;
-    padding: 20px;
+    padding: 15px 20px;
     cursor: pointer;
     transition: all 0.4s ease;
     box-shadow: 
@@ -537,10 +546,7 @@ body {
 .upgrade-description {
     font-size: 13px;
     text-align: center;
-    padding: 10px 0;
-    border-top: 2px solid #8B7355;
-    border-image: linear-gradient(90deg, transparent, #D4AF37, transparent) 1;
-    flex-grow: 1;
+    padding: 10px 0 13px 0; 
     color: #E8D4B8;
     font-family: 'Georgia', serif;
     line-height: 1.4;
@@ -559,6 +565,77 @@ body {
 .epic { 
     background: linear-gradient(145deg, #3a1a4a 0%, #4a2a5a 100%);
     border-color: #7a4a9a;
+}
+
+.legendary { 
+    background: linear-gradient(145deg, #1a1200 0%, #3d2800 50%, #1a1200 100%);
+    border: 3px solid #FFD700;
+    box-shadow: 
+        0 0 20px rgba(255, 215, 0, 0.6),
+        inset 0 0 30px rgba(218, 165, 32, 0.3);
+    position: relative;
+    overflow: hidden;
+    animation: legendaryPulse 2s ease-in-out infinite;
+}
+
+.legendary::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        to bottom right,
+        transparent 0%,
+        transparent 35%,
+        rgba(255, 215, 0, 0.3) 45%,
+        rgba(255, 215, 0, 0.7) 50%,
+        rgba(255, 215, 0, 0.3) 55%,
+        transparent 65%,
+        transparent 100%
+    );
+    animation: legendarySweep 2.5s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes legendarySweep {
+    0% {
+        transform: translate(-100%, -100%);
+    }
+    100% {
+        transform: translate(100%, 100%);
+    }
+}
+
+@keyframes legendaryPulse {
+    0%, 100% {
+        box-shadow: 
+            0 0 20px rgba(255, 215, 0, 0.6),
+            inset 0 0 30px rgba(218, 165, 32, 0.3);
+    }
+    50% {
+        box-shadow: 
+            0 0 30px rgba(255, 215, 0, 0.8),
+            inset 0 0 40px rgba(218, 165, 32, 0.4);
+    }
+}
+
+.legendary .upgrade-rarity {
+    color: #FFD700;
+    text-shadow: 
+        0 0 10px rgba(255, 215, 0, 0.8),
+        0 0 20px rgba(218, 165, 32, 0.6);
+    animation: goldenGlow 2s infinite;
+}
+
+.legendary .upgrade-name {
+    color: #FFD700;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+}
+
+.legendary .upgrade-value {
+    color: #FFF8DC;
 }
 
 .class-upgrade { 
@@ -658,6 +735,7 @@ body {
     margin-top: 120px;
 }
 
+/* Add position relative to the existing .class-option rule */
 .class-option {
     display: flex;
     flex-direction: column;
@@ -670,6 +748,136 @@ body {
     border-radius: 8px;
     background: transparent;
     outline: none;
+    position: relative; /* ADD THIS LINE to your existing rule */
+}
+
+/* KEEP your existing hover rule as is */
+.class-option:hover {
+    transform: scale(1.15) translateY(-5px);
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+}
+
+/* ADD these new rules below */
+.class-tooltip {
+    position: fixed;
+    top: 50%;
+    left: calc(100% + 25px);
+    transform: translateY(-50%);
+    width: 340px;
+    background: linear-gradient(145deg, rgba(20, 10, 10, 0.98), rgba(40, 20, 20, 0.98));
+    border: 3px solid #8B7355;
+    border-image: linear-gradient(45deg, #D4AF37, #8B7355, #D4AF37) 1;
+    border-radius: 8px;
+    padding: 15px;
+    color: #E8D4B8;
+    font-family: 'Georgia', serif;
+    font-size: 13px;
+    line-height: 1.6;
+    text-align: left;
+    z-index: 99999; /* CHANGED: Much higher z-index to be above everything */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    box-shadow: 
+        0 0 30px rgba(212, 175, 55, 0.5),
+        inset 0 0 20px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+}
+
+.class-tooltip::before {
+    content: '';
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border-width: 10px 10px 10px 0;
+    border-style: solid;
+    border-color: transparent #8B7355 transparent transparent;
+    filter: drop-shadow(-2px 0 3px rgba(0, 0, 0, 0.5));
+    z-index: 9999; /* ADDED */
+}
+
+.class-tooltip::after {
+    content: '';
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border-width: 8px 8px 8px 0;
+    border-style: solid;
+    border-color: transparent rgba(20, 10, 10, 0.98) transparent transparent;
+    margin-right: -1px;
+    z-index: 9999; /* ADDED */
+}
+
+.class-option:hover .class-tooltip {
+    opacity: 1;
+    visibility: visible;
+    z-index: 9999; /* ADDED: Ensure it stays on top when visible */
+}
+
+.class-tooltip-title {
+    color: #FFD700; /* This makes the class name (Acolyte) yellow */
+    font-family: 'Cinzel', serif;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    text-align: center;
+    letter-spacing: 1px;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+    border-bottom: 2px solid #8B7355;
+    border-image: linear-gradient(90deg, transparent, #D4AF37, transparent) 1;
+    padding-bottom: 8px;
+}
+
+.class-tooltip p {
+    margin: 8px 0;
+    color: #E8D4B8; /* ADDED: Make sure paragraphs are not yellow */
+}
+
+.class-tooltip p:first-of-type {
+    margin-top: 0;
+}
+
+.class-tooltip p:last-of-type {
+    margin-bottom: 0;
+}
+
+.class-tooltip strong {
+    color: #FFD700;
+    font-family: 'Cinzel', serif;
+}
+
+.class-tooltip em {
+    color: #D4AF37;
+    font-style: normal;
+    font-weight: 600;
+}
+
+.class-tooltip ul {
+    margin: 6px 0;
+    padding-left: 20px;
+    list-style: none;
+}
+
+.class-tooltip ul li {
+    margin: 4px 0;
+    position: relative;
+    padding-left: 15px;
+}
+
+.class-tooltip ul li::before {
+    content: '◆';
+    position: absolute;
+    left: 0;
+    color: #D4AF37;
+    font-size: 10px;
+}
+
+.class-option.locked .class-tooltip {
+    display: none;
 }
 
 .class-option img {
