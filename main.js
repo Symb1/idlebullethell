@@ -1,517 +1,296 @@
 const gameState = {
-    currentStage: 1,
-    currentWave: 1,
-    gameRunning: false,
-    playerClass: null,
-    unlockedClasses: ['Acolyte'],
-    isPaused: false,
+    currentStage: 1, 
+	currentWave: 1, 
+	gameRunning: false,
+    playerClass: null, 
+	unlockedClasses: ['Acolyte'], 
+	isPaused: false,
     highestStageReached: 1,
-	highestStagePerClass: {Acolyte: 1, Sorceress: 1, 'Divine Knight': 1},
-    ascensionLevel: 0,
-    soulMultiplier: 1,
-    qolMenuUnlocked: false,
-    autoCastUnlocked: false,
-    autoCardUnlocked: false,
-    autoEvoUnlocked: false,
-    autoClassUnlocked: false,
-    autoCardEnabled: false,
-    autoWeaponEvolutionEnabled: false,
-    autoCastEnabled: false,
+    highestStagePerClass: { Acolyte: 1, Sorceress: 1, 'Divine Knight': 1 },
+    ascensionLevel: 0, 
+	soulMultiplier: 1,
+    qolMenuUnlocked: false, 
+	autoCastUnlocked: false, 
+	autoCardUnlocked: false,
+    autoEvoUnlocked: false, 
+	autoClassUnlocked: false,
+    autoCardEnabled: false, 
+	autoWeaponEvolutionEnabled: false,
+    autoCastEnabled: false, 
 	autoCastEliteBossOnly: false,
-    autoWeaponEvolutionChoices: {Acolyte: '', Sorceress: '', 'Divine Knight': ''},
+    autoWeaponEvolutionChoices: { Acolyte: '', Sorceress: '', 'Divine Knight': '' },
     autoClassEnabled: false,
-    autoClassChoices: {Acolyte: '', Sorceress: '', 'Divine Knight': ''},
-    amuletDropped: false,
-    amuletEquipped: false,
+    autoClassChoices: { Acolyte: '', Sorceress: '', 'Divine Knight': '' },
+    amuletDropped: false, 
+	amuletEquipped: false,
     unlockedAchievements: {},
+    talentPointsGranted: [], // array of "stage_wave" strings
 };
 
+const MAX_ASCENSIONS = 3;
+const ASCENSION_STAGES = { 0: 4, 1: 7, 2: 9 };
+const ASCENSION_MAX_PURCHASES = [5, 10, 15, 20];
+const SOUL_MULTIPLIERS = [1, 3, 6, 12];
+
+const SAVE_KEYS = [
+    'unlockedClasses',
+	'souls',
+    ...Object.values(UPGRADE_KEY_MAP),
+	'highestStageReached',
+	'ascensionLevel',
+    'soulMultiplier',
+	'qolMenuUnlocked',
+	'autoCastUnlocked',
+    'autoCardUnlocked',
+	'autoEvoUnlocked',
+	'autoClassUnlocked',
+    'autoCastEnabled',
+	'autoCastEliteBossOnly',
+	'autoCardEnabled',
+    'upgradePriority',
+	'autoWeaponEvolutionEnabled',
+	'autoWeaponEvolutionChoices',
+    'autoClassEnabled',
+	'autoClassChoices',
+	'amuletDropped',
+	'amuletEquipped',
+    'unlockedAchievements',
+	'highestStagePerClass',
+    'talentPointsGranted',
+];
+
+const DEFAULT_UPGRADE_PRIORITY = [
+    'Damage Increase', 'Attack Speed', 'Health', 'Regeneration',
+    'Cooldown Reduction', 'Critical Damage Increase', 'Critical Strike Chance', 'Boss Damage'
+];
+
 function saveGameState() {
-    const state = {
-        unlockedClasses: gameState.unlockedClasses,
-        souls: gameState.souls,
-        attackSpeedUpgrades: gameState.attackSpeedUpgrades || 0,
-        healthUpgrades: gameState.healthUpgrades || 0,
-        cooldownUpgrades: gameState.cooldownUpgrades || 0,
-        critDamageUpgrades: gameState.critDamageUpgrades || 0,
-        rarityUpgrades: gameState.rarityUpgrades || 0,
-        expUpgrades: gameState.expUpgrades || 0,  
-        regenUpgrades: gameState.regenUpgrades || 0, 
-        critChanceUpgrades: gameState.critChanceUpgrades || 0,
-        highestStageReached: gameState.highestStageReached,
-        ascensionLevel: gameState.ascensionLevel,
-        soulMultiplier: gameState.soulMultiplier,
-        qolMenuUnlocked: gameState.qolMenuUnlocked,
-        autoCastUnlocked: gameState.autoCastUnlocked,
-        autoCardUnlocked: gameState.autoCardUnlocked,
-        autoEvoUnlocked: gameState.autoEvoUnlocked,
-        autoClassUnlocked: gameState.autoClassUnlocked,
-        autoCastEnabled: gameState.autoCastEnabled,
-		autoCastEliteBossOnly: gameState.autoCastEliteBossOnly,
-        startingWaveUpgrades: gameState.startingWaveUpgrades || 0,
-        autoCardEnabled: gameState.autoCardEnabled || false,
-        upgradePriority: gameState.upgradePriority,
-        autoWeaponEvolutionEnabled: gameState.autoWeaponEvolutionEnabled,
-        autoWeaponEvolutionChoices: gameState.autoWeaponEvolutionChoices,
-        autoClassEnabled: gameState.autoClassEnabled,
-        autoClassChoices: gameState.autoClassChoices,
-        amuletDropped: gameState.amuletDropped,
-        amuletEquipped: gameState.amuletEquipped,
-        unlockedAchievements: gameState.unlockedAchievements,
-		bossDamageUpgrades: gameState.bossDamageUpgrades || 0,
-		highestStagePerClass: gameState.highestStagePerClass || {Acolyte: 1, Sorceress: 1, 'Divine Knight': 1},
-    };
+    const state = {};
+    SAVE_KEYS.forEach(k => { state[k] = gameState[k] ?? 0; });
+    // Preserve non-numeric defaults for object/array/bool keys
+    ['unlockedClasses','upgradePriority','autoWeaponEvolutionChoices',
+     'autoClassChoices','unlockedAchievements','highestStagePerClass',
+     'talentPointsGranted'].forEach(k => {
+        state[k] = gameState[k];
+    });
+    // Save talent alloc and points
+    state.talentAlloc = Object.assign({}, alloc);
+    state.talentPoints = talentPoints;
     localStorage.setItem('gameState', JSON.stringify(state));
 }
 
 function loadGameState() {
-    const savedState = localStorage.getItem('gameState');
-    if (savedState) {
-        const parsedState = JSON.parse(savedState);
-        gameState.souls = parsedState.souls || 0;
-        gameState.unlockedClasses = parsedState.unlockedClasses || ['Acolyte'];
-        gameState.attackSpeedUpgrades = parsedState.attackSpeedUpgrades || 0;
-        gameState.healthUpgrades = parsedState.healthUpgrades || 0;
-        gameState.cooldownUpgrades = parsedState.cooldownUpgrades || 0;
-        gameState.critDamageUpgrades = parsedState.critDamageUpgrades || 0;
-        gameState.rarityUpgrades = parsedState.rarityUpgrades || 0;
-        gameState.expUpgrades = parsedState.expUpgrades || 0; 
-        gameState.regenUpgrades = parsedState.regenUpgrades || 0; 
-        gameState.critChanceUpgrades = parsedState.critChanceUpgrades || 0;
-        gameState.highestStageReached = parsedState.highestStageReached || 1;
-        gameState.ascensionLevel = parsedState.ascensionLevel || 0;
-        gameState.soulMultiplier = parsedState.soulMultiplier || 1;
-        gameState.qolMenuUnlocked = parsedState.qolMenuUnlocked || false;
-        gameState.autoCastUnlocked = parsedState.autoCastUnlocked || false;
-        gameState.autoCardUnlocked = parsedState.autoCardUnlocked || false;
-        gameState.autoEvoUnlocked = parsedState.autoEvoUnlocked || false;
-        gameState.autoClassUnlocked = parsedState.autoClassUnlocked || false;
-        gameState.autoCastEnabled = parsedState.autoCastEnabled || false;
-		gameState.autoCastEliteBossOnly = parsedState.autoCastEliteBossOnly || false;
-        gameState.startingWaveUpgrades = parsedState.startingWaveUpgrades || 0;
-        gameState.autoCardEnabled = parsedState.autoCardEnabled || false;
-        gameState.upgradePriority = parsedState.upgradePriority || ['Damage Increase', 'Attack Speed', 'Health', 'Regeneration', 'Cooldown Reduction', 'Critical Damage Increase', 'Critical Strike Chance', 'Boss Damage'];
-        gameState.autoWeaponEvolutionEnabled = parsedState.autoWeaponEvolutionEnabled || false;
-        gameState.autoWeaponEvolutionChoices = parsedState.autoWeaponEvolutionChoices || {Acolyte: '', Sorceress: '', 'Divine Knight': ''};
-        gameState.autoClassEnabled = parsedState.autoClassEnabled || false;
-        gameState.autoClassChoices = parsedState.autoClassChoices || {Acolyte: '', Sorceress: '', 'Divine Knight': ''};
-        gameState.amuletDropped = parsedState.amuletDropped || false;
-        gameState.amuletEquipped = parsedState.amuletEquipped || false;
-        gameState.unlockedAchievements = parsedState.unlockedAchievements || {};
-		gameState.bossDamageUpgrades = parsedState.bossDamageUpgrades || 0;
-		gameState.highestStagePerClass = parsedState.highestStagePerClass || {Acolyte: 1, Sorceress: 1, 'Divine Knight': 1};
+    const saved = localStorage.getItem('gameState');
+    if (!saved) return;
+    try {
+        const parsed = JSON.parse(saved);
+        Object.assign(gameState, parsed);
+        // Restore talent alloc
+        if (parsed.talentAlloc) {
+            Object.keys(alloc).forEach(key => {
+                if (parsed.talentAlloc[key] !== undefined) {
+                    alloc[key] = parsed.talentAlloc[key];
+                }
+            });
+        }
+        // Restore talent points
+        if (parsed.talentPoints !== undefined) {
+            talentPoints = parsed.talentPoints;
+        }
+        // Ensure talentPointsGranted is an array
+        if (!Array.isArray(gameState.talentPointsGranted)) {
+            gameState.talentPointsGranted = [];
+        }
+        console.log('Game Loaded Successfully');
+    } catch (e) {
+        console.error('Failed to parse save data', e);
     }
-    else {
-        gameState.souls = 0;
-        gameState.unlockedClasses = ['Acolyte'];
-        gameState.attackSpeedUpgrades = 0;
-        gameState.healthUpgrades = 0;
-        gameState.cooldownUpgrades = 0;
-        gameState.critDamageUpgrades = 0;
-        gameState.rarityUpgrades = 0;
-        gameState.expUpgrades = 0;  
-        gameState.regenUpgrades = 0; 
-        gameState.critChanceUpgrades = 0;
-        gameState.highestStageReached = 1;
-        gameState.ascensionLevel = 0;
-        gameState.soulMultiplier = 1;
-        gameState.qolMenuUnlocked = false;
-        gameState.autoCastUnlocked = false;
-        gameState.autoCardUnlocked = false;
-        gameState.autoEvoUnlocked = false;
-        gameState.autoClassUnlocked = false;
-        gameState.autoCastEnabled = false;
-		gameState.autoCastEliteBossOnly = false;
-        gameState.startingWaveUpgrades = 0;
-        gameState.autoCardEnabled = false;
-        gameState.upgradePriority = ['Damage Increase', 'Attack Speed', 'Health', 'Regeneration', 'Cooldown Reduction', 'Critical Damage Increase', 'Critical Strike Chance', 'Boss Damage'];
-        gameState.autoWeaponEvolutionEnabled = false;
-        gameState.autoWeaponEvolutionChoices = {Acolyte: '', Sorceress: '', 'Divine Knight': '' };
-        gameState.autoClassEnabled = false;
-        gameState.autoClassChoices = {Acolyte: '', Sorceress: '', 'Divine Knight': ''};
-        gameState.amuletDropped = false;
-        gameState.amuletEquipped = false;
-        gameState.unlockedAchievements = {};
-		gameState.bossDamageUpgrades = 0;
-		gameState.highestStagePerClass = {Acolyte: 1, Sorceress: 1, 'Divine Knight': 1};
-    }
-    gameState.currentStage = 1;
-    gameState.currentWave = 1 + (gameState.startingWaveUpgrades || 0);
 }
 
 function hardReset() {
-    // Clear local storage
+    if (!confirm('Are you sure you want to reset all progress? This cannot be undone.')) return;
+    // Zero out talent alloc and points before reload
+    Object.keys(alloc).forEach(k => alloc[k] = 0);
+    talentPoints = 0;
     localStorage.removeItem('gameState');
-
-    // Reset gameState properties
-    gameState.unlockedClasses = ['Acolyte'];
-    gameState.currentStage = 1;
-    gameState.currentWave = 1;
-    gameState.souls = 0;
-    gameState.attackSpeedUpgrades = 0;
-    gameState.healthUpgrades = 0;
-    gameState.cooldownUpgrades = 0;
-    gameState.critDamageUpgrades = 0;
-    gameState.rarityUpgrades = 0;
-    gameState.expUpgrades = 0;
-    gameState.regenUpgrades = 0;
-    gameState.critChanceUpgrades = 0;
-    gameState.highestStageReached = 1;
-    gameState.ascensionLevel = 0;
-    gameState.soulMultiplier = 1;
-    gameState.qolMenuUnlocked = false;
-    gameState.autoCastUnlocked = false;
-    gameState.autoCardUnlocked = false;
-    gameState.autoEvoUnlocked = false;
-    gameState.autoClassUnlocked = false;
-    gameState.startingWaveUpgrades = 0;
-    gameState.autoCardEnabled = false;
-    gameState.autoCastEnabled = false;
-	gameState.autoCastEliteBossOnly = false;
-    gameState.upgradePriority = ['Damage Increase', 'Attack Speed', 'Health', 'Regeneration', 'Cooldown Reduction', 'Critical Damage Increase', 'Critical Strike Chance', 'Boss Damage'];
-    gameState.autoWeaponEvolutionEnabled = false;
-    gameState.autoWeaponEvolutionChoices = {Acolyte: '',  Sorceress: '', 'Divine Knight': ''};
-    gameState.autoClassEnabled = false;
-    gameState.autoClassChoices = {Acolyte: '', Sorceress: '', 'Divine Knight': ''};
-    gameState.amuletDropped = false;
-    gameState.amuletEquipped = false;
-    gameState.unlockedAchievements = {};
-	gameState.bossDamageUpgrades = 0;
-	gameState.highestStagePerClass = {Acolyte: 1, Sorceress: 1, 'Divine Knight': 1};
-
-    // Reset base HP
-    Player.BASE_HP = 5;
-    
-    // Reset player
-    player = null;
-
-    // Save the reset game state
-    saveGameState();
-
-    // Update UI
-    updateSoulsUI();
-    showClassSelection();
-    
-    // Reset auto cast toggle
-    const autoCastToggle = document.getElementById('auto-cast-toggle');
-    if (autoCastToggle) {
-        autoCastToggle.checked = false;
-    }
-
-    // Reset auto card toggle
-    const autoCardToggle = document.getElementById('auto-card-toggle');
-    if (autoCardToggle) {
-        autoCardToggle.checked = false;
-    }
-    
-    // Reset auto evo toggle
-    const autoWeaponEvolutionToggle = document.getElementById('auto-weapon-evolution-toggle');
-    if (autoWeaponEvolutionToggle) {
-        autoWeaponEvolutionToggle.checked = false;
-    }
-    
-    // Reset weapon evolution choices in UI
-    createWeaponEvolutionChoices();
-
-    // Reset auto class toggle
-    const autoClassToggle = document.getElementById('auto-class-toggle');
-    if (autoClassToggle) {
-        autoClassToggle.checked = false;
-    }
-
-    // Force a refresh of the QoL menu
-    createQoLMenu();
-    
-    // Now create the weapon evolution choices and priority list
-    createWeaponEvolutionChoices();
-    createPriorityList();
+    location.reload();
 }
 
-// Handles Max Ascensions + Stages in which Ascension is possible - path: function showAscensionOverlay/ui.js
-const MAX_ASCENSIONS = 3;
-const ASCENSION_STAGES = {
-    0: 4,
-    1: 7,
-    2: 9
-};
-const SOUL_MULTIPLIERS = [1, 3, 6, 12];
-
-// Additional global variables
-let animationFrameId = null;
-let lastTimestamp = Date.now();
-
 function checkAscensionUnlock() {
-    if (gameState.currentStage > gameState.highestStageReached) {
-        gameState.highestStageReached = gameState.currentStage;
-        
-        // Track per-class highest stage
-        if (player && player.class) {
-            if (gameState.currentStage > (gameState.highestStagePerClass[player.class] || 1)) {
-                gameState.highestStagePerClass[player.class] = gameState.currentStage;
-            }
-        }
-        
-        saveGameState();
+    if (gameState.currentStage <= gameState.highestStageReached) return;
+    gameState.highestStageReached = gameState.currentStage;
+    if (player?.class && gameState.currentStage > (gameState.highestStagePerClass[player.class] || 1)) {
+        gameState.highestStagePerClass[player.class] = gameState.currentStage;
     }
+    saveGameState();
+    checkAchievements();
 }
 
 function ascend() {
     if (gameState.ascensionLevel >= MAX_ASCENSIONS) {
-        alert("You have reached the maximum ascension level!");
+        alert('You have reached the maximum ascension level!');
         return;
     }
+    if (gameState.highestStageReached < ASCENSION_STAGES[gameState.ascensionLevel]) return;
 
-    const requiredStage = ASCENSION_STAGES[gameState.ascensionLevel];
+    gameState.ascensionLevel++;
+    gameState.soulMultiplier = SOUL_MULTIPLIERS[gameState.ascensionLevel] ?? SOUL_MULTIPLIERS.at(-1);
+    gameState.souls = 0;
 
-    if (gameState.highestStageReached >= requiredStage) {
-        gameState.ascensionLevel++;
-        gameState.soulMultiplier = SOUL_MULTIPLIERS[gameState.ascensionLevel] || SOUL_MULTIPLIERS[SOUL_MULTIPLIERS.length - 1];
-        
-        // Reset Total Souls on ascension
-        gameState.souls = 0;
-        
-        // Unlock QoL features progressively
-        if (gameState.ascensionLevel >= 1) {
-            gameState.qolMenuUnlocked = true;
-            gameState.autoCastUnlocked = true;
-        }
-        if (gameState.ascensionLevel >= 2) {
-            gameState.autoCardUnlocked = true;
-        }
-        if (gameState.ascensionLevel >= 3) {
-            gameState.autoEvoUnlocked = true;
-            gameState.autoClassUnlocked = true;
-        }
-        
-        // Reset soul upgrades
-        soulsUpgrades.forEach(upgrade => {
-            const upgradeName = upgrade.name.toLowerCase().replace('+', '') + 'Upgrades';
-            gameState[upgradeName] = 0;
-        });
-        
-        updateInventoryUI();
-        saveGameState();
-        
-        const overlay = document.getElementById('ascension-overlay');
-        if (overlay) {
-            overlay.remove();
-        }
-        showClassSelection();
-        checkAchievements();
-    }
-}
+    const { ascensionLevel: lvl } = gameState;
+    if (lvl >= 1) { gameState.qolMenuUnlocked = true; gameState.autoCastUnlocked = true; }
+    if (lvl >= 2) gameState.autoCardUnlocked = true;
+    if (lvl >= 3) { gameState.autoEvoUnlocked = true; gameState.autoClassUnlocked = true; }
 
+    Object.values(UPGRADE_KEY_MAP).forEach(key => {
+    gameState[key] = 0;
+    });
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadGameState();
-	createInventoryMenu();
+    // Reset talent tree on ascension
+    resetTalents();
+    talentPoints = 0;
+    gameState.talentPointsGranted = [];
+
+    updateInventoryUI();
+    saveGameState();
+    document.getElementById('ascension-overlay')?.remove();
     showClassSelection();
-    document.getElementById('debug-level-up').addEventListener('click', debugLevelUp);
-    const autoCastToggle = document.getElementById('auto-cast-toggle');
-    if (autoCastToggle) {
-        autoCastToggle.checked = gameState.autoCastEnabled;
-        autoCastToggle.addEventListener('change', () => {
-            gameState.autoCastEnabled = autoCastToggle.checked;
-            saveGameState();
-        });
-    }
-});
-
-// Debug for lvl up
-function debugLevelUp() {
-    if (player) {
-        player.exp = player.expToNextLevel;
-        player.gainExp(0);
-    }
+    checkAchievements();
 }
 
 function showClassSelection() {
-    document.getElementById('class-selection').style.display = 'flex';
-    document.getElementById('souls-menu').style.display = 'block';
-	
-    // Always create and show the inventory menu
+    ['class-selection', 'souls-menu'].forEach(id =>
+        document.getElementById(id).style.display = id === 'class-selection' ? 'flex' : 'block'
+    );
+
     createInventoryMenu();
     const inventoryMenu = document.getElementById('inventory-menu');
-    if (inventoryMenu) {
-        inventoryMenu.style.display = 'block';
-        updateInventoryUI();
-    }
+    if (inventoryMenu) { inventoryMenu.style.display = 'block'; updateInventoryUI(); }
 
     const qolMenu = document.getElementById('qol-menu');
     if (qolMenu) {
-        if (gameState.qolMenuUnlocked) {
-            qolMenu.style.display = 'block';
-            createQoLMenu(); // Ensure the menu content is created
-        } else {
-            qolMenu.style.display = 'none';
-        }
-    }
-    
-    // Hide only player stats
-    const playerStats = document.getElementById('player-stats');
-    if (playerStats) playerStats.style.display = 'none';
-    
-    const stageInfo = document.getElementById('stage-info');
-    if (stageInfo) stageInfo.style.display = 'none';
-    
-    // Ensure ability button is hidden
-    const abilityButton = document.getElementById('ability-button');
-    if (abilityButton) abilityButton.style.display = 'none';
-	
-    const existingAscendButton = document.getElementById('ascend-button');
-    if (existingAscendButton) {
-        existingAscendButton.remove();
+        qolMenu.style.display = gameState.qolMenuUnlocked ? 'block' : 'none';
+        if (gameState.qolMenuUnlocked) createQoLMenu();
     }
 
-    // Add Ascend button
-    const ascendButton = document.createElement('button');
-    ascendButton.innerHTML = 'Ascend';
-    ascendButton.id = 'ascend-button';
-     
-    const nextAscensionStage = ASCENSION_STAGES[gameState.ascensionLevel];
-
-    if (gameState.highestStageReached < nextAscensionStage && gameState.ascensionLevel < MAX_ASCENSIONS) {
-        ascendButton.classList.add('unavailable');
-        ascendButton.innerHTML = 'Ascend<br><span class="unlock-text">Unlock Stage ' + nextAscensionStage + '</span>';
-    } else if (gameState.ascensionLevel < MAX_ASCENSIONS) {
-        ascendButton.classList.add('available');
-        ascendButton.textContent = 'Ascend';
-    } else {
-        ascendButton.classList.add('unavailable');
-        ascendButton.textContent = 'Maxed Out';
-    }
-    
-    ascendButton.addEventListener('click', () => {
-        const requiredStage = ASCENSION_STAGES[gameState.ascensionLevel];
-            if (gameState.highestStageReached >= requiredStage) {
-            showAscensionOverlay();
-            }
+    ['player-stats', 'stage-info', 'ability-button'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
     });
-    
+
+    document.getElementById('ascend-button')?.remove();
+
+    const ascendButton = document.createElement('button');
+    ascendButton.id = 'ascend-button';
+    const nextStage = ASCENSION_STAGES[gameState.ascensionLevel];
+    const canAscend = gameState.highestStageReached >= nextStage;
+    const maxed = gameState.ascensionLevel >= MAX_ASCENSIONS;
+
+    ascendButton.className = (!maxed && canAscend) ? 'available' : 'unavailable';
+    if (maxed) {
+        ascendButton.textContent = 'Maxed Out';
+    } else if (!canAscend) {
+        ascendButton.innerHTML = `Ascend<br><span class="unlock-text">Unlock Stage ${nextStage}</span>`;
+    } else {
+        ascendButton.textContent = 'Ascend';
+    }
+    ascendButton.addEventListener('click', () => {
+        if (gameState.highestStageReached >= ASCENSION_STAGES[gameState.ascensionLevel])
+            showAscensionOverlay();
+    });
+
     const hardResetButton = document.getElementById('hard-reset-btn');
     hardResetButton.parentNode.insertBefore(ascendButton, hardResetButton);
-    
-    const classOptions = document.querySelectorAll('.class-option');
-classOptions.forEach(option => {
-    const className = option.getAttribute('data-class');
-    const unlockText = option.querySelector('.unlock-text');
-    
-    if (gameState.unlockedClasses.includes(className)) {
-        option.classList.remove('locked');
-        if (unlockText) unlockText.style.display = 'none';
-        
-        // Remove old tooltip if it exists
-        const oldTooltip = document.getElementById(`tooltip-${className}`);
-        if (oldTooltip) oldTooltip.remove();
-        
-        // Create tooltip as a direct child of body
-        const tooltip = document.createElement('div');
-        tooltip.id = `tooltip-${className}`;
-        tooltip.className = 'class-tooltip';
-        tooltip.innerHTML = `
-            <div class="class-tooltip-title">${className}</div>
-            <div>${classDescriptions[className] || 'A mysterious warrior...'}</div>
-        `;
-        document.body.appendChild(tooltip);
-        
-        // Add hover listeners to show/hide and position tooltip
-        option.addEventListener('mouseenter', (e) => {
-            const rect = option.getBoundingClientRect();
-            tooltip.style.top = `${rect.top + rect.height / 2}px`;
-            tooltip.style.left = `${rect.right + 25}px`;
-            tooltip.style.opacity = '1';
-            tooltip.style.visibility = 'visible';
-        });
-        
-        option.addEventListener('mouseleave', () => {
-            tooltip.style.opacity = '0';
-            tooltip.style.visibility = 'hidden';
-        });
-    } else {
-        option.classList.add('locked');
-        if (unlockText) unlockText.style.display = 'block';
-    }
-    
-    option.addEventListener('click', () => {
-        if (gameState.unlockedClasses.includes(className)) {
-            startGame(className);
-        }
-    });
-});
 
-    document.getElementById('hard-reset-btn').addEventListener('click', () => {
-        if (confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
-            hardReset();
-        }
-    });
-  
-    updateSoulsUI();
-    updateClassButtonStates();
-    updateInventoryUI();
-    if (!document.getElementById('achievements-button')) {
-        createAchievementsButton();
-    }
-    createAchievementsMenu(); // Refresh the achievements menu
-    checkAchievements(); // Check for any newly unlocked achievements
-}
-
-function updateClassButtonStates() {
-    const classOptions = document.querySelectorAll('.class-option');
-    classOptions.forEach(option => {
+    document.querySelectorAll('.class-option').forEach(option => {
         const className = option.getAttribute('data-class');
-        if (gameState.unlockedClasses.includes(className)) {
-            option.style.opacity = '1';
-            option.style.pointerEvents = 'auto';
+        const unlockText = option.querySelector('.unlock-text');
+        const unlocked = gameState.unlockedClasses.includes(className);
+
+        option.classList.toggle('locked', !unlocked);
+        option.style.opacity = unlocked ? '1' : '0.5';
+        option.style.pointerEvents = unlocked ? 'auto' : 'none';
+        if (unlockText) unlockText.style.display = unlocked ? 'none' : 'block';
+
+        // Update talent plus buttons for Sorceress and Divine Knight
+        const btnId = className === 'Sorceress' ? 'sorc-plus' : className === 'Divine Knight' ? 'divi-plus' : null;
+        if (btnId) {
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                if (unlocked) {
+                    btn.classList.remove('plus-btn-locked');
+                } else {
+                    btn.classList.add('plus-btn-locked');
+                }
+            }
         }
-		else {
-            option.style.opacity = '0.5';
-            option.style.pointerEvents = 'none';
+
+        if (unlocked) {
+            document.getElementById(`tooltip-${className}`)?.remove();
+            const tooltip = document.createElement('div');
+            tooltip.id = `tooltip-${className}`;
+            tooltip.className = 'class-tooltip';
+            tooltip.innerHTML = `<div class="class-tooltip-title">${className}</div>
+                <div>${classDescriptions[className] || 'A mysterious warrior...'}</div>`;
+            document.body.appendChild(tooltip);
+
+            option.addEventListener('mouseenter', () => {
+                const rect = option.getBoundingClientRect();
+                Object.assign(tooltip.style, {
+                    top: `${rect.top + rect.height / 2}px`,
+                    left: `${rect.right + 25}px`,
+                    opacity: '1', visibility: 'visible'
+                });
+            });
+            option.addEventListener('mouseleave', () => {
+                Object.assign(tooltip.style, { opacity: '0', visibility: 'hidden' });
+            });
         }
+
+        option.addEventListener('click', () => {
+            if (unlocked) startGame(className);
+        });
     });
+
+    document.getElementById('hard-reset-btn').addEventListener('click', hardReset);
+
+    updateSoulsUI();
+    updateInventoryUI();
+    if (!document.getElementById('achievements-button')) createAchievementsButton();
+    createAchievementsMenu();
+    checkAchievements();
+
+    // Update talent pulse button state
+    renderTalents();
 }
 
 function startGame(playerClass) {
-    if (!gameState.unlockedClasses.includes(playerClass)) {
-        console.error('Class not unlocked');
-        return;
-    }
+    if (!gameState.unlockedClasses.includes(playerClass)) return console.error('Class not unlocked');
 
-    gameState.playerClass = playerClass;
-    gameState.gameRunning = true;
-    gameState.currentWave = 1 + (gameState.startingWaveUpgrades || 0);
-    gameState.currentStage = 1;
-    document.getElementById('class-selection').style.display = 'none';
-    document.getElementById('souls-menu').style.display = 'none';
-    document.getElementById('qol-menu').style.display = 'none';
-    document.getElementById('inventory-menu').style.display = 'none';
-    
+    Object.assign(gameState, {
+        playerClass, gameRunning: true,
+        currentWave: 1 + (gameState.startingWaveUpgrades || 0),
+        currentStage: 1,
+    });
+
+    ['class-selection', 'souls-menu', 'qol-menu', 'inventory-menu'].forEach(id =>
+        document.getElementById(id).style.display = 'none'
+    );
+
     playBackgroundMusic();
-    
-    const playerStats = document.getElementById('player-stats');
-    if (playerStats) playerStats.style.display = 'block';
-    
+    document.getElementById('player-stats').style.display = 'block';
     document.getElementById('ability-button').style.display = 'block';
-    
-    if (typeof enemies !== 'undefined') {
-        enemies.forEach(enemy => {
-            if (enemy.element) {
-                enemy.element.remove();
-            }
-        });
-    }
-    
+
+    enemies?.forEach(e => e.element?.remove());
     enemies = [];
     player = null;
-    
+
     initializePlayer(playerClass);
     initializeWeapon(playerClass);
     initializeUI();
     updateSoulsUI();
     createGameArea();
-    
-    // ADD THIS: Grant XP for skipped waves
     grantSkippedWaveExperience();
-    
     startWave();
 
     lastTimestamp = performance.now();
@@ -520,32 +299,23 @@ function startGame(playerClass) {
 
 function createGameArea() {
     const gameArea = document.getElementById('game-area');
-    gameArea.innerHTML = ''; // Clear any existing content
-    gameArea.style.display = 'block'; // Ensure game area is visible
-    
-    // Create stage info element
-    const stageInfoElement = document.createElement('div');
-    stageInfoElement.id = 'stage-info';
-    stageInfoElement.style.display = 'block'; // Ensure stage info is visible
-    gameArea.appendChild(stageInfoElement);
-	
-    // Re-add the ability button
+    gameArea.innerHTML = '';
+    gameArea.style.display = 'block';
+
+    const stageInfo = document.createElement('div');
+    stageInfo.id = 'stage-info';
+    stageInfo.style.display = 'block';
+    gameArea.appendChild(stageInfo);
+
     const abilityButton = document.createElement('button');
     abilityButton.id = 'ability-button';
     abilityButton.style.display = 'block';
     abilityButton.textContent = 'Use Ability';
+    abilityButton.addEventListener('click', () => player?.weapon?.useAbility());
     gameArea.appendChild(abilityButton);
 
-    // Add event listener to the ability button
-    abilityButton.addEventListener('click', () => {
-        if (player && player.weapon) {
-            player.weapon.useAbility();
-        }
-    });
-
-    createPlayerElement(); // This will add the player to the game area
+    createPlayerElement();
 }
-
 
 function startWave() {
     cancelAnimationFrame(animationFrameId);
@@ -553,119 +323,88 @@ function startWave() {
     animationFrameId = requestAnimationFrame(gameLoop);
 }
 
-
 function grantSkippedWaveExperience() {
-    const skippedWaves = gameState.startingWaveUpgrades || 0;
-    
-    if (skippedWaves > 0 && player) {
-        let totalSkippedExp = 0;
-        
-        // Calculate XP for each skipped wave
-        for (let wave = 1; wave <= skippedWaves; wave++) {
-            // Regular enemies: 5 + wave - 1 = 4 + wave
-            const regularEnemyCount = 5 + wave - 1;
-            const baseExpPerEnemy = 10;
-            const stageMultiplier = 1; // Stage 1 multiplier from getExpMultiplier()
-            
-            // XP from regular enemies
-            let waveExp = regularEnemyCount * baseExpPerEnemy * stageMultiplier;
-            
-            // Check if this is an elite wave (every 5th wave)
-            if (wave % 5 === 0) {
-                // Elite gives 30 XP instead of 10 for regular enemies
-                const eliteExp = 30 * stageMultiplier;
-                waveExp += eliteExp;
-            }
-            
-            totalSkippedExp += waveExp;
-        }
-        
-        // Apply the Exp+ upgrade multiplier (same as player.gainExp does)
-        const expUpgrade = soulsUpgrades.find(u => u.name === 'Exp+');
-        const expMultiplier = 1 + ((gameState.expUpgrades || 0) * expUpgrade.valuePerUpgrade);
-        const finalExp = totalSkippedExp * expMultiplier;
-        
-        // Grant the experience and process level-ups one by one
-        player.exp += finalExp;
-        
-        console.log(`Granted ${finalExp.toFixed(0)} XP for ${skippedWaves} skipped waves (base: ${totalSkippedExp}, multiplier: ${expMultiplier})`);
-        
-        // Process the first level-up if applicable
-        processNextLevelUp();
+    const skipped = gameState.startingWaveUpgrades || 0;
+    if (!skipped || !player) return;
+
+    let totalExp = 0;
+    for (let wave = 1; wave <= skipped; wave++) {
+        totalExp += (4 + wave) * 10; // regular enemies
+        if (wave % 5 === 0) totalExp += 30; // elite bonus
     }
+
+    const expUpgrade = soulsUpgrades.find(u => u.name === 'Exp+');
+    const multiplier = 1 + ((gameState.expUpgrades || 0) * expUpgrade.valuePerUpgrade);
+    player.exp += totalExp * multiplier;
+
+    console.log(`Granted ${(totalExp * multiplier).toFixed(0)} XP for ${skipped} skipped waves`);
+    processNextLevelUp();
 }
 
 function processNextLevelUp() {
     if (!player || player.exp < player.expToNextLevel) {
-        // No more level-ups, resume game
         gameState.isPaused = false;
         cancelAnimationFrame(animationFrameId);
         lastTimestamp = performance.now();
-        requestAnimationFrame(gameLoop);
-        return;
-    }
-    
-    // Process one level up
-    player.level++;
-    player.exp -= player.expToNextLevel;
-
-    // Calculate the new experience required for the next level
-    if (player.level < 10) {
-        player.expToNextLevel *= 1.35;
-    } else if (player.level < 20) {
-        player.expToNextLevel *= 1.15;
-    } else {
-        player.expToNextLevel *= 1.025;
-    }
-
-    player.expToNextLevel = Math.round(player.expToNextLevel);
-
-    // Show appropriate screen based on level
-    if (player.level === 10) {
-        showWeaponEvolutionScreen();
-    } else if (player.level === 15 && !gameState.classUpgradeChosen) {
-        showLevelUpScreen();
-    } else {
-        showLevelUpScreen();
-    }
-}
-
-function gameLoop(timestamp) {
-    if (!gameState.gameRunning || gameState.isPaused) {
-        // If we're paused, don't process game logic but still request next frame
-        if (gameState.gameRunning && gameState.isPaused) {
-            // was causing bugs - requestAnimationFrame(gameLoop);
+        if (document.hidden) {
+            animationFrameId = setTimeout(backgroundLoop, 1000 / 60);
+        } else {
+            animationFrameId = requestAnimationFrame(gameLoop);
         }
         return;
     }
 
-    const deltaTime = (timestamp - lastTimestamp) / 1000; // Convert to seconds
+    player.level++;
+    player.exp -= player.expToNextLevel;
+    const lvl = player.level;
+    player.expToNextLevel = Math.round(player.expToNextLevel * (lvl < 10 ? 1.35 : lvl < 20 ? 1.15 : 1.025));
+
+    if (lvl === 10) showWeaponEvolutionScreen();
+    else showLevelUpScreen();
+}
+
+// Check and grant talent points at wave milestones (wave 10 and 20 per stage)
+function checkAndGrantTalentPoints(completedWave) {
+    if (completedWave !== 10 && completedWave !== 20) return;
+    if (!Array.isArray(gameState.talentPointsGranted)) gameState.talentPointsGranted = [];
+    const key = `${gameState.currentStage}_${completedWave}`;
+    if (!gameState.talentPointsGranted.includes(key)) {
+        talentPoints++;
+        gameState.talentPointsGranted.push(key);
+        saveGameState();
+        renderTalents();
+        // Brief notification
+        const notify = document.createElement('div');
+        notify.className = 'talent-point-notify';
+        notify.textContent = '+1 Talent Point!';
+        document.getElementById('game-area')?.appendChild(notify);
+        setTimeout(() => notify.remove(), 3000);
+    }
+}
+
+function gameLoop(timestamp) {
+    if (!gameState.gameRunning || gameState.isPaused) return;
+
+    const deltaTime = (timestamp - lastTimestamp) / 1000;
     lastTimestamp = timestamp;
-    
+
     updateEnemies(deltaTime);
     updatePlayer();
     updateWeapon();
     player.updateHp(deltaTime);
     updateUI();
-    updateSoulsUI();
     checkAscensionUnlock();
 
-    if (gameState.autoCastEnabled && player && player.weapon) {
-    // Check if we should cast based on elite/boss only setting
-    if (!gameState.autoCastEliteBossOnly) {
-        // Cast on every wave
-        player.weapon.useAbility();
-    } else {
-        // Only cast on elite waves (every 5th) and boss waves (wave 1 on stage 2+)
-        const isEliteWave = gameState.currentWave % 5 === 0;
-        const isBossWave = gameState.currentWave === 1 && gameState.currentStage >= 2;
-        if (isEliteWave || isBossWave) {
+    if (gameState.autoCastEnabled && player?.weapon) {
+        const isElite = gameState.currentWave % 5 === 0;
+        const isBoss = gameState.currentWave === 1 && gameState.currentStage >= 2;
+        if (!gameState.autoCastEliteBossOnly || isElite || isBoss)
             player.weapon.useAbility();
-        }
     }
-  }
 
     if (allEnemiesDefeated()) {
+        const completedWave = gameState.currentWave;
+        checkAndGrantTalentPoints(completedWave);
         gameState.currentWave++;
         if (gameState.currentWave > 20) {
             gameState.currentStage++;
@@ -682,48 +421,37 @@ function gameLoop(timestamp) {
 
 function playBackgroundMusic() {
     const bgMusic = document.getElementById('bckgloopmu');
-    if (bgMusic) {
-        bgMusic.currentTime = 0;
-        bgMusic.volume = 0.09; // Adjust volume as needed
-        bgMusic.play().catch(e => console.log('Background music play failed:', e));
-    }
+    if (!bgMusic) return;
+    bgMusic.currentTime = 0;
+    bgMusic.volume = 0.09;
+    bgMusic.play().catch(e => console.log('Background music play failed:', e));
 }
 
 function stopBackgroundMusic() {
     const bgMusic = document.getElementById('bckgloopmu');
-    if (bgMusic) {
-        bgMusic.pause();
-        bgMusic.currentTime = 0;
-    }
+    if (!bgMusic) return;
+    bgMusic.pause();
+    bgMusic.currentTime = 0;
 }
 
-//For Debug temp only
 function skipWave() {
-    // Clear existing enemies
-    enemies.forEach(enemy => enemy.element.remove());
+    enemies.forEach(e => e.element.remove());
     enemies = [];
-
-    // Increment wave
     gameState.currentWave++;
     if (gameState.currentWave > 20) {
         gameState.currentStage++;
         gameState.currentWave = 1;
         checkClassUnlock();
     }
-
-    // Start the new wave
     startWave();
     updateUI();
 }
 
-// Modify the checkClassUnlock function
 function checkClassUnlock() {
-    if (gameState.currentStage === 3 && !gameState.unlockedClasses.includes('Sorceress')) {
-        gameState.unlockedClasses.push('Sorceress');
-        saveGameState();
-    }
-	else if (gameState.currentStage === 5 && !gameState.unlockedClasses.includes('Divine Knight')) {
-        gameState.unlockedClasses.push('Divine Knight');
+    const unlocks = { 3: 'Sorceress', 5: 'Divine Knight' };
+    const cls = unlocks[gameState.currentStage];
+    if (cls && !gameState.unlockedClasses.includes(cls)) {
+        gameState.unlockedClasses.push(cls);
         saveGameState();
     }
 }
@@ -733,55 +461,85 @@ function gameOver() {
     cancelAnimationFrame(animationFrameId);
     gameState.currentWave = 1;
     gameState.currentStage = 1;
-    
-	// Stop background music on game over
     stopBackgroundMusic();
-	
-    // Hide the ability button
-    const abilityButton = document.getElementById('ability-button');
-    if (abilityButton) abilityButton.style.display = 'none';
-    
-    // Save the current souls count to gameState
-    if (player) {
-        gameState.souls += player.currentRunSouls;
-        player.currentRunSouls = 0;
-    }
-    
-    // Clear existing enemies
-    enemies.forEach(enemy => {
-        if (enemy.element) enemy.element.remove();
-    });
+
+    if (player) { player.currentRunSouls = 0; }
+
+    enemies.forEach(e => e.element?.remove());
     enemies = [];
-    
-    // Hide player element
-    const playerElement = document.getElementById('player');
-    if (playerElement) playerElement.style.display = 'none';
-    
-    // Hide player stats
-    const playerStats = document.getElementById('player-stats');
-    if (playerStats) playerStats.style.display = 'none';
-    
-    // Hide stage info
-    const stageInfo = document.getElementById('stage-info');
-    if (stageInfo) stageInfo.style.display = 'none';
-    
-    // Hide game area - ADD THIS LINE
+
+    ['ability-button', 'player-stats', 'stage-info'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+
     const gameArea = document.getElementById('game-area');
     if (gameArea) gameArea.style.display = 'none';
-   
-    // Always show inventory menu, regardless of QoL menu status
+
+    const playerElement = document.getElementById('player');
+    if (playerElement) playerElement.style.display = 'none';
+
     const inventoryMenu = document.getElementById('inventory-menu');
-    if (inventoryMenu) {
-        inventoryMenu.style.display = 'block';
-        updateInventoryUI();
-    }
-	
+    if (inventoryMenu) { inventoryMenu.style.display = 'block'; updateInventoryUI(); }
+
     saveGameState();
     showClassSelection();
     updateSoulsUI();
 }
 
-// Helper functions
-function allEnemiesDefeated() {
-    return enemies.length === 0;
+function allEnemiesDefeated() { return enemies.length === 0; }
+
+function debugLevelUp() {
+    if (player) { player.exp = player.expToNextLevel; player.gainExp(0); }
+}
+
+let animationFrameId = null;
+let lastTimestamp = Date.now();
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadGameState();
+    createInventoryMenu();
+    showClassSelection();
+    buildTree();
+    document.getElementById('debug-level-up').addEventListener('click', debugLevelUp);
+    // TEMP DEBUG: Add talent point button for testing
+    const debugTalentBtn = document.createElement('button');
+    debugTalentBtn.id = 'debug-talent-btn';
+    debugTalentBtn.textContent = '+1 Talent';
+    debugTalentBtn.style.cssText = 'position:fixed;bottom:10px;left:10px;z-index:9999;padding:4px 10px;background:#2a1a3e;border:1px solid #9370DB;color:#c8aaff;font-size:11px;cursor:pointer;border-radius:4px;';
+    debugTalentBtn.addEventListener('click', () => { talentPoints++; renderTalents(); saveGameState(); });
+    document.body.appendChild(debugTalentBtn);
+    const autoCastToggle = document.getElementById('auto-cast-toggle');
+    if (autoCastToggle) {
+        autoCastToggle.checked = gameState.autoCastEnabled;
+        autoCastToggle.addEventListener('change', () => {
+            gameState.autoCastEnabled = autoCastToggle.checked;
+            saveGameState();
+        });
+    }
+});
+
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        // Switch to setTimeout so the loop keeps running in the background
+        cancelAnimationFrame(animationFrameId);
+        if (gameState.gameRunning && !gameState.isPaused) {
+            lastTimestamp = performance.now();
+            animationFrameId = setTimeout(backgroundLoop, 1000 / 60);
+        }
+    } else {
+        // Back in focus — cancel setTimeout and resume rAF
+        clearTimeout(animationFrameId);
+        if (gameState.gameRunning && !gameState.isPaused) {
+            lastTimestamp = performance.now();
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+    }
+});
+
+function backgroundLoop() {
+    if (!gameState.gameRunning || gameState.isPaused || !document.hidden) return;
+    const now = performance.now();
+    gameLoop(now);
+    animationFrameId = setTimeout(backgroundLoop, 1000 / 60);
 }

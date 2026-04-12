@@ -1,18 +1,18 @@
 let enemies = [];
 
 class Enemy {
-  static hurtSoundIndex = 0;
-  static currentlyPlayingHurtSounds = 0;
-  static deathSoundIndex = 0;
+    static hurtSoundIndex = 0;
+    static currentlyPlayingHurtSounds = 0;
+    static deathSoundIndex = 0;
+
     constructor() {
         this.baseSpeed = 26;
         this.radius = 10;
         this.speedEffects = [];
-        this.resetEnemy();
         this.damageIndicators = [];
         this.isDying = false;
-		this.isPlayingHitAnimation = false;
-		
+        this.isPlayingHitAnimation = false;
+        this.resetEnemy();
     }
 
     resetEnemy() {
@@ -20,21 +20,18 @@ class Enemy {
         this.maxHp = this.hp;
         this.position = this.getRandomPosition();
         this.lastDamageTime = 0;
-        if (this.element) {
-            this.element.remove();
-        }
+        this.element?.remove();
         this.element = this.createEnemyElement();
         this.hpElement = this.createHpElement();
         this.damageIndicator = this.createDamageIndicator();
         this.isDying = false;
-		this.isPlayingHitAnimation = false;
+        this.isPlayingHitAnimation = false;
     }
 
     getInitialHP() {
-        const baseHP = 10;
         const waveIncrease = 1 + (gameState.currentWave - 1) * 0.04;
         const stageMultiplier = Math.pow(1.9, gameState.currentStage - 1);
-        return Math.floor(baseHP * waveIncrease * stageMultiplier);
+        return Math.floor(10 * waveIncrease * stageMultiplier);
     }
 
     getRandomPosition() {
@@ -44,41 +41,29 @@ class Enemy {
         return { x, y };
     }
 
-
-
-
-  createEnemyElement() {
-    const gameArea = document.getElementById('game-area');
-    const enemyElement = document.createElement('div');
-    
-    // All enemy types now use sprite animation
-    enemyElement.className = 'enemy sprite';
-    
-    if (this instanceof EliteEnemy) {
-        enemyElement.classList.add('elite');
+    createEnemyElement() {
+        const el = document.createElement('div');
+        el.className = 'enemy sprite';
+        if (this instanceof EliteEnemy) el.classList.add('elite');
+        if (this instanceof Boss) el.classList.add('boss');
+        el.style.left = `${this.position.x}px`;
+        el.style.top  = `${this.position.y}px`;
+        document.getElementById('game-area').appendChild(el);
+        return el;
     }
-    if (this instanceof Boss) {
-        enemyElement.classList.add('boss');
-    }
-    
-    enemyElement.style.left = `${this.position.x}px`;
-    enemyElement.style.top = `${this.position.y}px`;
-    gameArea.appendChild(enemyElement);
-    return enemyElement;
-   }
-    
+
     createHpElement() {
-        const hpElement = document.createElement('div');
-        hpElement.className = 'enemy-hp';
-        this.element.appendChild(hpElement);
-        return hpElement;
+        const el = document.createElement('div');
+        el.className = 'enemy-hp';
+        this.element.appendChild(el);
+        return el;
     }
 
     createDamageIndicator() {
-        const damageIndicator = document.createElement('div');
-        damageIndicator.className = 'damage-indicator';
-        this.element.appendChild(damageIndicator);
-        return damageIndicator;
+        const el = document.createElement('div');
+        el.className = 'damage-indicator';
+        this.element.appendChild(el);
+        return el;
     }
 
     updateHpText() {
@@ -88,7 +73,6 @@ class Enemy {
     applySpeedEffect(factor, duration) {
         const effect = { factor, endTime: Date.now() + duration };
         this.speedEffects.push(effect);
-        
         this.element.classList.toggle('slowed', factor < 1);
         this.element.classList.toggle('sped-up', factor > 1);
         setTimeout(() => {
@@ -99,194 +83,130 @@ class Enemy {
 
     getCurrentSpeed() {
         const now = Date.now();
-        this.speedEffects = this.speedEffects.filter(effect => effect.endTime > now);
-        const speedFactor = this.speedEffects.reduce((factor, effect) => factor * effect.factor, 1);
-        return this.baseSpeed * speedFactor;
+        this.speedEffects = this.speedEffects.filter(e => e.endTime > now);
+        return this.baseSpeed * this.speedEffects.reduce((f, e) => f * e.factor, 1);
     }
 
     move(deltaTime) {
-    const currentSpeed = this.getCurrentSpeed();
-    const dx = player.position.x - this.position.x;
-    const dy = player.position.y - this.position.y;
-    let distance = Math.sqrt(dx * dx + dy * dy);
-    
-    if (distance > 0) {
-        // Flip sprite based on movement direction
-        if (dx < 0) {
-            this.element.classList.add('facing-left');
-        } else {
-            this.element.classList.remove('facing-left');
-        }
-        
-        let vx = (dx / distance) * currentSpeed * deltaTime;
-        let vy = (dy / distance) * currentSpeed * deltaTime;
-        
-        // Check for collisions with other enemies
-        enemies.forEach(otherEnemy => {
-            if (otherEnemy !== this) {
-                const sepX = this.position.x - otherEnemy.position.x;
-                const sepY = this.position.y - otherEnemy.position.y;
-                const sepDistance = Math.sqrt(sepX * sepX + sepY * sepY);
-                
-                if (sepDistance < this.radius + otherEnemy.radius) {
-                    const overlap = (this.radius + otherEnemy.radius - sepDistance) / 2;
-                    const pushX = (sepX / sepDistance) * overlap;
-                    const pushY = (sepY / sepDistance) * overlap;
-                    
-                    this.position.x += pushX;
-                    this.position.y += pushY;
-                    otherEnemy.position.x -= pushX;
-                    otherEnemy.position.y -= pushY;
-                    
-                    // Adjust velocity to move around other enemies
-                    vx += pushX * 0.1;
-                    vy += pushY * 0.1;
-                }
+        const speed = this.getCurrentSpeed();
+        const dx = player.position.x - this.position.x;
+        const dy = player.position.y - this.position.y;
+        const distance = Math.hypot(dx, dy);
+        if (distance === 0) return;
+
+        this.element.classList.toggle('facing-left', dx < 0);
+
+        let vx = (dx / distance) * speed * deltaTime;
+        let vy = (dy / distance) * speed * deltaTime;
+
+        // Separation push against other enemies
+        enemies.forEach(other => {
+            if (other === this) return;
+            const sx = this.position.x - other.position.x;
+            const sy = this.position.y - other.position.y;
+            const dist = Math.hypot(sx, sy);
+            if (dist < this.radius + other.radius) {
+                const overlap = (this.radius + other.radius - dist) / 2;
+                const px = (sx / dist) * overlap;
+                const py = (sy / dist) * overlap;
+                this.position.x  += px;
+                this.position.y  += py;
+                other.position.x -= px;
+                other.position.y -= py;
+                vx += px * 0.1;
+                vy += py * 0.1;
             }
         });
-        
-        // Apply the adjusted velocity
-        this.position.x += vx;
-        this.position.y += vy;
-        
-        // Keep enemies within the game area
-        this.position.x = Math.max(0, Math.min(this.position.x, 800 - this.radius * 2));
-        this.position.y = Math.max(0, Math.min(this.position.y, 600 - this.radius * 2));
-        
+
+        this.position.x = Math.max(0, Math.min(this.position.x + vx, 800 - this.radius * 2));
+        this.position.y = Math.max(0, Math.min(this.position.y + vy, 600 - this.radius * 2));
         this.element.style.left = `${this.position.x}px`;
-        this.element.style.top = `${this.position.y}px`;
+        this.element.style.top  = `${this.position.y}px`;
         this.updateHpText();
     }
-}
 
     takeDamage(amount, isCritical = false) {
- 
-    if (this.hp <= 0 || this.isDying) return;
+        if (this.hp <= 0 || this.isDying) return;
 
-    const actualDamage = Math.max(0, amount);
-    const willDie = this.hp - actualDamage <= 0;
-    this.hp = Math.max(0, this.hp - actualDamage);
+        const dmg = Math.max(0, amount);
+        const willDie = this.hp - dmg <= 0;
+        this.hp = Math.max(0, this.hp - dmg);
 
-    this.updateHpText();
-    this.showDamageIndicator(actualDamage, isCritical);
-    this.createHitSprite();
+        this.updateHpText();
+        this.showDamageIndicator(dmg, isCritical);
+        this.createHitSprite();
 
-    // Play hurt sound only if enemy doesn't die and less than 3 sounds playing
-    if (!willDie && Enemy.currentlyPlayingHurtSounds < 3) {
-        Enemy.hurtSoundIndex = (Enemy.hurtSoundIndex % 3) + 1;
-        const hurtAudio = document.getElementById(`skelehurtmu${Enemy.hurtSoundIndex}`);
-        if (hurtAudio) {
-            hurtAudio.currentTime = 0;
-            hurtAudio.volume = 0.3;
-            // Keep normal playback speed (no playbackRate adjustment)
-            
-            Enemy.currentlyPlayingHurtSounds++;
-            hurtAudio.onended = () => Enemy.currentlyPlayingHurtSounds--;
-            
-            hurtAudio.play().catch(e => console.log('Audio play failed:', e));
+        if (!willDie && Enemy.currentlyPlayingHurtSounds < 3) {
+            Enemy.hurtSoundIndex = (Enemy.hurtSoundIndex % 3) + 1;
+            const audio = document.getElementById(`skelehurtmu${Enemy.hurtSoundIndex}`);
+            if (audio) {
+                audio.currentTime = 0;
+                audio.volume = 0.3;
+                Enemy.currentlyPlayingHurtSounds++;
+                audio.onended = () => Enemy.currentlyPlayingHurtSounds--;
+                audio.play().catch(() => {});
+            }
         }
+
+        if (this.hp <= 0) this.die(isCritical);
     }
 
-    if (this.hp <= 0 && !this.isDying) {
-        this.die(isCritical);
+    showDamageIndicator(amount, isCritical) {
+        const el = document.createElement('div');
+        el.className = 'damage-indicator';
+        el.textContent = Math.round(amount);
+        el.style.color    = isCritical ? 'orange' : 'yellow';
+        el.style.fontSize = isCritical ? '25px'   : '16px';
+
+        const offset = this.damageIndicators.length * 20;
+        el.style.top   = `-${20 + offset}px`;
+        el.style.right = `${offset}px`;
+
+        this.element.appendChild(el);
+        this.damageIndicators.push(el);
+
+        setTimeout(() => { el.style.opacity = 1; el.style.top = `-${40 + offset}px`; }, 0);
+        setTimeout(() => { el.style.opacity = 0; el.style.top = `-${60 + offset}px`; }, 500);
+        setTimeout(() => {
+            el.remove();
+            this.damageIndicators = this.damageIndicators.filter(d => d !== el);
+        }, 1000);
     }
-}
 
-showDamageIndicator(amount, isCritical) {
-    const damageIndicator = document.createElement('div');
-    damageIndicator.className = 'damage-indicator';
-    damageIndicator.textContent = Math.round(amount);
-    
-    if (isCritical) {
-        damageIndicator.style.color = 'orange';
-        damageIndicator.style.fontSize = '25px';
-    } else {
-        damageIndicator.style.color = 'yellow';
-        damageIndicator.style.fontSize = '16px';
+    createHitSprite() {
+		if (!(player instanceof Acolyte)) return;
+        const sprite = document.createElement('div');
+        sprite.className = 'hit-sprite';
+        sprite.style.left = '50%';
+        sprite.style.top  = '50%';
+        this.element.appendChild(sprite);
+        setTimeout(() => sprite.remove(), 450);
     }
-    
-    const offset = this.damageIndicators.length * 20;
-    damageIndicator.style.top = `-${20 + offset}px`;
-    damageIndicator.style.right = `${offset}px`;
-    
-    this.element.appendChild(damageIndicator);
-    this.damageIndicators.push(damageIndicator);
-
-    // Use separate properties instead of transform
-    setTimeout(() => {
-        damageIndicator.style.opacity = 1;
-        damageIndicator.style.top = `-${40 + offset}px`;
-    }, 0);
-
-    setTimeout(() => {
-        damageIndicator.style.opacity = 0;
-        damageIndicator.style.top = `-${60 + offset}px`;
-    }, 500);
-
-    setTimeout(() => {
-        this.element.removeChild(damageIndicator);
-        this.damageIndicators = this.damageIndicators.filter(di => di !== damageIndicator);
-    }, 1000);
-}
-
-
-createHitSprite() {
-    const sprite = document.createElement("div");
-    sprite.className = "hit-sprite";
-
-    // center of enemy (no upward movement)
-    sprite.style.left = `50%`;
-    sprite.style.top = `50%`;
-
-    this.element.appendChild(sprite);
-
-    // remove after animation ends
-    setTimeout(() => {
-        if (sprite.parentNode) sprite.remove();
-    }, 450); // matches animation duration
-}
-
-
 
     getExpMultiplier() {
-        const multiplier = 1 + (gameState.currentStage - 1) * 0.5;
-        return multiplier;
+        return 1 + (gameState.currentStage - 1) * 0.5;
     }
 
- die(isCritical = false) {
-    if (this.isDying) return;
-    this.isDying = true;
-    
-    // Play crit sound for crits, otherwise cycle through normal death sounds
-    let deathSound;
-    if (isCritical) {
-        deathSound = 'skelediecritmu';
-    } else {
-        Enemy.deathSoundIndex = (Enemy.deathSoundIndex % 3) + 1;
-        deathSound = `skeledieamu${Enemy.deathSoundIndex}`;
+    playDeathSound(isCritical, volume = 0.17) {
+        const soundId = isCritical
+            ? 'skelediecritmu'
+            : `skeledieamu${(Enemy.deathSoundIndex = (Enemy.deathSoundIndex % 3) + 1)}`;
+        const audio = document.getElementById(soundId);
+        if (audio) { audio.currentTime = 0; audio.volume = volume; audio.play().catch(() => {}); }
     }
-    
-    const audio = document.getElementById(deathSound);
-    if (audio) {
-        audio.currentTime = 0;
-        audio.volume = 0.17;
-        audio.play().catch(e => console.log('Audio play failed:', e));
+
+    die(isCritical = false) {
+        if (this.isDying) return;
+        this.isDying = true;
+        this.playDeathSound(isCritical);
+        player.gainSouls(Math.floor(this.maxHp * 0.15));
+        player.gainExp(10 * this.getExpMultiplier());
+        this.element.classList.add('dying');
+        setTimeout(() => {
+            this.element.remove();
+            enemies = enemies.filter(e => e !== this);
+        }, 1000);
     }
-    
-    const soulsGained = Math.floor(this.maxHp * 0.15);
-    player.gainSouls(soulsGained); 
-    const expMultiplier = this.getExpMultiplier();
-    const expGain = 10 * expMultiplier;
-    player.gainExp(expGain);
-    
-    // Add death animation for all enemy types
-    this.element.classList.add('dying');
-    
-    setTimeout(() => {
-        this.element.remove();
-        enemies = enemies.filter(e => e !== this);
-    }, 1000);
- }
 }
 
 class EliteEnemy extends Enemy {
@@ -307,150 +227,86 @@ class EliteEnemy extends Enemy {
     }
 
     selectAbilities() {
-        const allAbilities = ['Weakness', 'Mind Freeze', 'Rally'];
-        if (gameState.currentStage <= 2) {
-            return [this.getRandomAbility(allAbilities)];
-        } else if (gameState.currentStage <= 4) {
-            return this.getRandomAbilities(allAbilities, 2);
-        } else {
-            return allAbilities;
-        }
+        const all = ['Weakness', 'Mind Freeze', 'Rally'];
+        if (gameState.currentStage <= 2) return [all[Math.floor(Math.random() * all.length)]];
+        if (gameState.currentStage <= 4) return [...all].sort(() => 0.5 - Math.random()).slice(0, 2);
+        return all;
     }
 
-    getRandomAbility(abilities) {
-        return abilities[Math.floor(Math.random() * abilities.length)];
-    }
-
-    getRandomAbilities(abilities, count) {
-        const shuffled = [...abilities].sort(() => 0.5 - Math.random());
-        return shuffled.slice(0, count);
+    takeDamage(amount, isCritical = false) {
+        const bonus = player.getEliteDamageBonus ? player.getEliteDamageBonus() : 0;
+        super.takeDamage(amount * (1 + bonus), isCritical);
     }
 
     useAbilities() {
         this.abilities.forEach(ability => {
-            switch(ability) {
-                case 'Weakness':
-                    this.useWeakness();
-                    break;
-                case 'Mind Freeze':
-                    this.useMindFreeze();
-                    break;
-                case 'Rally':
-                    this.useRally();
-                    break;
-            }
+            if (ability === 'Weakness')    this.useWeakness();
+            if (ability === 'Mind Freeze') this.useMindFreeze();
+            if (ability === 'Rally')       this.useRally();
         });
         this.abilities = [];
     }
 
     useWeakness() {
-        const originalDamage = player.weapon.damage;
-        player.weapon.damage *= 0.75;
-        console.log('Elite used Weakness: Player damage reduced by 25% for 5 seconds');
-        
-        const playerElement = document.getElementById('player');
-        playerElement.classList.add('weakened');
-        
-        const timer = setTimeout(() => {
-            this.endWeakness(originalDamage, playerElement);
-        }, 10000);
-        
-        this.activeEffects.push({ name: 'Weakness', timer, playerElement });
+    const originalDamage = player.weapon.damage;
+    player.weapon.damage *= 0.75;
+    const playerEl = document.getElementById('player');
+    playerEl.classList.add('weakened');
+    const timer = setTimeout(() => this.endWeakness(originalDamage, playerEl), 10000);
+    this.activeEffects.push({ name: 'Weakness', timer, playerElement: playerEl, originalDamage });
     }
 
-    endWeakness(originalDamage, playerElement) {
+    endWeakness(originalDamage, playerEl) {
         player.weapon.damage = originalDamage;
-        console.log('Weakness effect ended: Player damage restored');
-        playerElement.classList.remove('weakened');
-        this.activeEffects = this.activeEffects.filter(effect => effect.name !== 'Weakness');
+        playerEl.classList.remove('weakened');
+        this.activeEffects = this.activeEffects.filter(e => e.name !== 'Weakness');
     }
 
     useMindFreeze() {
-        const originalAttackSpeed = player.attacksPerSecond;
-        player.attacksPerSecond *= 0.75;
-        console.log('Elite used Mind Freeze: Player attack speed reduced by 25% for 5 seconds');
-        
-        const overlay = document.createElement('div');
-        overlay.className = 'mind-freeze-overlay';
-        document.getElementById('game-area').appendChild(overlay);
-        
-        const timer = setTimeout(() => {
-            this.endMindFreeze(originalAttackSpeed, overlay);
-        }, 10000);
-        
-        this.activeEffects.push({ name: 'MindFreeze', timer, overlay });
+    const originalSpeed = player.attacksPerSecond;
+    player.attacksPerSecond *= 0.75;
+    const overlay = document.createElement('div');
+    overlay.className = 'mind-freeze-overlay';
+    document.getElementById('game-area').appendChild(overlay);
+    const timer = setTimeout(() => this.endMindFreeze(originalSpeed, overlay), 10000);
+    this.activeEffects.push({ name: 'MindFreeze', timer, overlay, originalSpeed });
     }
 
-    endMindFreeze(originalAttackSpeed, overlay) {
-        player.attacksPerSecond = originalAttackSpeed;
-        console.log('Mind Freeze effect ended: Player attack speed restored');
-        if (document.getElementById('game-area').contains(overlay)) {
-            document.getElementById('game-area').removeChild(overlay);
-        }
-        this.activeEffects = this.activeEffects.filter(effect => effect.name !== 'MindFreeze');
+    endMindFreeze(originalSpeed, overlay) {
+        player.attacksPerSecond = originalSpeed;
+        overlay.remove();
+        this.activeEffects = this.activeEffects.filter(e => e.name !== 'MindFreeze');
     }
 
     useRally() {
-    const rallyDuration = 4000; 
-    enemies.forEach(enemy => enemy.applySpeedEffect(1.25, rallyDuration));
-    console.log(`Elite used Rally: Enemy speed increased by 25% for ${rallyDuration / 1000} seconds`);
-    
-    const indicator = document.createElement('div');
-    indicator.className = 'elite-rally-indicator';
-    this.element.appendChild(indicator);
-    setTimeout(() => this.element.removeChild(indicator), rallyDuration);
+        const duration = 4000;
+        enemies.forEach(e => e.applySpeedEffect(1.25, duration));
+        const indicator = document.createElement('div');
+        indicator.className = 'elite-rally-indicator';
+        this.element.appendChild(indicator);
+        setTimeout(() => indicator.remove(), duration);
     }
 
-    // EliteEnemy die method
-die(isCritical = false) {
-    if (this.isDying) return;
-    this.isDying = true;
-    
-    // Play crit sound for crits, otherwise cycle through normal death sounds
-    let deathSound;
-    if (isCritical) {
-        deathSound = 'skelediecritmu';
-    } else {
-        Enemy.deathSoundIndex = (Enemy.deathSoundIndex % 3) + 1;
-        deathSound = `skeledieamu${Enemy.deathSoundIndex}`;
+    die(isCritical = false) {
+        if (this.isDying) return;
+        this.isDying = true;
+        this.playDeathSound(isCritical, 0.3);
+        player.gainSouls(Math.floor(this.maxHp * 0.2));
+
+        this.activeEffects.forEach(effect => {
+                clearTimeout(effect.timer);
+    if (effect.name === 'MindFreeze') this.endMindFreeze(effect.originalSpeed, effect.overlay);
+    if (effect.name === 'Weakness')   this.endWeakness(effect.originalDamage, effect.playerElement);
+        });
+        this.activeEffects = [];
+
+        player.gainExp(30 * this.getExpMultiplier());
+        this.element.classList.add('dying');
+        setTimeout(() => {
+            this.element.remove();
+            enemies = enemies.filter(e => e !== this);
+        }, 1300);
     }
-    
-    const audio = document.getElementById(deathSound);
-    if (audio) {
-        audio.currentTime = 0;
-        audio.volume = 0.3;
-        audio.play().catch(e => console.log('Audio play failed:', e));
-    }
-    
-    const soulsGained = Math.floor(this.maxHp * 0.2);
-    player.gainSouls(soulsGained);
-    this.activeEffects.forEach(effect => {
-        clearTimeout(effect.timer);
-        switch (effect.name) {
-            case 'Rally':
-                this.endRally(1.2, effect.indicator);
-                break;
-            case 'MindFreeze':
-                this.endMindFreeze(player.attacksPerSecond / 0.75, effect.overlay);
-                break;
-            case 'Weakness':
-                this.endWeakness(player.weapon.damage / 0.75, effect.playerElement);
-                break;
-        }
-    });
-    
-    this.activeEffects = [];
-    
-    player.gainExp(30 * this.getExpMultiplier());
-    
-    // Add death animation
-    this.element.classList.add('dying');
-    
-    setTimeout(() => {
-        this.element.remove();
-        enemies = enemies.filter(e => e !== this);
-    }, 1300);
- }
 }
 
 class Boss extends Enemy {
@@ -469,128 +325,82 @@ class Boss extends Enemy {
     }
 
     takeDamage(amount, isCritical = false) {
-        const bossDamageBonus = player.getBossDamageBonus();
-        const totalDamage = amount * (1 + bossDamageBonus);
-        console.log(`Base damage: ${amount}, Boss bonus: ${bossDamageBonus}, Total damage: ${totalDamage}`);
-        super.takeDamage(totalDamage, isCritical);
+        const bonus = player.getBossDamageBonus();
+        super.takeDamage(amount * (1 + bonus), isCritical);
     }
-
 
     die() {
-    if (this.isDying) return;
-    this.isDying = true;
-
-    const soulsGained = Math.floor(this.maxHp * 0.2);
-    player.gainSouls(soulsGained);
-    player.gainExp(100 * this.getExpMultiplier());
-
-    if (!gameState.amuletDropped) {
-        gameState.amuletDropped = true;
-        player.equipAmulet();
-        updateInventoryUI();
-        showAmuletFoundText();
+        if (this.isDying) return;
+        this.isDying = true;
+        player.gainSouls(Math.floor(this.maxHp * 0.2));
+        player.gainExp(100 * this.getExpMultiplier());
+        if (!gameState.amuletDropped) {
+            gameState.amuletDropped = true;
+            player.equipAmulet();
+            updateInventoryUI();
+            showAmuletFoundText();
+        }
+        this.element.classList.add('dying');
+        setTimeout(() => {
+            this.element.remove();
+            enemies = enemies.filter(e => e !== this);
+        }, 600);
     }
-
-    // Add death animation
-    this.element.classList.add('dying');
-
-    setTimeout(() => {
-        this.element.remove();
-        enemies = enemies.filter(e => e !== this);
-    }, 600); // Match the animation duration (0.6s from CSS)
 }
+
+// Returns true if the candidate position overlaps any already-placed enemy
+function hasOverlap(candidate, placedEnemies) {
+    return placedEnemies.some(e => {
+        return Math.hypot(candidate.position.x - e.position.x, candidate.position.y - e.position.y)
+             < candidate.radius + e.radius;
+    });
+}
+
+// Tries up to 100 times to find a non-overlapping spawn position
+function placeWithoutOverlap(enemy) {
+    for (let i = 0; i < 100; i++) {
+        if (!hasOverlap(enemy, enemies)) break;
+        enemy.position = enemy.getRandomPosition();
+    }
 }
 
 function spawnEnemies() {
-    enemies = []; // Clear the enemies array before spawning new ones
-    const enemyCount = 5 + gameState.currentWave - 1;
+    enemies = [];
 
-    // Spawn boss at the start of each stage from stage 2 onwards
     if (gameState.currentStage >= 2 && gameState.currentWave === 1) {
-        let boss = new Boss();
-        enemies.push(boss);
+        enemies.push(new Boss());
         showBossSpawnedText();
     }
 
-    for (let i = 0; i < enemyCount; i++) {
-        let newEnemy = new Enemy();
-        let attempts = 0;
-        while (attempts < 100) {
-            let overlap = false;
-            for (let j = 0; j < enemies.length; j++) {
-                const dx = newEnemy.position.x - enemies[j].position.x;
-                const dy = newEnemy.position.y - enemies[j].position.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < newEnemy.radius + enemies[j].radius) {
-                    overlap = true;
-                    break;
-                }
-            }
-            if (!overlap) {
-                break;
-            }
-            newEnemy.position = newEnemy.getRandomPosition();
-            attempts++;
-        }
-        enemies.push(newEnemy);
+    const count = 4 + gameState.currentWave; // wave 1 → 5, wave 2 → 6, etc.
+    for (let i = 0; i < count; i++) {
+        const enemy = new Enemy();
+        placeWithoutOverlap(enemy);
+        enemies.push(enemy);
     }
 
     if (gameState.currentWave % 5 === 0) {
-        let eliteEnemy = new EliteEnemy();
-        let attempts = 0;
-        while (attempts < 100) {
-            let overlap = false;
-            for (let j = 0; j < enemies.length; j++) {
-                const dx = eliteEnemy.position.x - enemies[j].position.x;
-                const dy = eliteEnemy.position.y - enemies[j].position.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < eliteEnemy.radius + enemies[j].radius) {
-                    overlap = true;
-                    break;
-                }
-            }
-            if (!overlap) {
-                break;
-            }
-            eliteEnemy.position = eliteEnemy.getRandomPosition();
-            attempts++;
-        }
-        enemies.push(eliteEnemy);
-        eliteEnemy.useAbilities(); // Trigger abilities immediately upon spawn		
+        const elite = new EliteEnemy();
+        placeWithoutOverlap(elite);
+        enemies.push(elite);
     }
 }
 
-function showBossSpawnedText() {
-    const gameArea = document.getElementById('game-area');
-    const bossText = document.createElement('div');
-    bossText.className = 'boss-spawned-text';
-    bossText.textContent = "Boss Spawned";
-    gameArea.appendChild(bossText);
-
-    setTimeout(() => {
-        bossText.remove();
-    }, 3000);
+function spawnGameText(className, text, duration) {
+    const el = document.createElement('div');
+    el.className = className;
+    el.textContent = text;
+    document.getElementById('game-area').appendChild(el);
+    setTimeout(() => el.remove(), duration);
 }
 
-function showAmuletFoundText() {
-    const gameArea = document.getElementById('game-area');
-    const amuletText = document.createElement('div');
-    amuletText.className = 'amulet-found-text';
-    amuletText.textContent = "Amulet Found!";
-    gameArea.appendChild(amuletText);
-
-    setTimeout(() => {
-        amuletText.remove();
-    }, 3500);
-}
+function showBossSpawnedText()  { spawnGameText('boss-spawned-text',  'Boss Spawned',  3000); }
+function showAmuletFoundText()  { spawnGameText('amulet-found-text',  'Amulet Found!', 3500); }
 
 function updateEnemies(deltaTime) {
     enemies.forEach(enemy => {
-        if (!enemy.isDying) {
-            enemy.move(deltaTime);
-        }
-        if (enemy instanceof EliteEnemy && !enemy.isDying) {
-            enemy.useAbilities();
-        }
+        if (enemy.isDying) return;
+        enemy.move(deltaTime);
+        if (enemy instanceof EliteEnemy) enemy.useAbilities();
     });
 }

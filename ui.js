@@ -1,335 +1,211 @@
 function initializeUI() {
-    // Create stage info element
-    const gameArea = document.getElementById('game-area');
-    let stageInfoElement = document.getElementById('stage-info');
-    if (!stageInfoElement) {
-        stageInfoElement = document.createElement('div');
-        stageInfoElement.id = 'stage-info';
-        gameArea.appendChild(stageInfoElement);
-    }
-	
-    const abilityButton = document.getElementById('ability-button');
-    if (abilityButton) {
-        abilityButton.addEventListener('click', () => {
-            if (player && player.weapon) {
-                player.weapon.useAbility();
-            }
-        });
-    }	
+
+    document.getElementById('ability-button')?.addEventListener('click', () => {
+        player?.weapon?.useAbility();
+    });
+
+    document.getElementById('debug-skip-wave').addEventListener('click', skipWave);
+
     updateUI();
     createQoLMenu();
-	createInventoryMenu();
-	createAchievementsMenu();
-	createAchievementsButton();
-
-    // Add event listener for debug skip wave button
-    document.getElementById('debug-skip-wave').addEventListener('click', skipWave);
+    createInventoryMenu();
+    createAchievementsMenu();
+    createAchievementsButton();
 }
 
 function updateUI() {
-    // Ensure stage info is updated even if player or weapon is not initialized
-    const stageInfoElement = document.getElementById('stage-info');
-    if (stageInfoElement) {
-        stageInfoElement.textContent = `Stage ${gameState.currentStage} / Wave ${gameState.currentWave} / Enemies: ${enemies.length}`;
+    const stageInfo = document.getElementById('stage-info');
+    if (stageInfo) {
+        stageInfo.textContent = `Stage ${gameState.currentStage} | Wave ${gameState.currentWave}/20 | Enemies: ${enemies.length}`;
     }
-	updatePlayerStats();
+    updatePlayerStats();
     updateAbilityButton();
-	checkAchievements();
+    checkAchievements();
 }
 
 function updatePlayerStats() {
-    const playerStatsElement = document.getElementById('player-stats');
-    
-        if (player && player.weapon) {
-        let rangeText = `${player.weapon.globalRange.toFixed(0)}`;
-        
-        // Only show chain range for weapons that actually use chaining
-        if ((player.weapon instanceof ChainWand || player.weapon instanceof BasicWand) && player.weapon.chainRange) {
-            rangeText += ` / Chain ${player.weapon.chainRange}`;
-        } else if (player.weapon instanceof VortexStaff && player.weapon.splashRange) {
-            rangeText += ` / Splash ${player.weapon.splashRange}`;
-        }
-        
-        // Calculate total cooldown reduction with color coding
-        const totalCDReduction = player.totalCooldownReduction;
-        let cdReductionText = '';
-        let cdReductionStyle = '';
-        
-        if (totalCDReduction >= 0.75) {
-            cdReductionText = '75% CAP';
-            cdReductionStyle = ' style="color: #4A6741;"'; // Dark medieval green for cap
-        } else if (totalCDReduction < 0) {
-            // Negative value means cooldown increase
-            cdReductionText = `${(totalCDReduction * 100).toFixed(1)}%`;
-            cdReductionStyle = ' style="color: #DC143C;"'; // Red color for negative
-        } else {
-            cdReductionText = `${(totalCDReduction * 100).toFixed(1)}%`;
-        }
+    if (!player?.weapon) return;
 
-        // Cap crit chance at 100% with color coding
-        const cappedCritChance = Math.min(player.critChance, 1);
-        let critChanceText = '';
-        let critChanceStyle = '';
-        
-        if (cappedCritChance >= 1) {
-            critChanceText = '100% CAP';
-            critChanceStyle = ' style="color: #4A6741;"'; // Dark medieval green for cap
-        } else if (player.critChance < 0) {
-            critChanceText = `${(player.critChance * 100).toFixed(1)}%`;
-            critChanceStyle = ' style="color: #DC143C;"'; // Red color for negative
-        } else {
-            critChanceText = `${(cappedCritChance * 100).toFixed(1)}%`;
-        }
-        
-        // Crit damage with color coding for negative values
-        const critDamagePercent = (player.critDamage * 100 - 100);
-        let critDamageStyle = '';
-        if (critDamagePercent < 0) {
-            critDamageStyle = ' style="color: #DC143C;"'; // Red color for negative
-        }
-        
-        // Calculate total boss damage bonus
-        const totalBonus = player.getBossDamageBonus();
+    const el = document.getElementById('player-stats');
+    const w = player.weapon;
 
-        const displayName = player.getDisplayName();
-        const classColor = player.classColor || '#FFD700';
+    let rangeText = w.globalRange.toFixed(0);
+    if ((w instanceof ChainWand || w instanceof BasicWand) && w.chainRange)
+        rangeText += ` / Chain ${w.chainRange}`;
+    else if (w instanceof VortexStaff && w.splashRange)
+        rangeText += ` / Splash ${w.splashRange}`;
 
-        let statsHTML = `
-            			<h3 style="color: ${classColor};">${displayName}</h3>
-            <div><span class="stat-name">Level:</span> <span class="stat-value">${player.level}</span></div>
-            <div><span class="stat-name">Exp:</span> <span class="stat-value">${player.exp.toFixed(0)} / ${player.expToNextLevel.toFixed(0)}</span></div>
-            <div><span class="stat-name">Souls:</span> <span class="stat-value">${player.currentRunSouls}</span></div>
-            <div class="divider"><span class="stat-name">HP:</span> <span class="stat-value">${player.hp.toFixed(1)} / ${player.maxHp.toFixed(1)}</span></div>
-            <div><span class="stat-name">HP Regen:</span> <span class="stat-value">${player.hpRegen.toFixed(2)}/s</span></div>
-            <div class="weapon-stat"><span class="stat-name">Weapon:</span> <span class="stat-value">${player.weapon.name}</span></div>
-            <div><span class="stat-name">Damage:</span> <span class="stat-value">${player.weapon.damage.toFixed(1)}</span></div>
-            <div><span class="stat-name">Range:</span> <span class="stat-value">${rangeText}</span></div>
-            <div><span class="stat-name">Attacks/Sec:</span> <span class="stat-value">${player.attacksPerSecond.toFixed(2)}</span></div>
-            <div><span class="stat-name">CD Reduction:</span> <span class="stat-value"${cdReductionStyle}>${cdReductionText}</span></div>
-            <div><span class="stat-name">Crit Chance:</span> <span class="stat-value"${critChanceStyle}>${critChanceText}</span></div>
-            <div><span class="stat-name">Crit Damage:</span> <span class="stat-value"${critDamageStyle}>${critDamagePercent.toFixed(1)}%</span></div>
+    const CDR = player.totalCooldownReduction;
+    const cdrCapped = CDR >= 0.75;
+    const cdrNeg = CDR < 0;
+    const cdrText = cdrCapped ? '75% CAP' : `${(CDR * 100).toFixed(1)}%`;
+    const cdrStyle = cdrCapped ? 'color:#4A6741' : cdrNeg ? 'color:#DC143C' : '';
 
-        `;
+    const crit = Math.min(player.critChance, 1);
+    const critCapped = crit >= 1;
+    const critNeg = player.critChance < 0;
+    const critText = critCapped ? '100% CAP' : `${(crit * 100).toFixed(1)}%`;
+    const critStyle = critCapped ? 'color:#4A6741' : critNeg ? 'color:#DC143C' : '';
 
-        // Only add boss damage stat if amulet is equipped
-        if (gameState.amuletEquipped) {
-            statsHTML += `<div><span class="stat-name">Boss Damage:</span> <span class="stat-value">+${(totalBonus * 100).toFixed(1)}%</span></div>`;
-        }
+    const critDmgPct = player.critDamage * 100 - 100;
+    const critDmgStyle = critDmgPct < 0 ? 'color:#DC143C' : '';
 
-        playerStatsElement.innerHTML = statsHTML;
-    }
+    const classColor = player.classColor || '#FFD700';
+
+    const stat = (name, value, style = '') =>
+        `<div><span class="stat-name">${name}:</span> <span class="stat-value"${style ? ` style="${style}"` : ''}>${value}</span></div>`;
+
+    let html = `
+        <h3 style="color:${classColor};">${player.getDisplayName()}</h3>
+        ${stat('Level', player.level)}
+        ${stat('Exp', `${player.exp.toFixed(0)} / ${player.expToNextLevel.toFixed(0)}`)}
+        ${stat('Souls', player.currentRunSouls)}
+        <div class="stat-row divider"><span class="stat-name">HP:</span> <span class="stat-value">${player.hp.toFixed(1)} / ${player.maxHp.toFixed(1)}</span></div>
+        ${stat('HP Regen', `${player.hpRegen.toFixed(2)}/s`)}
+        <div class="stat-row weapon-stat"><span class="stat-name">Weapon:</span> <span class="stat-value">${w.name}</span></div>
+        ${stat('Damage', w.damage.toFixed(1))}
+        ${stat('Range', rangeText)}
+        ${stat('Attacks/Sec', (player.weapon?.getAttackSpeed ? player.weapon.getAttackSpeed() : player.attacksPerSecond).toFixed(2))}
+        ${stat('CD Reduction', cdrText, cdrStyle)}
+        ${stat('Crit Chance', critText, critStyle)}
+        ${stat('Crit Damage', `${critDmgPct.toFixed(1)}%`, critDmgStyle)}
+    `;
+
+    if (gameState.amuletEquipped)
+        html += stat('Boss Damage', `+${(player.getBossDamageBonus() * 100).toFixed(1)}%`);
+
+    el.innerHTML = html;
 }
 
-function updateEnemyUI() {
-    const gameArea = document.getElementById('game-area');
-    gameArea.innerHTML = '';
 
-    enemies.forEach((enemy, index) => {
-        const enemyElement = document.createElement('div');
-        enemyElement.className = `enemy ${enemy instanceof EliteEnemy ? 'elite' : ''}`;
-        enemyElement.style.left = `${enemy.position.x}px`;
-        enemyElement.style.top = `${enemy.position.y}px`;
-
-        const hpText = document.createElement('div');
-        hpText.className = 'hp-text';
-        hpText.textContent = enemy.hp.toFixed(0);
-
-        enemyElement.appendChild(hpText);
-        gameArea.appendChild(enemyElement);
-    });
-}
 
 function updateAbilityButton() {
-    const abilityButton = document.getElementById('ability-button');
-    if (abilityButton && player && player.weapon) {
-        abilityButton.textContent = player.weapon.getAbilityButtonText();
-        abilityButton.disabled = player.weapon.getAbilityButtonText().startsWith('Cooldown');
-    }
+    const btn = document.getElementById('ability-button');
+    if (!btn || !player?.weapon) return;
+    const text = player.weapon.getAbilityButtonText();
+    btn.textContent = text;
+    btn.disabled = text.startsWith('Cooldown');
 }
 
 function showAscensionOverlay() {
-    if (gameState.ascensionLevel >= MAX_ASCENSIONS) {
-        return;
-    }
+    if (gameState.ascensionLevel >= MAX_ASCENSIONS) return;
+    if (gameState.highestStageReached < ASCENSION_STAGES[gameState.ascensionLevel]) return;
 
-    const requiredStage = ASCENSION_STAGES[gameState.ascensionLevel];
+    const configs = [
+        {
+            maxUpgradesText: 'Max upgrades for all Soul upgrades: +5',
+            unlockText: 'Unlocks Exp+ / Boss Damage+ upgrades',
+            qolUnlockText: 'Unlocks Automation',
+            amuletUpgradeText: 'Upgrades Amulet'
+        },
+        {
+            maxUpgradesText: 'Max upgrades for Exp+: +5',
+            unlockText: 'Unlocks Rarity+ upgrade',
+            qolUnlockText: 'Unlocks Auto Card in QoL menu',
+            amuletUpgradeText: 'Additional Amulet upgrade'
+        },
+        {
+            maxUpgradesText: 'Max upgrades for Exp+ / Rarity+: +5',
+            unlockText: 'Unlocks Starting Wave+ upgrade',
+            qolUnlockText: 'Unlocks Auto Evo / Auto Class in QoL menu',
+            amuletUpgradeText: 'Additional Amulet upgrade'
+        }
+    ];
 
-    if (gameState.highestStageReached < requiredStage) {
-        return;
-    }
-
-    let maxUpgradesText;
-    let unlockText;
-    let qolUnlockText;
-    let amuletUpgradeText = "";
-
-    switch (gameState.ascensionLevel) {
-        case 0:
-            maxUpgradesText = "Max upgrades for all Soul upgrades: +5";
-            unlockText = "Unlocks Exp+ / Boss Damage+ upgrades";
-            qolUnlockText = "Unlocks Automation";
-            amuletUpgradeText = "Upgrades Amulet";
-            break;
-        case 1:
-            maxUpgradesText = "Max upgrades for Exp+: +5";
-            unlockText = "Unlocks Rarity+ upgrade";
-            qolUnlockText = "Unlocks Auto Card in QoL menu";
-            amuletUpgradeText = "Additional Amulet upgrade";
-            break;
-        case 2:
-            maxUpgradesText = "Max upgrades for Exp+ / Rarity+: +5";
-            unlockText = "Unlocks Starting Wave+ upgrade";
-            qolUnlockText = "Unlocks Auto Evo / Auto Class in QoL menu";
-            amuletUpgradeText = "Additional Amulet upgrade";
-            break;
-    }
-
-    const acolyteBonus = new Acolyte().getBossDamageBonus() * 100;
-    const sorceressBonus = new Sorceress().getBossDamageBonus() * 100;
-    const divineKnightBonus = new DivineKnight().getBossDamageBonus() * 100;
+    const { maxUpgradesText, unlockText, qolUnlockText, amuletUpgradeText } = configs[gameState.ascensionLevel];
 
     const overlay = document.createElement('div');
     overlay.id = 'ascension-overlay';
-    
+
     const content = document.createElement('div');
     content.id = 'ascension-content';
-    
     content.innerHTML = `
-    <h2>Ascension ${gameState.ascensionLevel + 1}</h2>
-    <p>Resetting everything except unlocked classes.</p>
-    <p>${amuletUpgradeText}</p>
-    <p>Soul gain multiplier: x${SOUL_MULTIPLIERS[gameState.ascensionLevel + 1] || SOUL_MULTIPLIERS[SOUL_MULTIPLIERS.length - 1]}</p>
-    <p>${maxUpgradesText}</p>
-    <p>${unlockText}</p>
-    <p>${qolUnlockText}</p>  
-    <button onclick="ascend()">Confirm Ascension</button>
+        <h2>Ascension ${gameState.ascensionLevel + 1}</h2>
+        <p>Resetting everything except unlocked classes.</p>
+        <p>${amuletUpgradeText}</p>
+        <p>Soul gain multiplier: x${SOUL_MULTIPLIERS[gameState.ascensionLevel + 1] ?? SOUL_MULTIPLIERS.at(-1)}</p>
+        <p>${maxUpgradesText}</p>
+        <p>${unlockText}</p>
+        <p>${qolUnlockText}</p>
+        <p>Talent points and talent tree are reset.</p>
+        <button onclick="ascend()">Confirm Ascension</button>
     `;
-    
+
     overlay.appendChild(content);
     document.body.appendChild(overlay);
 }
 
 function showGameOverScreen() {
-    const gameOverScreen = document.createElement('div');
-    gameOverScreen.id = 'game-over';
-    gameOverScreen.innerHTML = `
+    const screen = document.createElement('div');
+    screen.id = 'game-over';
+    screen.innerHTML = `
         <h2>Game Over</h2>
         <p>You reached Stage ${gameState.currentStage}, Wave ${gameState.currentWave}</p>
         <button id="restart-button">Restart</button>
     `;
-
-    document.body.appendChild(gameOverScreen);
+    document.body.appendChild(screen);
     document.getElementById('restart-button').addEventListener('click', () => {
-        document.body.removeChild(gameOverScreen);
+        screen.remove();
         showClassSelection();
     });
 }
 
 function updateSoulsUI() {
     const soulsMenu = document.getElementById('souls-menu');
-    const souls = gameState.souls;
-    
-    let upgradesHTML = `
+    const souls = gameState.souls ?? 0;
+
+    const upgradeConfig = {
+        'Health+':          { key: 'healthUpgrades',      display: v => `+${(v * 0.5).toFixed(1)} HP`,        label: 'Health Increase' },
+        'Regen+':           { key: 'regenUpgrades',       display: v => `+${(v * 0.02).toFixed(2)}/s`,        label: 'HP Regeneration' },
+        'Crit Chance+':     { key: 'critChanceUpgrades',  display: v => `+${v * 1}%`,                         label: 'Critical Strike Chance' },
+        'Critical Damage+': { key: 'critDamageUpgrades',  display: v => `+${v * 10}%`,                        label: 'Critical Damage' },
+        'Attack Speed+':    { key: 'attackSpeedUpgrades', display: v => `+${v * 5}%`,                         label: 'Attack Speed Increase' },
+        'Cooldown+':        { key: 'cooldownUpgrades',    display: v => `+${v * 2}%`,                         label: 'Cooldown Reduction' },
+        'Exp+':             { key: 'expUpgrades',         display: (v, u) => `+${(v * u.valuePerUpgrade * 100).toFixed(0)}%`, label: 'Experience Gain' },
+        'Boss Damage+':     { key: 'bossDamageUpgrades',  display: v => `+${v * 10}%`,                        label: 'Boss Damage' },
+        'Rarity+':          { key: 'rarityUpgrades',      display: (v, u) => `+${(v * u.valuePerUpgrade * 100).toFixed(0)}%`, label: 'Higher Rarity Chance' },
+        'Starting Wave+':   { key: 'startingWaveUpgrades',display: v => `+${v}`,                              label: 'Starting Wave' },
+    };
+
+    const tieredNames = new Set(['Exp+', 'Rarity+', 'Starting Wave+', 'Boss Damage+']);
+    const asc = gameState.ascensionLevel;
+
+    const getMaxPurchases = name => tieredNames.has(name)
+        ? (asc > 2 ? 20 : asc > 1 ? 15 : asc > 0 ? 10 : 5)
+        : (asc > 0 ? 10 : 5);
+
+    let html = `
         <h3>Total Souls: ${souls}</h3>
-        <h4>Total Ascensions: ${gameState.ascensionLevel} 
-            <span style="color: yellow;">(x${gameState.soulMultiplier} Multiplier)</span>
-        </h4>
-        <div id="souls-upgrades-container">`;
+        <h4>Total Ascensions: ${asc} <span style="color:yellow;">(x${gameState.soulMultiplier} Multiplier)</span></h4>
+        <div id="souls-upgrades-container">
+    `;
 
     soulsUpgrades.forEach(upgrade => {
-        // Check if the upgrade should be visible
-        if (upgrade.isVisible && !upgrade.isVisible(gameState)) {
-            return; // Skip this upgrade if it's not visible
-        }
+        if (upgrade.isVisible && !upgrade.isVisible(gameState)) return;
 
-        let upgradeName, currentValue, increaseText;
-        switch(upgrade.name) {
-            case 'Health+':
-                upgradeName = 'healthUpgrades';
-                currentValue = `+${((gameState[upgradeName] || 0) * 0.5).toFixed(1)} HP`;
-                increaseText = 'Health Increase';
-                break;
-            case 'Regen+':
-                upgradeName = 'regenUpgrades';
-                currentValue = `+${((gameState[upgradeName] || 0) * 0.02).toFixed(2)}/s`;
-                increaseText = 'HP Regeneration';
-                break;
-            case 'Crit Chance+':
-                upgradeName = 'critChanceUpgrades';
-                currentValue = `+${((gameState[upgradeName] || 0) * 1)}%`;
-                increaseText = 'Critical Strike Chance';
-                break;
-            case 'Critical Damage+':
-                upgradeName = 'critDamageUpgrades';
-                currentValue = `+${((gameState[upgradeName] || 0) * 10)}%`;
-                increaseText = 'Critical Damage';
-                break;
-            case 'Attack Speed+':
-                upgradeName = 'attackSpeedUpgrades';
-                currentValue = `+${((gameState[upgradeName] || 0) * 5)}%`;
-                increaseText = 'Attack Speed Increase';
-                break;
-            case 'Cooldown+':
-                upgradeName = 'cooldownUpgrades';
-                currentValue = `+${((gameState[upgradeName] || 0) * 2)}%`;
-                increaseText = 'Cooldown Reduction';
-                break;
-            case 'Exp+':
-                upgradeName = 'expUpgrades';
-                currentValue = `+${((gameState[upgradeName] || 0) * upgrade.valuePerUpgrade * 100).toFixed(0)}%`;
-                increaseText = 'Experience Gain';
-                break;
-			case 'Boss Damage+':
-                upgradeName = 'bossDamageUpgrades';
-                currentValue = `+${((gameState[upgradeName] || 0) * 10)}%`;
-                increaseText = 'Boss Damage';
-                break;
-            case 'Rarity+':
-                upgradeName = 'rarityUpgrades';
-                currentValue = `+${((gameState[upgradeName] || 0) * upgrade.valuePerUpgrade * 100).toFixed(0)}%`;
-                increaseText = 'Higher Rarity Chance';
-                break;
-            case 'Starting Wave+':
-                upgradeName = 'startingWaveUpgrades';
-                currentValue = `+${(gameState[upgradeName] || 0)}`;
-                increaseText = 'Starting Wave';
-                break;
-            default:
-                upgradeName = '';
-                currentValue = '';
-                increaseText = '';
-        }
+        const cfg = upgradeConfig[upgrade.name];
+        if (!cfg) return;
 
-        const purchased = gameState[upgradeName] || 0;       
-        let maxPurchases;
-        if (upgrade.name === 'Exp+' || upgrade.name === 'Rarity+' || upgrade.name === 'Starting Wave+' || upgrade.name === 'Boss Damage+') {
-            maxPurchases = gameState.ascensionLevel > 2 ? 20 : (gameState.ascensionLevel > 1 ? 15 : (gameState.ascensionLevel > 0 ? 10 : 5));
-        }
-		else {
-            maxPurchases = gameState.ascensionLevel > 0 ? 10 : 5;
-        }
+        const purchased = gameState[cfg.key] || 0;
+        const currentValue = cfg.display(purchased, upgrade);
+        const maxPurchases = getMaxPurchases(upgrade.name);
+        const cost = calculateSoulUpgradeCost(upgrade.baseCost, purchased);
+        const disabled = !upgrade.canPurchase(gameState) || souls < cost;
 
-        // Use the global calculateSoulUpgradeCost function
-        const currentLevel = gameState[upgradeName] || 0;
-        const upgradeCost = calculateSoulUpgradeCost(upgrade.baseCost, currentLevel);
-
-        upgradesHTML += `
+        html += `
             <div class="souls-upgrade">
                 <h4>${upgrade.name}</h4>
                 <hr>
-                <p>${increaseText}  ${currentValue}</p>
-                <p>Required Souls: ${upgradeCost}</p>
+                <p>${cfg.label} ${currentValue}</p>
+                <p>Required Souls: ${cost}</p>
                 <p>Upgrades: ${purchased}/${maxPurchases}</p>
-                <button onclick="purchaseSoulsUpgrade('${upgrade.name}')" 
-                    ${(!upgrade.canPurchase(gameState) || souls < upgradeCost) ? 'disabled' : ''}>
-                    Purchase
-                </button>
+                <button onclick="purchaseSoulsUpgrade('${upgrade.name}')" ${disabled ? 'disabled' : ''}>Purchase</button>
             </div>
         `;
     });
 
-    upgradesHTML += '</div>';
-    soulsMenu.innerHTML = upgradesHTML;
+    html += '</div>';
+    soulsMenu.innerHTML = html;
 }
 
 function createQoLMenu() {
@@ -340,242 +216,158 @@ function createQoLMenu() {
         document.body.appendChild(qolMenu);
     }
 
-    let menuHTML = `<h3>Quality of Life</h3>`;
-
-    if (gameState.autoCastUnlocked) {
-    menuHTML += `
+    const toggle = (id, label, subId = null) => `
         <div class="toggle-container">
-            <span>Auto Cast Ability</span>
+            <span>${label}</span>
             <label class="switch">
-                <input type="checkbox" id="auto-cast-toggle">
+                <input type="checkbox" id="${id}">
                 <span class="slider round"></span>
             </label>
         </div>
-        <div id="auto-cast-elite-boss-container" style="display: ${gameState.autoCastEnabled ? 'block' : 'none'}; margin-left: 20px; font-size: 13px;">
-            <div class="toggle-container">
-                <span>Elite/Boss Only</span>
-                <label class="switch">
-                    <input type="checkbox" id="auto-cast-elite-boss-toggle">
-                    <span class="slider round"></span>
-                </label>
-            </div>
-        </div>`;
-  }
+        ${subId ? `<div id="${subId}" style="display:none;"></div>` : ''}
+    `;
+
+    const cogToggle = (id, label, cogId, panelId) => `
+        <div class="toggle-container">
+            <span>${label}</span>
+            <label class="switch">
+                <input type="checkbox" id="${id}">
+                <span class="slider round"></span>
+            </label>
+            <button id="${cogId}" class="cog-button">⚙️</button>
+        </div>
+        <div id="${panelId}" style="display:none;"></div>
+    `;
+
+    let html = '<h3>Quality of Life</h3>';
+
+    if (gameState.autoCastUnlocked) html += `
+        <div class="toggle-container">
+            <span>Auto Cast Ability</span>
+            <label class="switch"><input type="checkbox" id="auto-cast-toggle"><span class="slider round"></span></label>
+        </div>
+        <div id="auto-cast-elite-boss-container" style="display:none; margin-left:20px; font-size:13px;">
+            ${toggle('auto-cast-elite-boss-toggle', 'Elite/Boss Only')}
+        </div>
+    `;
+
+    if (gameState.autoCardUnlocked) html += cogToggle('auto-card-toggle', 'Auto Card', 'auto-card-settings', 'auto-card-priority');
+
+    if (gameState.autoEvoUnlocked) html += cogToggle('auto-weapon-evolution-toggle', 'Auto Evo', 'auto-weapon-evolution-settings', 'auto-weapon-evolution-options');
+    if (gameState.autoClassUnlocked) html += cogToggle('auto-class-toggle', 'Auto Class', 'auto-class-settings', 'auto-class-options');
+
+    qolMenu.innerHTML = html;
+
+    // Wire up toggles
+    const wire = (id, stateKey, onChange) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.checked = gameState[stateKey] || false;
+        el.addEventListener('change', () => {
+            gameState[stateKey] = el.checked;
+            saveGameState();
+            onChange?.(el.checked);
+        });
+    };
+
+    wire('auto-cast-toggle', 'autoCastEnabled', checked => {
+        const c = document.getElementById('auto-cast-elite-boss-container');
+        if (c) c.style.display = checked ? 'block' : 'none';
+    });
+    if (document.getElementById('auto-cast-toggle')?.checked)
+        document.getElementById('auto-cast-elite-boss-container').style.display = 'block';
+
+    wire('auto-cast-elite-boss-toggle', 'autoCastEliteBossOnly');
 
     if (gameState.autoCardUnlocked) {
-        menuHTML += `
-            <div class="toggle-container">
-                <span>Auto Card</span>
-                <label class="switch">
-                    <input type="checkbox" id="auto-card-toggle">
-                    <span class="slider round"></span>
-                </label>
-                <button id="auto-card-settings" class="cog-button">⚙️</button>
-            </div>
-            <div id="auto-card-priority" style="display: none;">
-                <h4>Auto Card Priority</h4>
-                <ul id="priority-list"></ul>
-            </div>`;
-    }
-
-    if (gameState.autoEvoUnlocked) {
-        menuHTML += `
-            <div class="toggle-container">
-                <span>Auto Evo</span>
-                <label class="switch">
-                    <input type="checkbox" id="auto-weapon-evolution-toggle">
-                    <span class="slider round"></span>
-                </label>
-                <button id="auto-weapon-evolution-settings" class="cog-button">⚙️</button>
-            </div>
-            <div id="auto-weapon-evolution-options" style="display: none;">
-                <h4>Auto Evo</h4>
-                <div id="weapon-evolution-choices"></div>
-            </div>`;
-    }
-
-    if (gameState.autoClassUnlocked) {
-        menuHTML += `
-            <div class="toggle-container">
-                <span>Auto Class</span>
-                <label class="switch">
-                    <input type="checkbox" id="auto-class-toggle">
-                    <span class="slider round"></span>
-                </label>
-                <button id="auto-class-settings" class="cog-button">⚙️</button>
-            </div>
-            <div id="auto-class-options" style="display: none;">
-                <h4>Auto Class Upgrade</h4>
-                <div id="class-upgrade-choices"></div>
-            </div>`;
-    }
-
-    qolMenu.innerHTML = menuHTML;
-
-    const autoCastToggle = document.getElementById('auto-cast-toggle');
- if (autoCastToggle) {
-    autoCastToggle.checked = gameState.autoCastEnabled || false;
-    autoCastToggle.addEventListener('change', () => {
-        gameState.autoCastEnabled = autoCastToggle.checked;
-        // Show/hide Elite/Boss toggle based on Auto Cast state
-        const eliteBossContainer = document.getElementById('auto-cast-elite-boss-container');
-        if (eliteBossContainer) {
-            eliteBossContainer.style.display = autoCastToggle.checked ? 'block' : 'none';
-        }
-        saveGameState();
-    });
- }
-
-// Add this new toggle
-  const autoCastEliteBossToggle = document.getElementById('auto-cast-elite-boss-toggle');
-  if (autoCastEliteBossToggle) {
-    autoCastEliteBossToggle.checked = gameState.autoCastEliteBossOnly || false;
-    autoCastEliteBossToggle.addEventListener('change', () => {
-        gameState.autoCastEliteBossOnly = autoCastEliteBossToggle.checked;
-        saveGameState();
-    });
-  }
-
-    if (gameState.autoCardUnlocked) {
-        const autoCardToggle = document.getElementById('auto-card-toggle');
-        if (autoCardToggle) {
-            autoCardToggle.checked = gameState.autoCardEnabled || false;
-            autoCardToggle.addEventListener('change', () => {
-                gameState.autoCardEnabled = autoCardToggle.checked;
-                saveGameState();
-                console.log("Auto card " + (gameState.autoCardEnabled ? "enabled" : "disabled"));
-            });
-        }
-
-        const autoCardSettings = document.getElementById('auto-card-settings');
-        autoCardSettings.addEventListener('click', toggleAutoPriorityMenu);
+        wire('auto-card-toggle', 'autoCardEnabled');
+        document.getElementById('auto-card-settings').addEventListener('click', toggleAutoPriorityMenu);
         createPriorityList();
     }
 
     if (gameState.autoEvoUnlocked) {
-        const autoWeaponEvolutionToggle = document.getElementById('auto-weapon-evolution-toggle');
-        if (autoWeaponEvolutionToggle) {
-            autoWeaponEvolutionToggle.checked = gameState.autoWeaponEvolutionEnabled || false;
-            autoWeaponEvolutionToggle.addEventListener('change', () => {
-                gameState.autoWeaponEvolutionEnabled = autoWeaponEvolutionToggle.checked;
-                saveGameState();
-                console.log("Auto weapon evolution " + (gameState.autoWeaponEvolutionEnabled ? "enabled" : "disabled"));
-            });
-        }
-
-        const autoWeaponEvolutionSettings = document.getElementById('auto-weapon-evolution-settings');
-        autoWeaponEvolutionSettings.addEventListener('click', toggleAutoWeaponEvolutionMenu);
+        wire('auto-weapon-evolution-toggle', 'autoWeaponEvolutionEnabled');
+        document.getElementById('auto-weapon-evolution-settings').addEventListener('click', toggleAutoWeaponEvolutionMenu);
         createWeaponEvolutionChoices();
     }
 
     if (gameState.autoClassUnlocked) {
-        const autoClassToggle = document.getElementById('auto-class-toggle');
-        if (autoClassToggle) {
-            autoClassToggle.checked = gameState.autoClassEnabled || false;
-            autoClassToggle.addEventListener('change', () => {
-                gameState.autoClassEnabled = autoClassToggle.checked;
-                saveGameState();
-                console.log("Auto class " + (gameState.autoClassEnabled ? "enabled" : "disabled"));
-            });
-        }
-
-        const autoClassSettings = document.getElementById('auto-class-settings');
-        autoClassSettings.addEventListener('click', toggleAutoClassMenu);
+        wire('auto-class-toggle', 'autoClassEnabled');
+        document.getElementById('auto-class-settings').addEventListener('click', toggleAutoClassMenu);
         createClassUpgradeChoices();
     }
 }
 
 function toggleAutoWeaponEvolutionMenu() {
-    const optionsMenu = document.getElementById('auto-weapon-evolution-options');
-    optionsMenu.style.display = optionsMenu.style.display === 'none' ? 'block' : 'none';
+    const el = document.getElementById('auto-weapon-evolution-options');
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 function createWeaponEvolutionChoices() {
-    const qolMenu = document.getElementById('qol-menu');
-    if (!qolMenu) {
-        console.warn('QoL menu not found');
-        return;
-    }
-    let choicesContainer = document.getElementById('weapon-evolution-choices');
-    if (!choicesContainer) {
-        choicesContainer = document.createElement('div');
-        choicesContainer.id = 'weapon-evolution-choices';
-        qolMenu.appendChild(choicesContainer);
-    }
-    choicesContainer.innerHTML = ''; // Clear existing choices
-    const classes = ['Acolyte', 'Sorceress', 'Divine Knight'];
+    const container = document.getElementById('auto-weapon-evolution-options');
+    if (!container) return;
+    container.innerHTML = '';
 
-    classes.forEach(className => {
-        const classChoices = document.createElement('div');
-        classChoices.innerHTML = `
+    ['Acolyte', 'Sorceress', 'Divine Knight'].forEach(className => {
+        const div = document.createElement('div');
+        const options = getWeaponEvolutionOptions(className)
+            .map(w => `<option value="${w.name}" ${gameState.autoWeaponEvolutionChoices[className] === w.name ? 'selected' : ''}>${w.name}</option>`)
+            .join('');
+
+        div.innerHTML = `
             <h5>${className}</h5>
             <select id="${className.toLowerCase()}-weapon-choice">
-                <option value="">Random</option>
-                ${getWeaponEvolutionOptions(className).map(weapon => 
-                    `<option value="${weapon.name}" ${gameState.autoWeaponEvolutionChoices[className] === weapon.name ? 'selected' : ''}>${weapon.name}</option>`
-                ).join('')}
+                <option value="">Random</option>${options}
             </select>
         `;
-        choicesContainer.appendChild(classChoices);
+        container.appendChild(div);
 
-        const select = classChoices.querySelector('select');
-        select.addEventListener('change', (event) => {
-            gameState.autoWeaponEvolutionChoices[className] = event.target.value;
+        div.querySelector('select').addEventListener('change', e => {
+            gameState.autoWeaponEvolutionChoices[className] = e.target.value;
             saveGameState();
         });
     });
 }
 
 function toggleAutoClassMenu() {
-    const optionsMenu = document.getElementById('auto-class-options');
-    optionsMenu.style.display = optionsMenu.style.display === 'none' ? 'block' : 'none';
+    const el = document.getElementById('auto-class-options');
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 function createClassUpgradeChoices() {
-    const choicesContainer = document.getElementById('class-upgrade-choices');
-    const classes = ['Acolyte', 'Sorceress', 'Divine Knight'];
+    const container = document.getElementById('auto-class-options');
+    if (!container) return;
+    container.innerHTML = '';
 
-    classes.forEach(className => {
-        const classChoices = document.createElement('div');
-        classChoices.innerHTML = `
+    ['Acolyte', 'Sorceress', 'Divine Knight'].forEach(className => {
+        const div = document.createElement('div');
+        const options = (classUpgrades[className] || [])
+            .map(u => `<option value="${u.name}" ${gameState.autoClassChoices[className] === u.name ? 'selected' : ''}>${u.name}</option>`)
+            .join('');
+
+        div.innerHTML = `
             <h5>${className}</h5>
             <select id="${className.toLowerCase()}-class-choice">
-                <option value="">Random</option>
-                ${getClassUpgradeOptions(className).map(upgrade => 
-                    `<option value="${upgrade.name}" ${gameState.autoClassChoices[className] === upgrade.name ? 'selected' : ''}>${upgrade.name}</option>`
-                ).join('')}
+                <option value="">Random</option>${options}
             </select>
         `;
-        choicesContainer.appendChild(classChoices);
+        container.appendChild(div);
 
-        const select = classChoices.querySelector('select');
-        select.addEventListener('change', (event) => {
-            gameState.autoClassChoices[className] = event.target.value;
+        div.querySelector('select').addEventListener('change', e => {
+            gameState.autoClassChoices[className] = e.target.value;
             saveGameState();
         });
     });
 }
 
-function getClassUpgradeOptions(className) {
-    // Return the class upgrades for the given class
-    return classUpgrades[className] || [];
-}
-
 function toggleAutoPriorityMenu() {
-    const priorityMenu = document.getElementById('auto-card-priority');
-    priorityMenu.style.display = priorityMenu.style.display === 'none' ? 'block' : 'none';
+    const el = document.getElementById('auto-card-priority');
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 function createPriorityList() {
-    const qolMenu = document.getElementById('qol-menu');
-
-    let autoCardPriority = document.getElementById('auto-card-priority');
-    if (!autoCardPriority) {
-        autoCardPriority = document.createElement('div');
-        autoCardPriority.id = 'auto-card-priority';
-        autoCardPriority.style.display = 'none';
-        qolMenu.appendChild(autoCardPriority);
-    }
+    const autoCardPriority = document.getElementById('auto-card-priority');
+    if (!autoCardPriority) return;
 
     let priorityList = document.getElementById('priority-list');
     if (!priorityList) {
@@ -584,73 +376,50 @@ function createPriorityList() {
         autoCardPriority.appendChild(priorityList);
     }
 
-    priorityList.innerHTML = ''; // Clear existing list items
+    const upgrades = gameState.upgradePriority || DEFAULT_UPGRADE_PRIORITY;
 
-    const defaultPriority = ['Damage Increase', 'Attack Speed', 'Health', 'Regeneration', 'Cooldown Reduction', 'Critical Damage Increase','Boss Damage'];
-    const upgrades = gameState.upgradePriority || defaultPriority;
-    
-    upgrades.forEach((upgrade, index) => {
-        const li = document.createElement('li');
-        li.innerHTML = `
+    priorityList.innerHTML = upgrades.map((upgrade, i) => `
+        <li>
             <span>${upgrade}</span>
             <div class="priority-buttons">
-                <button class="priority-up" ${index === 0 ? 'disabled' : ''}>▲</button>
-                <button class="priority-down" ${index === upgrades.length - 1 ? 'disabled' : ''}>▼</button>
+                <button class="priority-up" ${i === 0 ? 'disabled' : ''}>▲</button>
+                <button class="priority-down" ${i === upgrades.length - 1 ? 'disabled' : ''}>▼</button>
             </div>
-        `;
-        priorityList.appendChild(li);
-    });
+        </li>
+    `).join('');
 
     priorityList.addEventListener('click', handlePriorityChange);
 }
 
-function handlePriorityChange(event) {
-    if (!event.target.matches('button')) return;
-
-    const li = event.target.closest('li');
-    const list = li.parentNode;
-    const isUp = event.target.classList.contains('priority-up');
-
-    if (isUp && li.previousElementSibling) {
-        list.insertBefore(li, li.previousElementSibling);
-    }
-	else if (!isUp && li.nextElementSibling) {
-        list.insertBefore(li.nextElementSibling, li);
-    }
-
+function handlePriorityChange(e) {
+    if (!e.target.matches('button')) return;
+    const li = e.target.closest('li');
+    const isUp = e.target.classList.contains('priority-up');
+    if (isUp && li.previousElementSibling) li.parentNode.insertBefore(li, li.previousElementSibling);
+    else if (!isUp && li.nextElementSibling) li.parentNode.insertBefore(li.nextElementSibling, li);
     updatePriorityButtons();
     savePriorityOrder();
 }
 
 function updatePriorityButtons() {
-    const list = document.getElementById('priority-list');
-    const items = list.getElementsByTagName('li');
-
-    Array.from(items).forEach((item, index) => {
-        const upButton = item.querySelector('.priority-up');
-        const downButton = item.querySelector('.priority-down');
-
-        upButton.disabled = index === 0;
-        downButton.disabled = index === items.length - 1;
+    const items = [...document.getElementById('priority-list').getElementsByTagName('li')];
+    items.forEach((item, i) => {
+        item.querySelector('.priority-up').disabled = i === 0;
+        item.querySelector('.priority-down').disabled = i === items.length - 1;
     });
 }
 
 function savePriorityOrder() {
-    const list = document.getElementById('priority-list');
-    const priorityOrder = Array.from(list.getElementsByTagName('li')).map(li => li.querySelector('span').textContent);
-    gameState.upgradePriority = priorityOrder;
+    gameState.upgradePriority = [...document.getElementById('priority-list').getElementsByTagName('li')]
+        .map(li => li.querySelector('span').textContent);
     saveGameState();
 }
 
 function createInventoryMenu() {
-    const inventoryMenu = document.getElementById('inventory-menu');
-
-    inventoryMenu.innerHTML = `
+    document.getElementById('inventory-menu').innerHTML = `
         <h3>Inventory</h3>
         <div class="inventory-container">
-            <div class="amulet-slot">
-                <div class="empty-slot"></div>
-            </div>
+            <div class="amulet-slot"><div class="empty-slot"></div></div>
             <p id="amulet-name">Amulet slot</p>
         </div>
     `;
@@ -660,177 +429,106 @@ function updateInventoryUI() {
     const amuletSlot = document.querySelector('.amulet-slot');
     const amuletName = document.getElementById('amulet-name');
 
-    if (gameState.amuletEquipped) {
-        amuletSlot.innerHTML = '<img src="img/neck.png" alt="Amulet" class="amulet-icon">';
-        amuletName.textContent = 'Magic Amulet';
-        amuletName.style.color = '#00bfff'; // Blue color
-    
-        const ascensionMultiplier = Math.max(1, gameState.ascensionLevel + 1);
-        
-        const acolyte = new Acolyte();
-        const sorceress = new Sorceress();
-        const divineKnight = new DivineKnight();
-        
-        // Calculate base damage * ascension multiplier FIRST
-        let acolyteDamage = acolyte.amuletDamage * ascensionMultiplier;
-        let sorceressDamage = sorceress.amuletDamage * ascensionMultiplier;
-        let divineKnightDamage = divineKnight.amuletDamage * ascensionMultiplier;
-
-        // THEN add flat achievement bonuses
-        if (gameState.unlockedAchievements['Sorceress Master']) {
-            acolyteDamage += achievements['Sorceress Master'].amuletDamageIncrease;
-        }
-        if (gameState.unlockedAchievements['Divine Knight Master']) {
-            sorceressDamage += achievements['Divine Knight Master'].amuletDamageIncrease;
-        }
-        if (gameState.unlockedAchievements['Acolyte Master']) {
-            divineKnightDamage += achievements['Acolyte Master'].amuletDamageIncrease;
-        }
-
-        const acolyteDamageDisplay = acolyteDamage.toFixed(1);
-        const sorceressDamageDisplay = sorceressDamage.toFixed(1);
-        const divineKnightDamageDisplay = divineKnightDamage.toFixed(1);
-        
-        const acolyteBossDamage = (acolyte.bossDamageBonus * 100 * ascensionMultiplier).toFixed(0);
-        const sorceressBossDamage = (sorceress.bossDamageBonus * 100 * ascensionMultiplier).toFixed(0);
-        const divineKnightBossDamage = (divineKnight.bossDamageBonus * 100 * ascensionMultiplier).toFixed(0);
-
-        const tooltip = `Acolyte:\nDamage +${acolyteDamageDisplay}\nBoss Damage +${acolyteBossDamage}%\n\n` +
-                        `Sorceress:\nDamage +${sorceressDamageDisplay}\nBoss Damage +${sorceressBossDamage}%\n\n` +
-                        `Divine Knight:\nDamage +${divineKnightDamageDisplay}\nBoss Damage +${divineKnightBossDamage}%`;
-    
-        amuletSlot.setAttribute('data-tooltip', tooltip);
-    } else {
+    if (!gameState.amuletEquipped) {
         amuletSlot.innerHTML = '<div class="empty-slot"></div>';
         amuletName.textContent = 'Amulet slot';
         amuletName.style.color = 'white';
         amuletSlot.setAttribute('data-tooltip', 'Boss drops the Amulet');
+		amuletSlot.classList.remove('equipped');
+        return;
     }
+
+    const asc = Math.max(1, gameState.ascensionLevel + 1);
+    const classes = [
+        { name: 'Acolyte',      instance: new Acolyte(),      achievementKey: 'Sorceress Master' },
+        { name: 'Sorceress',    instance: new Sorceress(),    achievementKey: 'Divine Knight Master' },
+        { name: 'Divine Knight',instance: new DivineKnight(), achievementKey: 'Acolyte Master' },
+    ];
+
+    const lines = classes.map(({ name, instance, achievementKey }) => {
+        let dmg = instance.amuletDamage * asc;
+        if (gameState.unlockedAchievements[achievementKey])
+            dmg += achievements[achievementKey].amuletDamageIncrease;
+        const bossDmg = (instance.bossDamageBonus * 100 * asc).toFixed(0);
+        return `${name}:\nDamage +${dmg.toFixed(1)}\nBoss Damage +${bossDmg}%`;
+    });
+
+    amuletSlot.innerHTML = '<img src="img/neck.png" alt="Amulet" class="amulet-icon">';
+    amuletName.textContent = 'Magic Amulet';
+    amuletSlot.setAttribute('data-tooltip', lines.join('\n\n'));
+	amuletSlot.classList.add('equipped');
+	amuletSlot.dataset.asc = Math.min(gameState.ascensionLevel, 3);
+	const nameColors = ['#00bfff', '#FFD700', '#bf00ff', '#ff2020'];
+    amuletName.style.color = nameColors[Math.min(gameState.ascensionLevel, 3)];
 }
 
 const achievements = {
-	'Beat Stage 2': {
-        description: 'Stage 3 reached',
-        condition: () => gameState.highestStageReached >= 3
-    },
-	'Beat Stage 4': {
-        description: 'Stage 5 reached',
-        condition: () => gameState.highestStageReached >= 5
-    },
-	'Beat Stage 6': {
-        description: 'Stage 7 reached',
-        condition: () => gameState.highestStageReached >= 7
-    },
-    'Ascension': {
-        description: 'And so it begins...',
-        condition: () => gameState.ascensionLevel >= 1
-    },
-    'Ascend Novice': {
-        description: 'Ascend 3 Times',
-        condition: () => gameState.ascensionLevel >= 3
-    },
-	 'Acolyte Master': {
-    description: 'Divine Knight Base Amulet Damage +1',
-    condition: () => (gameState.highestStagePerClass['Acolyte'] || 1) >= 6,
-    amuletDamageIncrease: 1,
-    affectedClass: 'Divine Knight'
- },
- 'Sorceress Master': {
-    description: 'Acolyte Base Amulet Damage +3',
-    condition: () => (gameState.highestStagePerClass['Sorceress'] || 1) >= 7,
-    amuletDamageIncrease: 3,
-    affectedClass: 'Acolyte'
- },
- 'Divine Knight Master': {
-    description: 'Sorceress Base Amulet Damage +2',
-    condition: () => (gameState.highestStagePerClass['Divine Knight'] || 1) >= 8,
-    amuletDamageIncrease: 2,
-    affectedClass: 'Sorceress'
- }
+    'Beat Stage 2':       { description: 'Stage 3 reached',              condition: () => gameState.highestStageReached >= 3 },
+    'Beat Stage 4':       { description: 'Stage 5 reached',              condition: () => gameState.highestStageReached >= 5 },
+    'Beat Stage 6':       { description: 'Stage 7 reached',              condition: () => gameState.highestStageReached >= 7 },
+    'Ascension':          { description: 'And so it begins...',           condition: () => gameState.ascensionLevel >= 1 },
+    'Ascend Novice':      { description: 'Ascend 3 Times',               condition: () => gameState.ascensionLevel >= 3 },
+    'Acolyte Master':     { description: 'Divine Knight Base Amulet Damage +1', condition: () => (gameState.highestStagePerClass['Acolyte'] || 1) >= 6,      amuletDamageIncrease: 1, affectedClass: 'Divine Knight' },
+    'Sorceress Master':   { description: 'Acolyte Base Amulet Damage +3',      condition: () => (gameState.highestStagePerClass['Sorceress'] || 1) >= 7,    amuletDamageIncrease: 3, affectedClass: 'Acolyte' },
+    'Divine Knight Master':{ description: 'Sorceress Base Amulet Damage +2',   condition: () => (gameState.highestStagePerClass['Divine Knight'] || 1) >= 8, amuletDamageIncrease: 2, affectedClass: 'Sorceress' },
 };
 
-// Add this function to create the achievements menu
 function createAchievementsMenu() {
-    const achievementsList = document.getElementById('achievements-list');
-    achievementsList.innerHTML = '';
+    const list = document.getElementById('achievements-list');
+    list.innerHTML = Object.entries(achievements).map(([key, val]) => {
+        const unlocked = gameState.unlockedAchievements[key];
+        return `<div class="achievement ${unlocked ? 'unlocked' : ''}" title="${unlocked ? val.description : 'Achievement locked'}">${unlocked ? key : '???'}</div>`;
+    }).join('');
 
-    for (const [key, value] of Object.entries(achievements)) {
-        const achievementElement = document.createElement('div');
-        achievementElement.className = `achievement ${gameState.unlockedAchievements[key] ? 'unlocked' : ''}`;
-        achievementElement.textContent = gameState.unlockedAchievements[key] ? key : '???';
-        achievementElement.title = gameState.unlockedAchievements[key] ? value.description : 'Achievement locked';
-        achievementsList.appendChild(achievementElement);
-    }
-
-    // Add event listener for the close button
-    const closeButton = document.querySelector('#achievements-menu .close-btn');
-    closeButton.addEventListener('click', () => {
+    document.querySelector('#achievements-menu .close-btn').addEventListener('click', () => {
         document.getElementById('achievements-menu').style.display = 'none';
     });
 }
 
-// Add this function to check and unlock achievements
 function checkAchievements() {
-    for (const [key, value] of Object.entries(achievements)) {
-        if (!gameState.unlockedAchievements[key] && value.condition()) {
+    Object.entries(achievements).forEach(([key, val]) => {
+        if (!gameState.unlockedAchievements[key] && val.condition()) {
             unlockAchievement(key);
-            if (value.effect) {
-                value.effect();
-            }
+            val.effect?.();
         }
-    }
+    });
 }
 
-// Add this function to unlock an achievement
-function unlockAchievement(achievementKey) {
-    if (!gameState.unlockedAchievements[achievementKey]) {
-        gameState.unlockedAchievements[achievementKey] = true;
-        saveGameState();
-        showAchievementPopup(achievementKey);
-        createAchievementsMenu(); // Refresh the achievements menu
-		updateInventoryUI();
-    }
+function unlockAchievement(key) {
+    if (gameState.unlockedAchievements[key]) return;
+    gameState.unlockedAchievements[key] = true;
+    saveGameState();
+    showAchievementPopup(key);
+    createAchievementsMenu();
+    updateInventoryUI();
 }
 
-// Add this function to show the achievement popup
-function showAchievementPopup(achievementKey) {
+function showAchievementPopup(key) {
     const popup = document.createElement('div');
     popup.className = 'achievement-popup';
-    popup.textContent = `Achievement: ${achievementKey}`;
+    popup.textContent = `Achievement: ${key}`;
     document.body.appendChild(popup);
-
-    setTimeout(() => {
-        popup.remove();
-    }, 3000);
+    setTimeout(() => popup.remove(), 3000);
 }
 
 function createAchievementsButton() {
-    const existingButton = document.getElementById('achievements-button');
-    if (existingButton) {
-        return; // Button already exists, no need to create it again
-    }
-
-    const achievementsButton = document.createElement('button');
-    achievementsButton.id = 'achievements-button';
-    achievementsButton.textContent = 'Achievements';
-    achievementsButton.addEventListener('click', () => {
+    if (document.getElementById('achievements-button')) return;
+    const btn = document.createElement('button');
+    btn.id = 'achievements-button';
+    btn.textContent = 'Achievements';
+    btn.addEventListener('click', () => {
         document.getElementById('achievements-menu').style.display = 'block';
     });
-
-    const hardResetButton = document.getElementById('hard-reset-btn');
-    hardResetButton.parentNode.insertBefore(achievementsButton, hardResetButton);
+    const hardReset = document.getElementById('hard-reset-btn');
+    hardReset.parentNode.insertBefore(btn, hardReset);
 }
 
 function flashScreen(color) {
     const gameArea = document.getElementById('game-area');
-    gameArea.style.backgroundColor = color;
-    setTimeout(() => {
-        gameArea.style.backgroundColor = '';
-        setTimeout(() => {
-            gameArea.style.backgroundColor = color;
-            setTimeout(() => {
-                gameArea.style.backgroundColor = '';
-            }, 100);
-        }, 100);
-    }, 100);
+    const flash = () => {
+        gameArea.style.backgroundColor = color;
+        setTimeout(() => { gameArea.style.backgroundColor = ''; }, 100);
+    };
+    flash();
+    setTimeout(flash, 200);
 }

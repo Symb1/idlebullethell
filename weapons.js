@@ -1,39 +1,49 @@
-function initializeWeapon(playerClass, weaponName = null) {	
-    switch (playerClass) {		
+function initializeWeapon(playerClass, weaponName = null) {
+    // Remove old weapon's attack speed bonus before replacing
+    switch (playerClass) {
         case 'Acolyte':
-            if (weaponName === 'Vortex Staff') {
-                player.weapon = new VortexStaff();
-            } else if (weaponName === 'Umbral Staff') {
-                player.weapon = new UmbralStaff();
-            } else {
-                player.weapon = new BasicStaff();
-            }
+            player.weapon = weaponName === 'Vortex Staff' ? new VortexStaff()
+                          : weaponName === 'Umbral Staff'  ? new UmbralStaff()
+                          : new BasicStaff();
             break;
         case 'Sorceress':
-            if (weaponName === 'Chain Wand') {
-                player.weapon = new ChainWand();
-            } else if (weaponName === 'Spark Wand') {
-                player.weapon = new SparkWand();
-            } else {
-                player.weapon = new BasicWand();
-            }
+            player.weapon = weaponName === 'Chain Wand' ? new ChainWand()
+                          : weaponName === 'Spark Wand'  ? new SparkWand()
+                          : new BasicWand();
             break;
         case 'Divine Knight':
-            if (weaponName === 'Blessed Shield') {
-                player.weapon = new BlessedShield();
-            } else if (weaponName === 'Smite Shield') {
-                player.weapon = new SmiteShield();
-                // Apply the attack speed bonus here, when actually equipping
-                player.attacksPerSecond += player.weapon.attackSpeedBonus;
-            } else {
-                player.weapon = new BasicShield();
-            }
-    }     
+            player.weapon = weaponName === 'Blessed Shield' ? new BlessedShield()
+                          : weaponName === 'Smite Shield'   ? new SmiteShield()
+                          : new BasicShield();
+            break;
+    }
+    // Apply Acolyte talent bonuses post-weapon init
+    if (player instanceof Acolyte) {
+        // abyssal_core: +0.5 base damage per rank
+        if (typeof alloc !== 'undefined' && alloc['abyssal_core'] > 0) {
+            player.weapon.baseDamage += alloc['abyssal_core'] * 1.0;
+            player.weapon.damage = player.weapon.baseDamage;
+        }
+        // Umbral Collapse: +10% crit chance when Umbral Staff is equipped
+        if (typeof alloc !== 'undefined' && alloc['umbral_collapse'] >= 1 && player.weapon && player.weapon.name === 'Umbral Staff') {
+            player.adjustCritChance(0.10);
+        }
+        // Group C Binding Vow — reduce penalties of chosen class shard
+        const chosen = player.classUpgradeChosen;
+        if (chosen && typeof alloc !== 'undefined') {
+            // These bonuses would apply to weapon-specific penalty modifiers
+            // They are stored on the weapon for use in upgrade screens
+            player.weapon.temporalExcellenceRanks    = alloc['temporal_excellence']    || 0;
+            player.weapon.abyssalExcellenceRanks     = alloc['abyssal_excellence']     || 0;
+            player.weapon.ravenousExcellenceRanks    = alloc['ravenous_excellence']    || 0;
+        }
+    }
     player.weapon.updateDamage();
 }
 
 class Weapon {
-	static attackSoundIndex = 0;
+    static attackSoundIndex = 0;
+
     constructor(name, damage, cooldown, abilityName, globalRange, chainRange = 0) {
         this.name = name;
         this.baseDamage = damage;
@@ -44,153 +54,132 @@ class Weapon {
         this.lastAbilityUseTime = 0;
         this.globalRange = globalRange;
         this.chainRange = chainRange;
-        this.updateDamage(); // Call this to apply amulet bonus immediately
+        
     }
 
     attack() {
     const now = Date.now();
-    if (now - this.lastAttackTime >= 1000 / player.attacksPerSecond) {
+    const aps = this.getAttackSpeed ? this.getAttackSpeed() : player.attacksPerSecond;
+    if (now - this.lastAttackTime >= 1000 / aps) {
         this.performAttack();
         this.lastAttackTime = now;
     }
-   }
+}
 
-triggerPlayerAttackAnimation() {
-    const playerElement = document.getElementById('player');
-    if (!playerElement) return;
-    
-    // Only apply attack animation for Acolyte class
-    if (player.class !== 'Acolyte') {
-        return;
-    }
-    
-    // Cycle through attack sounds (1, 2, 3, then back to 1)
-    Weapon.attackSoundIndex = (Weapon.attackSoundIndex % 3) + 1;
-    const attackAudio = document.getElementById(`acoattmu${Weapon.attackSoundIndex}`);
-    if (attackAudio) {
-        attackAudio.currentTime = 0;
-        attackAudio.volume = 0.12; 
-        // Adjust playback rate based on attack speed (normalized to 1.0 at base speed)
-        attackAudio.playbackRate = player.attacksPerSecond / 1.0;
-        attackAudio.play().catch(e => console.log('Audio play failed:', e));
-    }
-    
-    // Find the nearest ALIVE enemy and update facing direction FIRST
-    const nearestEnemy = enemies
-        .filter(enemy => !enemy.isDying) // <-- Filter out dying enemies
-        .reduce((nearest, enemy) => {
-            const distance = calculateDistance(player.position, enemy.position);
-            if (!nearest || distance < calculateDistance(player.position, nearest.position)) {
-                return enemy;
-            }
-            return nearest;
-        }, null);
-    
-    // Update facing direction based on nearest enemy
-    if (nearestEnemy) {
-        const shouldFaceLeft = nearestEnemy.position.x < player.position.x;
-        player.facingLeft = shouldFaceLeft;
-        if (shouldFaceLeft) {
-            playerElement.classList.add('facing-left');
-        } else {
-            playerElement.classList.remove('facing-left');
+
+getAttackSpeed() {
+    return player.attacksPerSecond;
+}
+
+    triggerPlayerAttackAnimation() {
+        const playerElement = document.getElementById('player');
+        if (!playerElement) return;
+
+        // Update facing direction for all classes
+        const nearestForFacing = enemies
+            .filter(e => !e.isDying)
+            .reduce((nearest, enemy) => {
+                const dist = calculateDistance(player.position, enemy.position);
+                return !nearest || dist < calculateDistance(player.position, nearest.position) ? enemy : nearest;
+            }, null);
+        if (nearestForFacing) {
+            player.facingLeft = nearestForFacing.position.x < player.position.x;
+            playerElement.classList.toggle('facing-left', player.facingLeft);
         }
-    }
-    
-    // Calculate animation duration based on attack speed
-    const animationDuration = (1000 / player.attacksPerSecond);
-    
-    // Clear any existing timeout
-    if (this.attackAnimationTimeout) {
-        clearTimeout(this.attackAnimationTimeout);
-    }
-    
-    // Remove attacking class first
-    playerElement.classList.remove('attacking');
-    playerElement.style.animation = '';
-    
-    // Force reflow
-    void playerElement.offsetWidth;
-    
-    // Add attacking class
-    playerElement.classList.add('attacking');
-    
-    // Set animation
-    playerElement.style.animation = `playerAttack ${animationDuration}ms steps(47) forwards`;
-    
-    // Store timeout reference
-    this.attackAnimationTimeout = setTimeout(() => {
+
+        if (player.class === 'Sorceress') {
+            playerElement.classList.remove('sorc-attacking');
+            void playerElement.offsetWidth;
+            playerElement.classList.add('sorc-attacking');
+            if (this.attackAnimationTimeout) clearTimeout(this.attackAnimationTimeout);
+            this.attackAnimationTimeout = setTimeout(() => {
+                playerElement.classList.remove('sorc-attacking');
+                this.attackAnimationTimeout = null;
+            }, 200);
+            return;
+        }
+
+        if (player.class !== 'Acolyte') return;
+
+        // Cycle through attack sounds (1 → 2 → 3 → 1)
+        Weapon.attackSoundIndex = (Weapon.attackSoundIndex % 3) + 1;
+        const attackAudio = document.getElementById(`acoattmu${Weapon.attackSoundIndex}`);
+        if (attackAudio) {
+            attackAudio.currentTime = 0;
+            attackAudio.volume = 0.12;
+            attackAudio.playbackRate = player.attacksPerSecond;
+            attackAudio.play().catch(e => console.log('Audio play failed:', e));
+        }
+
+        const animationDuration = 1000 / player.attacksPerSecond;
+
+        if (this.attackAnimationTimeout) clearTimeout(this.attackAnimationTimeout);
+
         playerElement.classList.remove('attacking');
         playerElement.style.animation = '';
-        this.attackAnimationTimeout = null;
-    }, animationDuration);
-}
+        void playerElement.offsetWidth; // Force reflow
+
+        playerElement.classList.add('attacking');
+        playerElement.style.animation = `playerAttack ${animationDuration}ms steps(47) forwards`;
+
+        this.attackAnimationTimeout = setTimeout(() => {
+            playerElement.classList.remove('attacking');
+            playerElement.style.animation = '';
+            this.attackAnimationTimeout = null;
+        }, animationDuration);
+    }
 
     calculateDamage() {
-    const isCritical = Math.random() < player.critChance;
-    const damage = isCritical ? this.damage * player.critDamage : this.damage;
-    return { damage, isCritical };
+        const isCritical = Math.random() < player.critChance;
+        return { damage: isCritical ? this.damage * player.critDamage : this.damage, isCritical };
     }
-    
-	updateDamage() {
-    if (!player) {
-        this.damage = this.baseDamage; // Explicitly set to base damage
-        return;
+
+    updateDamage() {
+        if (!player) { this.damage = this.baseDamage; return; }
+        this.damage = (this.baseDamage + player.getAmuletDamageBonus()) * player.damageModifier;
     }
-    const amuletBonus = player.getAmuletDamageBonus();
-    this.damage = (this.baseDamage + amuletBonus) * player.damageModifier;
-  }
-	
-    performAttack() {
-        // To be implemented by subclasses
-    }
+
+    performAttack() {}
+    performAbility() {}
+    showAbilityCooldown() {}
 
     useAbility() {
-    const now = Date.now();
-    const currentCooldown = player.getCurrentCooldown(this.baseCooldown);
-    if (now - this.lastAbilityUseTime >= currentCooldown * 1000) {
-        this.performAbility();
-        this.lastAbilityUseTime = now;
-        this.showAbilityCooldown();
-    }
-}
-
-    showAbilityCooldown() {
-        if (!(player instanceof DivineKnight)) return;
-
-        const playerElement = document.getElementById('player');
-        const cooldownElement = document.createElement('div');
-        cooldownElement.className = 'ability-cooldown';
-        playerElement.appendChild(cooldownElement);
-
-        let remainingTime = Math.ceil(this.abilityDuration / 1000);
-
-        const updateCooldown = () => {
-            cooldownElement.textContent = remainingTime;
-            if (remainingTime > 0) {
-                remainingTime--;
-                setTimeout(updateCooldown, 1000);
-            } else {
-                playerElement.removeChild(cooldownElement);
+        const now = Date.now();
+        const currentCooldown = player.getCurrentCooldown(this.baseCooldown);
+        if (now - this.lastAbilityUseTime >= currentCooldown * 1000) {
+            this._eternalTormentReset = false;
+            this.performAbility();
+            // Only stamp the use time if Eternal Torment did NOT reset it during performAbility
+            if (!this._eternalTormentReset) {
+                this.lastAbilityUseTime = now;
             }
-        };
-        updateCooldown();
+            this._eternalTormentReset = false;
+            this.showAbilityCooldown();
+        }
     }
 
-        getAbilityButtonText() {
+    getAbilityButtonText() {
         const now = Date.now();
         const currentCooldown = player.getCurrentCooldown(this.baseCooldown);
         const cooldownRemaining = Math.max(0, currentCooldown - (now - this.lastAbilityUseTime) / 1000);
-
-        if (cooldownRemaining > 0) {
-            return `Cooldown (${cooldownRemaining.toFixed(1)}s)`;
-        } else {
-            return this.abilityName;
-        }
+        return cooldownRemaining > 0 ? `Cooldown (${cooldownRemaining.toFixed(1)}s)` : this.abilityName;
     }
 
-    performAbility() {
-        // To be implemented by subclasses
+    findNearestEnemy() {
+        let nearest = null, nearestDist = Infinity;
+        for (const enemy of enemies) {
+            if (enemy.isDying || enemy.hp <= 0) continue;
+            const dist = calculateDistance(player.position, enemy.position);
+            if (dist <= this.globalRange && dist < nearestDist) {
+                nearest = enemy;
+                nearestDist = dist;
+            }
+        }
+        return nearest;
+    }
+
+    isInRange(enemy) {
+        return calculateDistance(player.position, enemy.position) <= this.globalRange;
     }
 }
 
@@ -200,57 +189,41 @@ class BasicStaff extends Weapon {
     }
 
     performAttack() {
-    const target = this.findNearestEnemy();
-    if (target) {
-        const { damage, isCritical } = this.calculateDamage();
-        target.takeDamage(damage, isCritical);
-        this.triggerPlayerAttackAnimation(); // Remove target parameter
+        const target = this.findNearestEnemy();
+        if (target) {
+            const { damage, isCritical } = this.calculateDamage();
+            target.takeDamage(damage, isCritical);
+            this.triggerPlayerAttackAnimation();
+        }
     }
-  }
 
     performAbility() {
         const target = this.findPriorityTarget();
         if (target) {
             const { damage, isCritical } = this.calculateDamage();
-            target.takeDamage(damage * 2, isCritical);
+            const abilityDmg = damage * 2;
+            target.takeDamage(abilityDmg, isCritical);
+            drawVoidBlast(target.position.x + target.radius, target.position.y + target.radius, true);
+            if (target instanceof EliteEnemy) checkEternalTormentReset(this, target, abilityDmg);
         }
     }
 
     findPriorityTarget() {
-    // First, look for bosses
-    const bossTarget = enemies.find(enemy => enemy instanceof Boss);
-    if (bossTarget) return bossTarget;
-
-    // If no bosses, look for elite enemies
-    const eliteTarget = enemies.find(enemy => enemy instanceof EliteEnemy);
-    if (eliteTarget) return eliteTarget;
-
-    // If no bosses or elite enemies, find the nearest regular enemy
-    return this.findNearestEnemy();
+        return enemies.find(e => e instanceof Boss)
+            || enemies.find(e => e instanceof EliteEnemy)
+            || this.findNearestEnemy();
     }
-
-    findNearestEnemy() {
-    return enemies
-        .filter(e => !e.isDying && e.hp > 0)   
-        .reduce((nearest, enemy) => {
-            const distance = calculateDistance(player.position, enemy.position);
-            // Add range check here
-            if (distance <= this.globalRange && (!nearest || distance < calculateDistance(player.position, nearest.position))) {
-                return enemy;
-            }
-            return nearest;
-        }, null);
 }
-}
-
 
 class BasicWand extends Weapon {
     constructor() {
         super('Basic Wand', 10, 20, 'Lightning Storm', 200, 275);
+        this.chainCount = 3;
+        this.chainDamageMultiplier = 0.70;
     }
 
     performAttack() {
-        const target = this.findNearestEnemyInInitialRange();
+        const target = this.findNearestEnemy();
         if (target) {
             const { damage, isCritical } = this.calculateDamage();
             this.dealDamageWithChain(target, damage, isCritical);
@@ -258,61 +231,46 @@ class BasicWand extends Weapon {
     }
 
     performAbility() {
-    const abilityDamage = this.damage * player.critDamage; // Cannot crit, just apply as regular damage
-    
-    enemies.forEach(enemy => {
-        enemy.takeDamage(abilityDamage, false); // Changed to false - cannot crit
-    });
-
-    console.log(`Lightning Storm ability used: ${abilityDamage.toFixed(2)} damage to all enemies`);
-  }
+        const abilityDamage = this.damage * player.critDamage;
+        enemies.forEach(enemy => {
+            enemy.takeDamage(abilityDamage, false);
+            drawSkyLightning(enemy.position.x + enemy.radius, enemy.position.y + enemy.radius);
+        });
+    }
 
     dealDamageWithChain(target, initialDamage, isCritical) {
-    this.dealDamageToEnemy(target, initialDamage, isCritical);
+        this.dealDamageToEnemy(target, initialDamage, isCritical);
+        this.triggerPlayerAttackAnimation();
 
-    let remainingTargets = 3;
-    let currentDamage = initialDamage;
-    let lastHitEnemy = target;
+        const chainPath = [
+            { x: player.position.x, y: player.position.y },
+            { x: target.position.x + target.radius, y: target.position.y + target.radius }
+        ];
 
-    while (remainingTargets > 0 && enemies.length > 0) {
-        const nextTarget = this.findRandomEnemyInChainRange(lastHitEnemy);
-        if (nextTarget) {
-            currentDamage *= 0.70;  
-            this.dealDamageToEnemy(nextTarget, currentDamage, isCritical);
-            remainingTargets--;
-            lastHitEnemy = nextTarget;
-        } else {
-            break;
+        let remaining = this.chainCount;
+        let currentDamage = initialDamage;
+        let lastHit = target;
+
+        while (remaining > 0 && enemies.length > 0) {
+            const next = this.findRandomEnemyInChainRange(lastHit);
+            if (!next) break;
+            currentDamage *= this.chainDamageMultiplier;
+            this.dealDamageToEnemy(next, currentDamage, isCritical);
+            chainPath.push({ x: next.position.x + next.radius, y: next.position.y + next.radius });
+            remaining--;
+            lastHit = next;
         }
-      }
+
+        drawLightningChain(chainPath, isCritical);
     }
 
     dealDamageToEnemy(enemy, damage, isCritical) {
-        const actualDamage = Math.max(0, damage);
-        enemy.takeDamage(actualDamage, isCritical);
-        console.log(`Dealt ${actualDamage.toFixed(2)} damage to enemy`);
-    }
-
-    findNearestEnemyInInitialRange() {
-        return enemies.reduce((nearest, enemy) => {
-            const distance = calculateDistance(player.position, enemy.position);
-            if (distance <= this.globalRange && (!nearest || distance < calculateDistance(player.position, nearest.position))) {
-                return enemy;
-            }
-            return nearest;
-        }, null);
+        enemy.takeDamage(Math.max(0, damage), isCritical);
     }
 
     findRandomEnemyInChainRange(lastHitEnemy) {
-        const validEnemies = enemies.filter(enemy => 
-            enemy !== lastHitEnemy && this.isInChainRange(lastHitEnemy, enemy)
-        );
-        if (validEnemies.length === 0) return null;
-        return validEnemies[Math.floor(Math.random() * validEnemies.length)];
-    }
-
-    isInRange(enemy) {
-        return calculateDistance(player.position, enemy.position) <= this.globalRange;
+        const valid = enemies.filter(e => e !== lastHitEnemy && this.isInChainRange(lastHitEnemy, e));
+        return valid.length ? valid[Math.floor(Math.random() * valid.length)] : null;
     }
 
     isInChainRange(sourceEnemy, targetEnemy) {
@@ -345,8 +303,48 @@ class BasicShield extends Weapon {
         }, this.abilityDuration);
     }
 
-    isInRange(enemy) {
-        return calculateDistance(player.position, enemy.position) < this.globalRange;
+    showAbilityCooldown() {
+        const playerElement = document.getElementById('player');
+        if (!playerElement) return;
+        const cooldownElement = document.createElement('div');
+        cooldownElement.className = 'ability-cooldown';
+        playerElement.appendChild(cooldownElement);
+
+        let remainingTime = Math.ceil(this.abilityDuration / 1000);
+        const updateCooldown = () => {
+            cooldownElement.textContent = remainingTime;
+            if (remainingTime > 0) {
+                remainingTime--;
+                setTimeout(updateCooldown, 1000);
+            } else {
+                cooldownElement.remove();
+            }
+        };
+        updateCooldown();
+    }
+}
+
+// Eternal Torment: chance to reset ability cooldown on elite hit with ability
+// damageDealt: the damage this ability hit inflicted on the elite
+function checkEternalTormentReset(weapon, eliteTarget, damageDealt) {
+    if (!(player instanceof Acolyte)) return;
+    const ranks = (typeof alloc !== 'undefined' ? alloc['eternal_torment'] : 0) || 0;
+    if (ranks === 0) return;
+
+    const chance = ranks * 0.10;
+    // Rank 3 bonus: 100% reset if damage dealt was <= 25% of the elite's HP *before* this hit
+    // Second hit for 25 → now 50hp. 25 <= (50+25)*0.25=18.75 false
+    const preHitHp = eliteTarget.hp + damageDealt;
+    const bonusTrigger = ranks >= 3 && damageDealt <= preHitHp * 0.25;
+
+    if (bonusTrigger || Math.random() < chance) {
+        weapon._eternalTormentReset = true;
+        weapon.lastAbilityUseTime = 0;
+        const btn = document.getElementById('ability-button');
+        if (btn) {
+            btn.style.boxShadow = '0 0 18px #9370DB, 0 0 36px #6a0dad';
+            setTimeout(() => { btn.style.boxShadow = ''; }, 600);
+        }
     }
 }
 
@@ -361,7 +359,7 @@ function showWeaponEvolutionScreen() {
 
     const gameArea = document.getElementById('game-area');
     let evolutionScreen = document.getElementById('weapon-evolution');
-    
+
     if (!evolutionScreen) {
         evolutionScreen = document.createElement('div');
         evolutionScreen.id = 'weapon-evolution';
@@ -369,19 +367,19 @@ function showWeaponEvolutionScreen() {
     }
 
     evolutionScreen.innerHTML = '<h2 class="evolution-title">Choose Your Weapon Evolution</h2>';
-    
+
     const evolutionOptions = document.createElement('div');
     evolutionOptions.id = 'evolution-options';
     evolutionScreen.appendChild(evolutionOptions);
 
     const weaponOptions = getWeaponEvolutionOptions(player.class);
+    const isAuto = gameState.autoWeaponEvolutionEnabled;
 
     weaponOptions.forEach((weapon, index) => {
         const card = document.createElement('div');
         card.className = 'upgrade-card evolution-card';
         card.dataset.index = index;
 
-        // Super simple stat rendering
         const statsHTML = weapon.stats
             .map(stat => `<p class="stat-${stat.type}">✦ ${stat.text}</p>`)
             .join('');
@@ -392,7 +390,7 @@ function showWeaponEvolutionScreen() {
             <div class="evolution-description">${statsHTML}</div>
         `;
 
-        if (gameState.autoWeaponEvolutionEnabled) {
+        if (isAuto) {
             card.classList.add('disabled');
         } else {
             card.addEventListener('click', () => selectWeaponEvolution(weapon));
@@ -403,16 +401,11 @@ function showWeaponEvolutionScreen() {
 
     evolutionScreen.style.display = 'flex';
 
-    if (gameState.autoWeaponEvolutionEnabled) {
+    if (isAuto) {
         const selectedWeapon = autoSelectWeaponEvolution(weaponOptions);
         const selectedIndex = weaponOptions.indexOf(selectedWeapon);
-        const selectedCard = evolutionOptions.querySelector(`[data-index="${selectedIndex}"]`);
-        
-        selectedCard.classList.add('auto-select-glow2');
-
-        setTimeout(() => {
-            selectWeaponEvolution(selectedWeapon);
-        }, 3000);
+        evolutionOptions.querySelector(`[data-index="${selectedIndex}"]`).classList.add('auto-select-glow2');
+        setTimeout(() => selectWeaponEvolution(selectedWeapon), 3000);
     }
 }
 
@@ -420,117 +413,99 @@ function selectWeaponEvolution(weapon) {
     initializeWeapon(player.class, weapon.name);
     hideWeaponEvolutionScreen();
     gameState.isPaused = false;
-    
-    // Cancel any existing animation frame and restart the loop
     cancelAnimationFrame(animationFrameId);
     lastTimestamp = performance.now();
     requestAnimationFrame(gameLoop);
-	processNextLevelUp();
+    processNextLevelUp();
 }
 
 function autoSelectWeaponEvolution(weaponOptions) {
     const autoChoice = gameState.autoWeaponEvolutionChoices[player.class];
-    if (autoChoice) {
-        return weaponOptions.find(weapon => weapon.name === autoChoice) || weaponOptions[0];
-    }
-    return weaponOptions[0]; // Default to first option if no auto-choice is set
+    return (autoChoice && weaponOptions.find(w => w.name === autoChoice)) || weaponOptions[0];
 }
 
 function hideWeaponEvolutionScreen() {
-    const evolutionScreen = document.getElementById('weapon-evolution');
-    if (evolutionScreen) {
-        evolutionScreen.style.display = 'none';
-    }
+    const el = document.getElementById('weapon-evolution');
+    if (el) el.style.display = 'none';
 }
 
 function getWeaponEvolutionOptions(playerClass) {
     const weaponMap = {
         'Acolyte': [
-            { 
-                class: VortexStaff,
-                flavor: 'Channels unstable void currents, tearing open miniature rifts that engulf everything nearby.'
-            },
-            { 
-                class: UmbralStaff,
-                flavor: 'A conduit of pure darkness, its power does not strike, it focuses void essence into a single, perfect line of annihilation.'
-            }
+            { class: VortexStaff, flavor: 'Channels unstable void currents, tearing open miniature rifts that engulf everything nearby.' },
+            { class: UmbralStaff, flavor: 'A conduit of pure darkness, its power does not strike, it focuses void essence into a single, perfect line of annihilation.' }
         ],
         'Sorceress': [
-            { 
-                class: ChainWand,
-                flavor: 'Weaves lightning through the battlefield, each strike seeking new prey with relentless hunger.'
-            },
-            { 
-                class: SparkWand,
-                flavor: 'A tempest bound in crystal, its fury knows no bounds but demands sacrifice for its power.'
-            }
+            { class: ChainWand, flavor: 'Weaves lightning through the battlefield, each strike seeking new prey with relentless hunger.' },
+            { class: SparkWand, flavor: 'A tempest bound in crystal, its fury knows no bounds but demands sacrifice for its power.' }
         ],
         'Divine Knight': [
-            { 
-                class: BlessedShield,
-                flavor: 'Forged in sacred light, its divine protection extends far beyond mortal reach.'
-            },
-            { 
-                class: SmiteShield,
-                flavor: 'Swift as divine judgment, each strike saps the strength of those who dare approach.'
-            }
+            { class: BlessedShield, flavor: 'Forged in sacred light, its divine protection extends far beyond mortal reach.' },
+            { class: SmiteShield, flavor: 'Swift as divine judgment, each strike saps the strength of those who dare approach.' }
         ]
     };
-    
-    const weapons = weaponMap[playerClass] || [];
-    
-    return weapons.map(w => {
+
+    return (weaponMap[playerClass] || []).map(w => {
         const instance = new w.class();
-        return {
-            name: instance.name,
-            flavor: w.flavor,
-            stats: instance.getEvolutionStats()
-        };
+        return { name: instance.name, flavor: w.flavor, stats: instance.getEvolutionStats() };
     });
 }
 
-// New weapon classes
 class VortexStaff extends BasicStaff {
     constructor() {
         super();
         this.name = 'Vortex Staff';
-        this.baseDamage = 22;
+        this.baseDamage = 20;
         this.baseCooldown = 20;
         this.globalRange = 350;
-        this.splashRange = 75;
+        this.splashRange = 65;
+        this.splashMultiplier = 0.5;
+        // void_overflow talent: +5% splash damage per rank
+        if (typeof alloc !== 'undefined') {
+            this.splashMultiplier += alloc['void_overflow'] * 0.05;
+            // abyssal_reach: splash range = 110
+            if (alloc['abyssal_reach'] >= 1) {
+                this.splashRange = 110;
+            }
+        }
         this.damage = this.baseDamage;
         this.updateDamage();
     }
-    
+
     getEvolutionStats() {
-        return [
-            { text: `Splash Damage: 50% (${this.splashRange} range)`, type: 'positive' },
-            { text: 'Ability Power: +150%', type: 'positive' },
+        const splashPct = Math.round(this.splashMultiplier * 100);
+        const hasRiftCrit = typeof alloc !== 'undefined' && alloc['rift_crit'] >= 1;
+        const stats = [
+            { text: `Splash Damage: ${splashPct}% (${this.splashRange} range)`, type: 'positive' },
+            { text: 'Ability Power: +100%', type: 'positive' },
             { text: `Range: ${this.globalRange}`, type: this.globalRange < 200 ? 'negative' : this.globalRange <= 400 ? 'neutral' : 'positive' },
             { text: `Ability Cooldown: ${this.baseCooldown}s`, type: 'neutral' },
-            { text: 'Ability Cannot Crit', type: 'negative' }
         ];
+        if (!hasRiftCrit) {
+            stats.push({ text: 'Ability Cannot Crit', type: 'negative' });
+        } else {
+            stats.push({ text: 'Ability Can Crit (Rift Crit)', type: 'positive' });
+        }
+        return stats;
     }
 
     performAttack() {
         const target = this.findNearestEnemy();
         if (target) {
             const { damage, isCritical } = this.calculateDamage();
-            // Vortex Staff can crit on basic attacks
             target.takeDamage(damage, isCritical);
             this.triggerPlayerAttackAnimation();
-            this.splashDamage(target, damage, isCritical);
+            this.splashDamage(target, damage);
         }
     }
 
-    splashDamage(centerEnemy, originalDamage, wasCrit) {
+    splashDamage(centerEnemy, originalDamage) {
+        const splashMult = (this.splashMultiplier !== undefined) ? this.splashMultiplier : 0.5;
+        const splashBase = originalDamage * splashMult;
         enemies.forEach(enemy => {
             if (enemy !== centerEnemy && calculateDistance(centerEnemy.position, enemy.position) <= this.splashRange) {
-                // Splash damage is 50% of original damage and CAN crit independently
-                const splashBaseDamage = originalDamage * 0.5;
                 const isSplashCrit = Math.random() < player.critChance;
-                const finalSplashDamage = isSplashCrit ? splashBaseDamage * player.critDamage : splashBaseDamage;
-                enemy.takeDamage(finalSplashDamage, isSplashCrit);
+                enemy.takeDamage(isSplashCrit ? splashBase * player.critDamage : splashBase, isSplashCrit);
             }
         });
     }
@@ -538,8 +513,16 @@ class VortexStaff extends BasicStaff {
     performAbility() {
         const target = this.findPriorityTarget();
         if (target) {
-            const abilityDamage = this.damage * 2 * 2.5;
-            target.takeDamage(abilityDamage, false); // Cannot crit
+            // rift_crit: ability can crit
+            const canCrit = typeof alloc !== 'undefined' && alloc['rift_crit'] >= 1;
+            const isCrit = canCrit && Math.random() < player.critChance;
+            const dmg = isCrit ? this.damage * 2 * 2 * player.critDamage : this.damage * 2 * 2;
+            target.takeDamage(dmg, isCrit);
+            drawVoidBlast(target.position.x + target.radius, target.position.y + target.radius, true);
+            // Eternal Torment: chance to reset cooldown on elite hit
+            if (target instanceof EliteEnemy) {
+                checkEternalTormentReset(this, target, dmg);
+            }
         }
     }
 }
@@ -548,28 +531,60 @@ class UmbralStaff extends BasicStaff {
     constructor() {
         super();
         this.name = 'Umbral Staff';
-        this.baseDamage = 40;
+        this.baseDamage = 35;
         this.baseCooldown = 25;
         this.globalRange = 450;
+        // umbral_zenith talent: -1s cooldown per rank
+        if (typeof alloc !== 'undefined') {
+            this.baseCooldown = Math.max(5, this.baseCooldown - alloc['umbral_zenith']);
+        }
         this.damage = this.baseDamage;
         this.updateDamage();
     }
-    
+
     getEvolutionStats() {
-        return [
+        const hasUmbralCollapse = typeof alloc !== 'undefined' && alloc['umbral_collapse'] >= 1;
+        const hasVoidAscension  = typeof alloc !== 'undefined' && alloc['void_ascension']  >= 1;
+        const stats = [
             { text: 'High Single Target Damage', type: 'positive' },
             { text: 'Ability Guaranteed Crit', type: 'positive' },
             { text: `Range: ${this.globalRange}`, type: 'positive' },
-            { text: `Ability Cooldown: ${this.baseCooldown}s`, type: 'neutral' }
+            { text: `Ability Cooldown: ${this.baseCooldown}s`, type: 'neutral' },
         ];
+        if (hasUmbralCollapse) {
+            stats.push({ text: 'Umbral Collapse: +100% Boss Damage, +10% Crit Chance', type: 'positive' });
+        }
+        if (hasVoidAscension) {
+            stats.push({ text: 'Void Ascension: Ability fires thrice on random targets', type: 'positive' });
+        }
+        return stats;
     }
 
     performAbility() {
-        const target = this.findPriorityTarget();
-        if (target) {
-            const criticalDamage = this.damage * 2 * player.critDamage;
-            target.takeDamage(criticalDamage, true);
+        const fireShot = () => {
+            // void_ascension fires randomly, otherwise priority target
+            const isAscension = typeof alloc !== 'undefined' && alloc['void_ascension'] >= 1;
+            const target = isAscension ? this.findRandomTarget() : this.findPriorityTarget();
+            if (target) {
+                const shotDmg = this.damage * 2 * player.critDamage;
+                target.takeDamage(shotDmg, true);
+                drawVoidBlast(target.position.x + target.radius, target.position.y + target.radius, true);
+                if (target instanceof EliteEnemy) checkEternalTormentReset(this, target, shotDmg);
+            }
+            return target;
+        };
+
+        const firstTarget = fireShot();
+        if (typeof alloc !== 'undefined' && alloc['void_ascension'] >= 1) {
+            fireShot();
+            fireShot();
         }
+    }
+
+    findRandomTarget() {
+        const alive = enemies.filter(e => !e.isDying && e.hp > 0);
+        if (!alive.length) return null;
+        return alive[Math.floor(Math.random() * alive.length)];
     }
 }
 
@@ -586,7 +601,7 @@ class ChainWand extends BasicWand {
         this.damage = this.baseDamage;
         this.updateDamage();
     }
-    
+
     getEvolutionStats() {
         return [
             { text: `Chains: +3 targets`, type: 'positive' },
@@ -596,37 +611,14 @@ class ChainWand extends BasicWand {
             { text: `Range: ${this.globalRange} / Chain ${this.chainRange}`, type: this.globalRange < 200 ? 'negative' : this.globalRange <= 400 ? 'neutral' : 'positive' }
         ];
     }
-    
-    dealDamageWithChain(target, initialDamage, isCritical) {
-        this.dealDamageToEnemy(target, initialDamage, isCritical);
 
-        let remainingTargets = this.chainCount;
-        let currentDamage = initialDamage;
-        let lastHitEnemy = target;
-
-        while (remainingTargets > 0 && enemies.length > 0) {
-            const nextTarget = this.findRandomEnemyInChainRange(lastHitEnemy);
-            if (nextTarget) {
-                currentDamage *= this.chainDamageMultiplier;
-                this.dealDamageToEnemy(nextTarget, currentDamage, isCritical);
-                remainingTargets--;
-                lastHitEnemy = nextTarget;
-            } else {
-                break;
-            }
-        }
+    performAbility() {
+        const abilityDamage = this.damage * player.critDamage * 0.75;
+        enemies.forEach(enemy => {
+            enemy.takeDamage(abilityDamage, true);
+            drawSkyLightning(enemy.position.x + enemy.radius, enemy.position.y + enemy.radius);
+        });
     }
-  
-  performAbility() {
-    const abilityDamage = this.damage * player.critDamage * 0.75; // Guaranteed crit with 25% damage reduction
-    
-    enemies.forEach(enemy => {
-        enemy.takeDamage(abilityDamage, true); // Always crit
-    });
-
-    console.log(`Lightning Storm ability used: ${abilityDamage.toFixed(2)} damage to all enemies (guaranteed crit, -25% damage)`);
-}
-  
 }
 
 class SparkWand extends BasicWand {
@@ -642,7 +634,7 @@ class SparkWand extends BasicWand {
         this.abilityName = 'Flash Freeze';
         this.updateDamage();
     }
-    
+
     getEvolutionStats() {
         return [
             { text: 'Hits All Enemies', type: 'positive' },
@@ -655,34 +647,34 @@ class SparkWand extends BasicWand {
     }
 
     performAttack() {
-        const target = this.findNearestEnemyInInitialRange();
-        if (target) {
-            const { damage, isCritical } = this.calculateDamage();
-            this.dealDamageToAllEnemies(damage, isCritical);
-        }
-    }
-
-    dealDamageToAllEnemies(initialDamage, isCritical) {
-        enemies.forEach((enemy) => {
-            this.dealDamageToEnemy(enemy, initialDamage, isCritical);
-        });
-    }
-
-    performAbility() {
+    const target = this.findNearestEnemy();
+    if (target) {
+        const { damage, isCritical } = this.calculateDamage();
+        this.triggerPlayerAttackAnimation();
         enemies.forEach(enemy => {
-            this.stunEnemy(enemy);
+            this.dealDamageToEnemy(enemy, damage, isCritical);
+            // Sky-strike bolt per enemy instead of flat chain bolt
+            drawSparkAttackLightning(
+                enemy.position.x + enemy.radius,
+                enemy.position.y + enemy.radius,
+                isCritical
+            );
         });
-        console.log('Spark Wand ability used: All enemies stunned for 2.5 seconds');
     }
+}
+
+performAbility() {
+    enemies.forEach(enemy => {
+        this.stunEnemy(enemy);
+    });
+}
 
     stunEnemy(enemy) {
-        const originalSpeed = enemy.baseSpeed;
         enemy.applySpeedEffect(0, this.freezeDuration * 1000);
-        enemy.element.classList.add('stunned');
-
+        enemy.element.classList.add('frozen');
         setTimeout(() => {
-            enemy.speed = originalSpeed; 
-            enemy.element.classList.remove('stunned');
+            enemy.speed = enemy.baseSpeed;
+            enemy.element.classList.remove('frozen');
         }, this.freezeDuration * 1000);
     }
 }
@@ -698,11 +690,11 @@ class BlessedShield extends BasicShield {
         this.damage = this.baseDamage;
         this.updateDamage();
     }
-    
+
     getEvolutionStats() {
         return [
             { text: 'Increased Damage', type: 'positive' },
-            { text: `Ability Cooldown: ${this.baseCooldown}s, duration ${this.abilityDuration/1000}s`, type: 'neutral' },
+            { text: `Ability Cooldown: ${this.baseCooldown}s, duration ${this.abilityDuration / 1000}s`, type: 'neutral' },
             { text: `Range: ${this.globalRange}`, type: this.globalRange < 200 ? 'negative' : this.globalRange <= 400 ? 'neutral' : 'positive' }
         ];
     }
@@ -730,19 +722,26 @@ class SmiteShield extends BasicShield {
         this.attackSpeedBonus = 1.0;
         this.damage = this.baseDamage;
         this.updateDamage();
-        
-        
     }
-    
+
+    getAttackSpeed() {
+        return player.attacksPerSecond + this.attackSpeedBonus;
+    }
+
+    updateDamage() {
+        super.updateDamage();
+
+    }
+
     getEvolutionStats() {
         return [
             { text: 'Rapid Attacks', type: 'positive' },
             { text: `Slows enemies in Aura by: ${this.slowPercent}%`, type: 'positive' },
-            { text: `Ability Cooldown: ${this.baseCooldown}s, duration ${this.abilityDuration/1000}s, freezes enemies on use`, type: 'neutral' },
+            { text: `Ability Cooldown: ${this.baseCooldown}s, duration ${this.abilityDuration / 1000}s, freezes enemies on use`, type: 'neutral' },
             { text: `Range: ${this.globalRange}`, type: this.globalRange < 200 ? 'negative' : this.globalRange <= 400 ? 'neutral' : 'positive' }
         ];
     }
-    
+
     performAttack() {
         enemies.forEach(enemy => {
             if (this.isInRange(enemy)) {
@@ -752,7 +751,7 @@ class SmiteShield extends BasicShield {
             }
         });
     }
-    
+
     performAbility() {
         const originalRange = this.globalRange;
         this.globalRange *= 2.5;
