@@ -6,6 +6,7 @@ function getRarityValue(rarity, legendary, epic, magic, normal) {
 
 function applySecondary(rarity, secondaryUpgrade, secondaryRarity) {
     if (rarity === 'Legendary' && secondaryUpgrade) {
+        if (secondaryUpgrade.condition && !secondaryUpgrade.condition()) return;
         secondaryUpgrade.effect(secondaryRarity);
     }
 }
@@ -50,10 +51,11 @@ const upgrades = [
         name: 'Regeneration',
         _val: (rarity) => getRarityValue(rarity, 0.1, 0.1, 0.05, 0.02),
         effect(rarity, secondaryUpgrade, secondaryRarity) {
-            player.hpRegen += this._val(rarity);
+            player.hpRegen = Math.min(1.25, player.hpRegen + this._val(rarity));
             applySecondary(rarity, secondaryUpgrade, secondaryRarity);
         },
         getValue(rarity) { return `+${this._val(rarity).toFixed(2)}/s`; },
+        condition: () => player.hpRegen < 1.25,
         description: 'Additive regeneration increase'
     },
     {
@@ -64,6 +66,7 @@ const upgrades = [
             applySecondary(rarity, secondaryUpgrade, secondaryRarity);
         },
         getValue(rarity) { return `+${(this._val(rarity) * 100).toFixed(0)}%`; },
+        condition: () => player.totalCooldownReduction < 0.75,
         description: 'Additive cooldown reduction'
     },
     {
@@ -84,7 +87,10 @@ const upgrades = [
             applySecondary(rarity, secondaryUpgrade, secondaryRarity);
         },
         getValue(rarity) { return `+${(this._val(rarity) * 100).toFixed(1)}%`; },
-        condition: () => !(player instanceof DivineKnight) || player.critUpgradesEnabled,
+        condition: () => {
+            if (player instanceof DivineKnight && !player.critUpgradesEnabled) return false;
+            return player.critChance < 0.80;
+        },
         description: 'Additive critical strike chance'
     },
     {
@@ -496,9 +502,9 @@ function showLevelUpScreen() {
             } else if (upgrade.description) {
                 const desc = upgrade.description.toLowerCase();
                 if (desc.includes('multiplicative')) {
-                    dmgTypeHtml = `Damage type: <span class="tag-multiplicative">Multiplicative</span>`;
+                    dmgTypeHtml = `Type: <span class="tag-multiplicative">Multiplicative</span>`;
                 } else if (desc.includes('additive')) {
-                    dmgTypeHtml = `Damage type: <span class="tag-additive">Additive</span>`;
+                    dmgTypeHtml = `Type: <span class="tag-additive">Additive</span>`;
                 } else {
                     dmgTypeHtml = upgrade.name;
                 }
@@ -598,9 +604,12 @@ const soulsUpgrades = [
         name: 'Regen+', baseCost: 150, valuePerUpgrade: 0.02,
         effect(gameState) {
             gameState.regenUpgrades = (gameState.regenUpgrades || 0) + 1;
-            if (player) player.hpRegen = gameState.regenUpgrades * this.valuePerUpgrade;
+            if (player) player.hpRegen = Math.min(1.25, gameState.regenUpgrades * this.valuePerUpgrade);
         },
-        canPurchase(gameState) { return (gameState.regenUpgrades || 0) < _ascMaxPurchases(gameState, 'regenUpgrades'); }
+        canPurchase(gameState) {
+            return (gameState.regenUpgrades || 0) < _ascMaxPurchases(gameState, 'regenUpgrades')
+                && (gameState.regenUpgrades || 0) * this.valuePerUpgrade < 1.25;
+        }
     },
     {
         name: 'Crit Chance+', baseCost: 250, valuePerUpgrade: 0.01,
@@ -609,7 +618,11 @@ const soulsUpgrades = [
             if (player && (!(player instanceof DivineKnight) || player.critUpgradesEnabled))
                 player.adjustCritChance(this.valuePerUpgrade);
         },
-        canPurchase(gameState) { return (gameState.critChanceUpgrades || 0) < _ascMaxPurchases(gameState, 'critChanceUpgrades'); }
+        canPurchase(gameState) {
+            if (player instanceof DivineKnight && !player.critUpgradesEnabled) return false;
+            if (player && player.critChance >= 0.80) return false;
+            return (gameState.critChanceUpgrades || 0) < _ascMaxPurchases(gameState, 'critChanceUpgrades');
+        }
     },
     {
         name: 'Critical Damage+', baseCost: 225, valuePerUpgrade: 0.1,

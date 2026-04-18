@@ -41,9 +41,13 @@ function updatePlayerStats() {
     const cdrStyle = cdrCapped ? 'color:#4A6741' : CDR < 0 ? 'color:#DC143C' : '';
 
     const crit = Math.min(player.critChance, 1);
-    const critCapped = crit >= 1;
-    const critText = critCapped ? '100% CAP' : `${(crit * 100).toFixed(1)}%`;
+    const critCapped = player.critChance >= 0.80;
+    const critText = critCapped ? '80% CAP' : `${(crit * 100).toFixed(1)}%`;
     const critStyle = critCapped ? 'color:#4A6741' : player.critChance < 0 ? 'color:#DC143C' : '';
+
+    const regenCapped = player.hpRegen >= 1.25;
+    const regenText = regenCapped ? '1.25/s CAP' : `${player.hpRegen.toFixed(2)}/s`;
+    const regenStyle = regenCapped ? 'color:#4A6741' : '';
 
     const critDmgPct = player.critDamage * 100 - 100;
     const critDmgStyle = critDmgPct < 0 ? 'color:#DC143C' : '';
@@ -59,7 +63,7 @@ function updatePlayerStats() {
         ${stat('Exp', `${player.exp.toFixed(0)} / ${player.expToNextLevel.toFixed(0)}`)}
         ${stat('Souls', player.currentRunSouls)}
         <div class="stat-row divider"><span class="stat-name">HP:</span> <span class="stat-value">${player.hp.toFixed(1)} / ${player.maxHp.toFixed(1)}</span></div>
-        ${stat('HP Regen', `${player.hpRegen.toFixed(2)}/s`)}
+        ${stat('HP Regen', regenText, regenStyle)}
         <div class="stat-row weapon-stat"><span class="stat-name">Weapon:</span> <span class="stat-value">${w.name}</span></div>
         ${stat('Damage', w.chainCount !== undefined && w.chainCount > 0
             ? `${w.damage.toFixed(1)} +${w.chainCount} chains`
@@ -439,8 +443,10 @@ function updateInventoryUI() {
         return `${name}:\nDamage +${dmg.toFixed(1)}\nBoss Damage +${bossDmg}%`;
     });
 
-    amuletSlot.innerHTML = '<img src="img/neck.png" alt="Amulet" class="amulet-icon">';
-    amuletName.textContent = 'Magic Amulet';
+    const amuImgIndex = Math.min(gameState.ascensionLevel + 1, 4);
+    amuletSlot.innerHTML = `<img src="img/amuE${amuImgIndex}.png" alt="Amulet" class="amulet-icon">`;
+    const amuletNames = ['Magic Amulet', 'Corrupted Amulet', 'Void Corrupted Amulet', 'Demonic Corrupted Amulet'];
+    amuletName.textContent = amuletNames[Math.min(gameState.ascensionLevel, 3)];
     amuletSlot.setAttribute('data-tooltip', lines.join('\n\n'));
     const nameColors = ['#00bfff', '#FFD700', '#bf00ff', '#ff2020'];
     const ascClamped = Math.min(gameState.ascensionLevel, 3);

@@ -303,6 +303,13 @@ function startGame(playerClass) {
     requestAnimationFrame(gameLoop);
 }
 
+function updateStageBg() {
+    const gameArea = document.getElementById('game-area');
+    if (!gameArea) return;
+    const bg = gameState.currentStage % 2 === 0 ? 'img/wall.png' : 'img/grass.png';
+    gameArea.style.backgroundImage = `url('${bg}')`;
+}
+
 function createGameArea() {
     const gameArea = document.getElementById('game-area');
     gameArea.innerHTML = '';
@@ -321,9 +328,11 @@ function createGameArea() {
     gameArea.appendChild(abilityButton);
 
     createPlayerElement();
+    updateStageBg();
 }
 
 function startWave() {
+    updateStageBg();
     cancelAnimationFrame(animationFrameId);
     clearTimeout(animationFrameId);
     spawnEnemies();

@@ -56,8 +56,17 @@ body {
     margin: 0;
     padding: 0;
     font-family: var(--font-display);
-    background: linear-gradient(135deg, #1a0f0f 0%, #2d1b1b 50%, #1a0f0f 100%);
-    background-attachment: fixed;
+    background: transparent;
+}
+
+/* Background image is declared in index.html as #page-bg for consistency */
+#page-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: url('img/mainbcg2.png') center center / cover no-repeat;
+    filter: blur(3px);
+    transform: scale(1.02); /* prevent blur edge bleed */
 }
 
 hr {
@@ -77,13 +86,23 @@ hr {
     justify-content: center;
     align-items: center;
     height: 100vh;
+    background: transparent;
+}
+
+#game-container::before {
+    content: '';
+    position: fixed;
+    inset: 0;
     background-image:
         radial-gradient(circle at 20% 80%, rgba(139, 69, 19, 0.1) 0%, transparent 50%),
         radial-gradient(circle at 80% 20%, rgba(184, 134, 11, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
 }
 
 #game-area {
-    background-image: url('img/grass.png');
+    background-size: cover;
+    background-position: center;
     width: 800px;
     height: 600px;
     border: 4px solid var(--brown-red);
@@ -861,8 +880,7 @@ hr {
     display: flex;
     justify-content: center;
     align-items: center;
-    background:
-        linear-gradient(135deg, rgba(10, 5, 5, 0.95) 0%, rgba(30, 15, 15, 0.95) 50%, rgba(10, 5, 5, 0.95) 100%);
+    background-color: transparent;
     background-image:
         radial-gradient(circle at 30% 40%, rgba(139, 69, 19, 0.1) 0%, transparent 50%),
         radial-gradient(circle at 70% 60%, rgba(184, 134, 11, 0.1) 0%, transparent 50%);
@@ -880,6 +898,7 @@ hr {
     box-shadow: 0 0 40px var(--glow-gold), inset 0 0 60px rgba(0, 0, 0, 0.6);
     animation: torchFlicker 4s ease-in-out infinite;
     overflow: visible;
+    background: linear-gradient(135deg, rgba(20, 8, 8, 0.92) 0%, rgba(40, 18, 10, 0.92) 50%, rgba(20, 8, 8, 0.92) 100%);
 }
 
 #destiny-text {
@@ -1355,14 +1374,15 @@ input:checked + .slider:before {
     border-radius: 6px;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: stretch;
     background: linear-gradient(145deg, rgba(42, 24, 16, 0.5), rgba(61, 36, 21, 0.5));
     position: relative;
     box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6), 0 0 15px rgba(212, 175, 55, 0.3);
+    padding: 0;
 }
 
 .amulet-slot.equipped .amulet-icon {
-    transition: transform 0.3s ease, filter 0.3s ease;
+    transition: filter 0.3s ease;
 }
 
 /* ── Ascension 0: blue ── */
@@ -1370,7 +1390,6 @@ input:checked + .slider:before {
     animation: amuletPulseBlue 2.5s ease-in-out infinite;
 }
 .amulet-slot.equipped[data-asc="0"]:hover .amulet-icon {
-    transform: scale(1.4);
     filter: drop-shadow(0 0 8px rgba(0, 191, 255, 0.9));
 }
 
@@ -1379,7 +1398,6 @@ input:checked + .slider:before {
     animation: amuletPulseYellow 2.5s ease-in-out infinite;
 }
 .amulet-slot.equipped[data-asc="1"]:hover .amulet-icon {
-    transform: scale(1.4);
     filter: drop-shadow(0 0 9px rgba(255, 215, 0, 0.9));
 }
 
@@ -1388,7 +1406,6 @@ input:checked + .slider:before {
     animation: amuletPulsePurple 2.5s ease-in-out infinite;
 }
 .amulet-slot.equipped[data-asc="2"]:hover .amulet-icon {
-    transform: scale(1.4);
     filter: drop-shadow(0 0 10px rgba(191, 0, 255, 0.9));
 }
 
@@ -1397,7 +1414,6 @@ input:checked + .slider:before {
     animation: amuletPulseRed 2.5s ease-in-out infinite;
 }
 .amulet-slot.equipped[data-asc="3"]:hover .amulet-icon {
-    transform: scale(1.4);
     filter: drop-shadow(0 0 12px rgba(255, 32, 32, 0.95));
 }
 
@@ -1446,7 +1462,7 @@ input:checked + .slider:before {
 }
 
 .empty-slot { width: 100%; height: 100%; background-size: cover; opacity: 0.5; }
-.amulet-icon { max-width: 90%; max-height: 90%; filter: drop-shadow(0 0 6px rgba(212, 175, 55, 0.4)); }
+.amulet-icon { width: 100%; height: 100%; object-fit: contain; object-position: center; display: block; filter: drop-shadow(0 0 6px rgba(212, 175, 55, 0.4)); border-radius: 4px; }
 
 #amulet-name {
     text-align: center;

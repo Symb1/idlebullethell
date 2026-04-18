@@ -788,8 +788,8 @@ function _sfFragSVG(upgrade) {
         <text x="74" y="44" text-anchor="middle" fill="#6a4800" font-size="10" font-family="serif" opacity="0.8">✦ ◆ ✦</text>
         <text x="74" y="90" text-anchor="middle" dominant-baseline="central" font-family="'Cinzel','Georgia',serif" font-weight="700" font-size="29" fill="#f0d060">${val}</text>
         ${_sfNameSVG(upgrade.name, 74, 126, 12.5, '#a07030')}
-        ${secVal ? `<text x="74" y="160" text-anchor="middle" dominant-baseline="central" font-family="'Cinzel','Georgia',serif" font-weight="700" font-size="24" fill="#e8c080">${secVal}</text>
-        <text x="74" y="182" text-anchor="middle" dominant-baseline="central" font-family="'Georgia',serif" font-style="italic" font-size="12" fill="#a07030">${secName}</text>` : ''}
+        ${secVal ? `<text x="74" y="155" text-anchor="middle" dominant-baseline="central" font-family="'Cinzel','Georgia',serif" font-weight="700" font-size="24" fill="#e8c080">${secVal}</text>
+        ${_sfNameSVG(secName, 74, 182, 12.5, '#a07030')}` : ''}
         <line x1="18" y1="12" x2="50" y2="6" stroke="#ffd840" stroke-width="1.2" opacity="0.5"/>
       </svg>`};
 }
