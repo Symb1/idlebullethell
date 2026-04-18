@@ -263,41 +263,90 @@ const classUpgrades = {
         {
             name: 'Stormheart Crystal', shardName: 'Stormheart',
             flavorText: "In storm's rhythm, spells erupt in a torrent of energy, but control slips away with every surge.",
-            attackSpeedIncrease: 0.5, critChanceDecrease: 0.15,
-            effect() { classEffect(player, gameState, this); },
+            attackSpeedIncrease: 0.35, bossDamagePenalty: true,
+            effect() {
+                player.attacksPerSecond += this.attackSpeedIncrease;
+                const sheRanks = (typeof sorcAlloc !== 'undefined' ? sorcAlloc['stormheart_excellence'] : 0) || 0;
+                // Each rank negates 20% of the 100% boss damage penalty; ranks 6-10 grant bonus boss damage
+                const penaltyNegated = Math.min(sheRanks, 5) * 0.20;
+                const bonusBossDmg   = Math.max(0, sheRanks - 5) * 0.20;
+                // effectivePenalty: how much to subtract from additionalBossDamage (positive = penalty, negative = bonus)
+                const effectivePenalty = Math.max(0, 1.0 - penaltyNegated) - bonusBossDmg;
+                player.additionalBossDamage = (player.additionalBossDamage || 0) - effectivePenalty;
+                player.classUpgradeChosen = this.shardName;
+                gameState.classUpgradeChosen = this.shardName;
+                saveGameState();
+            },
             description() {
+                const sheRanks = (typeof sorcAlloc !== 'undefined' ? sorcAlloc['stormheart_excellence'] : 0) || 0;
+                const penaltyNegated = Math.min(sheRanks, 5) * 0.20;
+                const bonusBossDmg   = Math.max(0, sheRanks - 5) * 0.20;
+                const effectivePenalty = 1.0 - penaltyNegated - bonusBossDmg;
+                const bossDmgLine = effectivePenalty > 0
+                    ? `Boss Damage -${pct(effectivePenalty)}%`
+                    : effectivePenalty < 0 ? `Boss Damage +${pct(-effectivePenalty)}%` : '';
                 return classDesc(this.flavorText,
                     [`Attack Speed +${pct(this.attackSpeedIncrease)}%`],
-                    [`Crit Chance -${pct(this.critChanceDecrease)}%`]);
+                    [bossDmgLine].filter(Boolean));
             }
         },
         {
             name: "Spellweaver's Sigil", shardName: "Spellweaver's",
             flavorText: "Each strike finds its mark, though the storm's fury wanes in precision.",
-            critChanceIncrease: 0.2, critDamageDecrease: 0.5,
-            effect() { classEffect(player, gameState, this); },
+            critChanceIncrease: 0.2, critDamageDecrease: 0.6,
+            effect() {
+                const sweRanks = (typeof sorcAlloc !== 'undefined' ? sorcAlloc['spellweavers_excellence'] : 0) || 0;
+                // Each rank negates 12% of the 60% crit damage penalty; ranks 6-10 grant bonus crit damage
+                const penaltyNegated = Math.min(sweRanks, 5) * 0.12;
+                const bonusCritDmg   = Math.max(0, sweRanks - 5) * 0.12;
+                const effectiveLoss  = Math.max(0, this.critDamageDecrease - penaltyNegated) - bonusCritDmg;
+                const stats = Object.assign({}, this, {
+                    critDamageDecrease: Math.max(0, effectiveLoss),
+                    critDamageIncrease: (this.critDamageIncrease || 0) + (effectiveLoss < 0 ? -effectiveLoss : 0)
+                });
+                classEffect(player, gameState, stats);
+            },
             description() {
+                const sweRanks = (typeof sorcAlloc !== 'undefined' ? sorcAlloc['spellweavers_excellence'] : 0) || 0;
+                const penaltyNegated = Math.min(sweRanks, 5) * 0.12;
+                const bonusCritDmg   = Math.max(0, sweRanks - 5) * 0.12;
+                const effectiveLoss  = this.critDamageDecrease - penaltyNegated - bonusCritDmg;
+                const critDmgLine = effectiveLoss > 0
+                    ? `Crit Damage -${pct(effectiveLoss)}%`
+                    : effectiveLoss < 0 ? `Crit Damage +${pct(-effectiveLoss)}%` : '';
                 return classDesc(this.flavorText,
                     [`Crit Chance +${pct(this.critChanceIncrease)}%`],
-                    [`Crit Damage -${pct(this.critDamageDecrease)}%`]);
+                    [critDmgLine].filter(Boolean));
             }
         },
         {
             name: 'Nexus Crystal', shardName: 'Nexus',
             flavorText: 'At the center of the arcane current, strikes resonate with devastating precision, though the tempo slows.',
-            attackSpeedDecrease: 0.35, chainCountBonus: 1,
+            attackSpeedDecrease: 0.40, chainCountBonus: 1,
             effect() {
-                player.attacksPerSecond -= this.attackSpeedDecrease;
-                if (player.weapon?.chainDamageMultiplier !== undefined) player.weapon.chainDamageMultiplier = 0.90;
+                const neRanks = (typeof sorcAlloc !== 'undefined' ? sorcAlloc['nexus_excellence'] : 0) || 0;
+                // Each rank negates 8% of the 40% attack speed penalty; ranks 6-10 grant bonus attack speed
+                const penaltyNegated = Math.min(neRanks, 5) * 0.08;
+                const bonusSpeed     = Math.max(0, neRanks - 5) * 0.08;
+                const effectiveLoss  = Math.max(0, this.attackSpeedDecrease - penaltyNegated) - bonusSpeed;
+                player.attacksPerSecond -= effectiveLoss;
+                if (effectiveLoss < 0) player.attacksPerSecond += (-effectiveLoss); // bonus case already subtracted
                 if (player.weapon?.chainCount !== undefined) player.weapon.chainCount += this.chainCountBonus;
                 player.classUpgradeChosen = this.shardName;
                 gameState.classUpgradeChosen = this.shardName;
                 saveGameState();
             },
             description() {
+                const neRanks = (typeof sorcAlloc !== 'undefined' ? sorcAlloc['nexus_excellence'] : 0) || 0;
+                const penaltyNegated = Math.min(neRanks, 5) * 0.08;
+                const bonusSpeed     = Math.max(0, neRanks - 5) * 0.08;
+                const effectiveLoss  = this.attackSpeedDecrease - penaltyNegated - bonusSpeed;
+                const speedLine = effectiveLoss > 0
+                    ? `Attack Speed -${pct(effectiveLoss)}%`
+                    : effectiveLoss < 0 ? `Attack Speed +${pct(-effectiveLoss)}%` : '';
                 return classDesc(this.flavorText,
-                    ['Chains: +1 target', 'Chain Damage +5%'],
-                    [`Attack Speed -${pct(this.attackSpeedDecrease)}%`]);
+                    ['Chains: +1 target'],
+                    [speedLine].filter(Boolean));
             }
         }
     ],
@@ -346,89 +395,146 @@ const classUpgrades = {
 
 // --- Level Up Screen ---
 
+// ═══════════════════════════════════════════════════════════════════════
+//  SOUL FRAGMENT / CLASS HEX  –  shared helpers
+// ═══════════════════════════════════════════════════════════════════════
+
+function _sfClassPlaque(upgrade) {
+    const pClass = player.class;
+    const colorCls = pClass === 'Acolyte' ? 'sp' : pClass === 'Sorceress' ? 'sb' : 'sg';
+    const descHtml = upgrade.description.call(upgrade);
+    const tmp = document.createElement('div'); tmp.innerHTML = descHtml;
+    const lines = [];
+    tmp.querySelectorAll('.stat-positive, .stat-negative').forEach(el => {
+        const neg = el.classList.contains('stat-negative');
+        lines.push(`<div class="sf-stat ${neg ? 'sn' : colorCls}"><span class="sf-bullet">✦</span><span class="sf-stat-text">${el.textContent.trim()}</span></div>`);
+    });
+    if (!lines.length) {
+        const f = tmp.querySelector('.upgrade-flavor');
+        if (f) { const t = f.textContent.trim(); lines.push(`<div class="sf-stat ${colorCls}"><span class="sf-bullet">✦</span><span class="sf-stat-text" style="font-style:italic;font-size:10px;">${t.length>60?t.slice(0,57)+'…':t}</span></div>`); }
+    }
+    return lines.join('');
+}
+
+// ── showLevelUpScreen (entry point) ──────────────────────────────────────────
+
 function showLevelUpScreen() {
     gameState.isPaused = true;
 
     const levelUpAudio = document.getElementById('levelupmu');
-    if (levelUpAudio) {
-        levelUpAudio.currentTime = 0;
-        levelUpAudio.volume = 0.2;
-        levelUpAudio.play().catch(() => {});
-    }
+    if (levelUpAudio) { levelUpAudio.currentTime = 0; levelUpAudio.volume = 0.2; levelUpAudio.play().catch(() => {}); }
 
-    const gameArea = document.getElementById('game-area');
-    let levelUpScreen = document.getElementById('level-up');
-    if (!levelUpScreen) {
-        levelUpScreen = document.createElement('div');
-        levelUpScreen.id = 'level-up';
-        gameArea.appendChild(levelUpScreen);
-    }
-
-    levelUpScreen.innerHTML = '<h2 class="level-up-title">Level Up!</h2>';
-
-    const upgradeOptions = document.createElement('div');
-    upgradeOptions.id = 'upgrade-options';
-    levelUpScreen.appendChild(upgradeOptions);
-
+    // Get upgrades FIRST — level 10 triggers weapon evo and returns [], bail immediately
     const availableUpgrades = getRandomUpgrades(3);
-    const isAutoClass = gameState.autoClassEnabled && availableUpgrades[0]?.isClassUpgrade;
-    const isAutoCard  = gameState.autoCardEnabled  && !availableUpgrades[0]?.isClassUpgrade;
+    if (!availableUpgrades.length) return;
 
-    availableUpgrades.forEach((upgrade, index) => {
-        const card = document.createElement('div');
-        const playerClassLower = player.class.toLowerCase().replace(/\s+/g, '-');
+    // Remove any existing overlay
+    document.getElementById('level-up')?.remove();
 
-        card.className = upgrade.isClassUpgrade
-            ? `upgrade-card class-upgrade ${playerClassLower}-upgrade`
-            : `upgrade-card ${upgrade.rarity.toLowerCase()}`;
-        card.dataset.index = index;
+    const overlay = document.createElement('div');
+    overlay.id = 'level-up';
+    overlay.className = 'sf-overlay';
+    const gameArea = document.getElementById('game-area') || document.body;
+    gameArea.appendChild(overlay);
 
-        if (upgrade.isClassUpgrade) {
-            card.innerHTML = `
-                <div class="upgrade-rarity-label">Class Upgrade</div>
-                <hr>
-                <div class="upgrade-name">${upgrade.name}</div>
-                <hr>
-                <div class="upgrade-description">${upgrade.description.call(upgrade)}</div>`;
-        } else {
-            const divider = `<div style="padding:10px 0;border-top:2px solid #8B7355;border-image:linear-gradient(90deg,transparent,#D4AF37,transparent) 1;margin-top:auto;"></div>`;
-            const secondary = (upgrade.rarity === 'Legendary' && upgrade.secondaryUpgrade)
-                ? `${divider}
-                   <div style="font-size:14px;color:#D4AF37;margin-top:8px;font-style:italic;text-align:center;">${upgrade.secondaryUpgrade.name}</div>
-                   <div class="upgrade-value" style="font-size:18px;color:#87CEEB;margin-top:5px;">${upgrade.secondaryUpgrade.getValue(upgrade.secondaryRarity)}</div>`
-                : `${divider}<div class="upgrade-description">${upgrade.description || ''}</div>`;
+    const isClassScreen = !!availableUpgrades[0]?.isClassUpgrade;
+    const isAutoClass = gameState.autoClassEnabled && isClassScreen;
+    const isAutoCard  = gameState.autoCardEnabled  && !isClassScreen;
 
-            card.innerHTML = `
-                <div class="upgrade-rarity-label">Rarity</div>
-                <div class="upgrade-rarity">${upgrade.rarity}</div>
-                <hr>
-                <div class="upgrade-name">${upgrade.name}</div>
-                <hr>
-                <div class="upgrade-value">${upgrade.getValue(upgrade.rarity)}</div>
-                ${secondary}`;
+    const title = document.createElement('h1');
+    title.className = isClassScreen ? 'sf-screen-title ascension' : 'sf-screen-title';
+    title.textContent = isClassScreen ? 'Class Ascension' : 'Level Up!';
+    overlay.appendChild(title);
+
+    const sub = document.createElement('p');
+    sub.className = 'sf-screen-sub';
+    sub.textContent = isClassScreen ? 'Choose your path of power' : 'Choose a soul fragment to absorb';
+    overlay.appendChild(sub);
+
+    const row = document.createElement('div');
+    row.className = 'sf-row';
+    overlay.appendChild(row);
+
+    if (isClassScreen) {
+        availableUpgrades.forEach((upgrade, index) => {
+            const {hexClass, svg} = _sfClassHexSVG(upgrade);
+            const plaqueLines = _sfClassPlaque(upgrade);
+            const wrap = document.createElement('div');
+            wrap.className = 'sf-wrap' + (isAutoClass ? ' sf-disabled' : '');
+            wrap.dataset.index = index;
+            wrap.innerHTML = `
+              <div class="sf-hex-shell ${hexClass}">${svg}</div>
+              <div class="sf-plaque">
+                <span class="sf-plaque-rule"></span>${plaqueLines}<span class="sf-plaque-rule-b"></span>
+              </div>`;
+            if (!isAutoClass) {
+                wrap.addEventListener('click', () => {
+                    // Immediately lock ALL cards in the row to prevent double-picks
+                    row.querySelectorAll('.sf-wrap').forEach(w => w.style.pointerEvents = 'none');
+                    const sfSound = document.getElementById('soulfragmentcrack');
+                    if (sfSound) { sfSound.currentTime = 0; sfSound.volume = 0.5; sfSound.play().catch(()=>{}); }
+                    _sfShatter(wrap.querySelector('.sf-hex-shell'), () => selectUpgrade(upgrade, index));
+                });
+            }
+            row.appendChild(wrap);
+        });
+        if (isAutoClass) {
+            const auto = selectAutoClassUpgrade(availableUpgrades);
+            const idx  = availableUpgrades.indexOf(auto);
+            row.querySelector(`[data-index="${idx}"]`)?.classList.add('sf-auto-glow');
+            setTimeout(() => selectUpgrade(auto, idx), 3000);
         }
-
-        const autoDisabled = upgrade.isClassUpgrade ? isAutoClass : isAutoCard;
-        if (autoDisabled) {
-            card.classList.add('disabled');
-        } else {
-            card.addEventListener('click', () => selectUpgrade(upgrade, index));
+    } else {
+        availableUpgrades.forEach((upgrade, index) => {
+            const rarity = upgrade.rarity || 'Normal';
+            const {shellClass, width, height, svg} = _sfFragSVG(upgrade);
+            const nameCls = {Normal:'name-normal',Magic:'name-magic',Epic:'name-epic',Legendary:'name-legendary'}[rarity] || 'name-normal';
+            // Build damage-type tag from upgrade.description
+            let dmgTypeHtml = '';
+            if (rarity === 'Legendary') {
+                dmgTypeHtml = `<span style="color:#5a4820;font-size:10.5px;">Legendary · Dual Blessing</span>`;
+            } else if (upgrade.description) {
+                const desc = upgrade.description.toLowerCase();
+                if (desc.includes('multiplicative')) {
+                    dmgTypeHtml = `Damage type: <span class="tag-multiplicative">Multiplicative</span>`;
+                } else if (desc.includes('additive')) {
+                    dmgTypeHtml = `Damage type: <span class="tag-additive">Additive</span>`;
+                } else {
+                    dmgTypeHtml = upgrade.name;
+                }
+            } else {
+                dmgTypeHtml = upgrade.name;
+            }
+            const wrap = document.createElement('div');
+            wrap.className = 'sf-wrap' + (isAutoCard ? ' sf-disabled' : '');
+            wrap.dataset.index = index;
+            wrap.innerHTML = `
+              <div class="sf-shell ${shellClass}" style="width:${width}px;height:${height}px;">${svg}</div>
+              <div class="sf-text">
+                <div class="sf-name ${nameCls}">${rarity}</div>
+                <div class="sf-dmgtype">${dmgTypeHtml}</div>
+              </div>`;
+            if (!isAutoCard) {
+                wrap.addEventListener('click', () => {
+                    // Immediately lock ALL cards in the row to prevent double-picks
+                    row.querySelectorAll('.sf-wrap').forEach(w => w.style.pointerEvents = 'none');
+                    const sfSound = document.getElementById('soulfragmentcrack');
+                    if (sfSound) { sfSound.currentTime = 0; sfSound.volume = 0.5; sfSound.play().catch(()=>{}); }
+                    _sfShatter(wrap.querySelector('.sf-shell'), () => selectUpgrade(upgrade, index));
+                });
+            }
+            row.appendChild(wrap);
+        });
+        if (isAutoCard) {
+            const priority = gameState.upgradePriority || DEFAULT_UPGRADE_PRIORITY;
+            const auto = priority.reduce((found, name) => found || availableUpgrades.find(u => u.name === name), null) || availableUpgrades[0];
+            const idx  = availableUpgrades.indexOf(auto);
+            row.querySelector(`[data-index="${idx}"]`)?.classList.add('sf-auto-glow');
+            setTimeout(() => selectUpgrade(auto, idx), 3000);
         }
-
-        upgradeOptions.appendChild(card);
-    });
-
-    levelUpScreen.style.display = 'flex';
-
-    if (isAutoClass) {
-        const auto = selectAutoClassUpgrade(availableUpgrades);
-        _scheduleAutoSelect(upgradeOptions, availableUpgrades, auto);
-    } else if (isAutoCard) {
-        const priority = gameState.upgradePriority || DEFAULT_UPGRADE_PRIORITY;
-        const auto = priority.reduce((found, name) => found || availableUpgrades.find(u => u.name === name), null) || availableUpgrades[0];
-        _scheduleAutoSelect(upgradeOptions, availableUpgrades, auto);
     }
 }
+
 
 function _scheduleAutoSelect(container, upgrades, upgrade) {
     const idx = upgrades.indexOf(upgrade);
@@ -453,8 +559,7 @@ function selectUpgrade(upgrade, index) {
 }
 
 function hideLevelUpScreen() {
-    const s = document.getElementById('level-up');
-    if (s) s.style.display = 'none';
+    document.getElementById('level-up')?.remove();
 }
 
 // --- Soul Upgrades Cost ---
@@ -462,16 +567,22 @@ function hideLevelUpScreen() {
 function calculateSoulUpgradeCost(baseCost, currentLevel) {
     let cost = baseCost;
     for (let i = 1; i <= currentLevel; i++) {
-        cost *= i <= 5 ? 1.75 : i <= 10 ? 1.35 : i <= 15 ? 1.25 : 1.15;
+        cost *= i <= 5 ? 1.95 : i <= 10 ? 1.70 : i <= 15 ? 1.30 : 1.20;
     }
     return Math.floor(cost);
 }
 
 // --- Soul Upgrades ---
 
-function _ascMaxPurchases(gameState, base = 5) {
-    const a = Math.min(gameState.ascensionLevel || 0, ASCENSION_MAX_PURCHASES.length - 1);
-    return base * (ASCENSION_MAX_PURCHASES[a] / ASCENSION_MAX_PURCHASES[0]);
+const BASIC_UPGRADE_KEYS = new Set(['healthUpgrades','regenUpgrades','critChanceUpgrades','critDamageUpgrades','attackSpeedUpgrades','cooldownUpgrades']);
+
+function _ascMaxPurchases(gameState, upgradeKey) {
+    const asc = gameState.ascensionLevel || 0;
+    if (BASIC_UPGRADE_KEYS.has(upgradeKey)) {
+        return asc >= 1 ? 10 : 5;
+    }
+    const a = Math.min(asc, ASCENSION_MAX_PURCHASES.length - 1);
+    return ASCENSION_MAX_PURCHASES[a];
 }
 
 const soulsUpgrades = [
@@ -481,7 +592,7 @@ const soulsUpgrades = [
             gameState.healthUpgrades = (gameState.healthUpgrades || 0) + 1;
             if (player) { player.maxHp = player.getInitialHP(); player.hp += this.valuePerUpgrade; }
         },
-        canPurchase(gameState) { return (gameState.healthUpgrades || 0) < _ascMaxPurchases(gameState); }
+        canPurchase(gameState) { return (gameState.healthUpgrades || 0) < _ascMaxPurchases(gameState, 'healthUpgrades'); }
     },
     {
         name: 'Regen+', baseCost: 150, valuePerUpgrade: 0.02,
@@ -489,7 +600,7 @@ const soulsUpgrades = [
             gameState.regenUpgrades = (gameState.regenUpgrades || 0) + 1;
             if (player) player.hpRegen = gameState.regenUpgrades * this.valuePerUpgrade;
         },
-        canPurchase(gameState) { return (gameState.regenUpgrades || 0) < _ascMaxPurchases(gameState); }
+        canPurchase(gameState) { return (gameState.regenUpgrades || 0) < _ascMaxPurchases(gameState, 'regenUpgrades'); }
     },
     {
         name: 'Crit Chance+', baseCost: 250, valuePerUpgrade: 0.01,
@@ -498,7 +609,7 @@ const soulsUpgrades = [
             if (player && (!(player instanceof DivineKnight) || player.critUpgradesEnabled))
                 player.adjustCritChance(this.valuePerUpgrade);
         },
-        canPurchase(gameState) { return (gameState.critChanceUpgrades || 0) < _ascMaxPurchases(gameState); }
+        canPurchase(gameState) { return (gameState.critChanceUpgrades || 0) < _ascMaxPurchases(gameState, 'critChanceUpgrades'); }
     },
     {
         name: 'Critical Damage+', baseCost: 225, valuePerUpgrade: 0.1,
@@ -506,7 +617,7 @@ const soulsUpgrades = [
             gameState.critDamageUpgrades = (gameState.critDamageUpgrades || 0) + 1;
             if (player) player.critDamage += this.valuePerUpgrade;
         },
-        canPurchase(gameState) { return (gameState.critDamageUpgrades || 0) < _ascMaxPurchases(gameState); }
+        canPurchase(gameState) { return (gameState.critDamageUpgrades || 0) < _ascMaxPurchases(gameState, 'critDamageUpgrades'); }
     },
     {
         name: 'Attack Speed+', baseCost: 225, valuePerUpgrade: 0.05,
@@ -514,7 +625,7 @@ const soulsUpgrades = [
             gameState.attackSpeedUpgrades = (gameState.attackSpeedUpgrades || 0) + 1;
             if (player) player.attacksPerSecond += this.valuePerUpgrade;
         },
-        canPurchase(gameState) { return (gameState.attackSpeedUpgrades || 0) < _ascMaxPurchases(gameState); }
+        canPurchase(gameState) { return (gameState.attackSpeedUpgrades || 0) < _ascMaxPurchases(gameState, 'attackSpeedUpgrades'); }
     },
     {
         name: 'Cooldown+', baseCost: 225, valuePerUpgrade: 0.02,
@@ -522,13 +633,13 @@ const soulsUpgrades = [
             gameState.cooldownUpgrades = (gameState.cooldownUpgrades || 0) + 1;
             if (player) player.updateCooldownReduction();
         },
-        canPurchase(gameState) { return (gameState.cooldownUpgrades || 0) < _ascMaxPurchases(gameState); }
+        canPurchase(gameState) { return (gameState.cooldownUpgrades || 0) < _ascMaxPurchases(gameState, 'cooldownUpgrades'); }
     },
     {
-        name: 'Exp+', baseCost: 500, valuePerUpgrade: 0.2,
+        name: 'Exp+', baseCost: 500, valuePerUpgrade: 0.15,
         effect(gameState) { gameState.expUpgrades = (gameState.expUpgrades || 0) + 1; },
         canPurchase(gameState) {
-            return (gameState.expUpgrades || 0) < _ascMaxPurchases(gameState);
+            return (gameState.expUpgrades || 0) < _ascMaxPurchases(gameState, 'expUpgrades');
         },
         isVisible(gameState) { return gameState.ascensionLevel >= 1; }
     },
@@ -536,7 +647,7 @@ const soulsUpgrades = [
         name: 'Boss Damage+', baseCost: 500, valuePerUpgrade: 0.1,
         effect(gameState) { gameState.bossDamageUpgrades = (gameState.bossDamageUpgrades || 0) + 1; },
         canPurchase(gameState) {
-            return (gameState.bossDamageUpgrades || 0) < _ascMaxPurchases(gameState);
+            return (gameState.bossDamageUpgrades || 0) < _ascMaxPurchases(gameState, 'bossDamageUpgrades');
         },
         isVisible(gameState) { return gameState.ascensionLevel >= 1; }
     },
@@ -544,7 +655,7 @@ const soulsUpgrades = [
         name: 'Rarity+', baseCost: 750, valuePerUpgrade: 0.01,
         effect(gameState) { gameState.rarityUpgrades = (gameState.rarityUpgrades || 0) + 1; },
         canPurchase(gameState) {
-            return (gameState.rarityUpgrades || 0) < _ascMaxPurchases(gameState);
+            return (gameState.rarityUpgrades || 0) < _ascMaxPurchases(gameState, 'rarityUpgrades');
         },
         isVisible(gameState) { return gameState.ascensionLevel >= 2; }
     },
@@ -552,7 +663,7 @@ const soulsUpgrades = [
         name: 'Starting Wave+', baseCost: 750, valuePerUpgrade: 1,
         effect(gameState) { gameState.startingWaveUpgrades = (gameState.startingWaveUpgrades || 0) + 1; },
         canPurchase(gameState) {
-            return (gameState.startingWaveUpgrades || 0) < _ascMaxPurchases(gameState);
+            return (gameState.startingWaveUpgrades || 0) < _ascMaxPurchases(gameState, 'startingWaveUpgrades');
         },
         isVisible(gameState) { return gameState.ascensionLevel >= 3; }
     }

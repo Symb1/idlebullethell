@@ -30,7 +30,7 @@ const gameState = {
 const MAX_ASCENSIONS = 3;
 const ASCENSION_STAGES = { 0: 4, 1: 7, 2: 9 };
 const ASCENSION_MAX_PURCHASES = [5, 10, 15, 20];
-const SOUL_MULTIPLIERS = [1, 3, 6, 12];
+const SOUL_MULTIPLIERS = [1, 2, 4, 6];
 
 const SAVE_KEYS = [
     'unlockedClasses',
@@ -64,19 +64,33 @@ const DEFAULT_UPGRADE_PRIORITY = [
     'Cooldown Reduction', 'Critical Damage Increase', 'Critical Strike Chance', 'Boss Damage'
 ];
 
+// Keys that hold objects/arrays/booleans and must not be coerced to 0
+const NON_NUMERIC_SAVE_KEYS = new Set([
+    'unlockedClasses', 'upgradePriority', 'autoWeaponEvolutionChoices',
+    'autoClassChoices', 'unlockedAchievements', 'highestStagePerClass',
+    'talentPointsGranted',
+]);
+
 function saveGameState() {
     const state = {};
-    SAVE_KEYS.forEach(k => { state[k] = gameState[k] ?? 0; });
-    // Preserve non-numeric defaults for object/array/bool keys
-    ['unlockedClasses','upgradePriority','autoWeaponEvolutionChoices',
-     'autoClassChoices','unlockedAchievements','highestStagePerClass',
-     'talentPointsGranted'].forEach(k => {
-        state[k] = gameState[k];
+    SAVE_KEYS.forEach(k => {
+        state[k] = NON_NUMERIC_SAVE_KEYS.has(k) ? gameState[k] : (gameState[k] ?? 0);
     });
     // Save talent alloc and points
     state.talentAlloc = Object.assign({}, alloc);
     state.talentPoints = talentPoints;
+    // Save Sorceress talent alloc and points
+    state.sorcTalentAlloc = Object.assign({}, sorcAlloc);
+    state.sorcTalentPoints = sorcTalentPoints;
     localStorage.setItem('gameState', JSON.stringify(state));
+}
+
+// Copies saved keys back into a live alloc object, skipping any keys absent in the save.
+function restoreAlloc(liveAlloc, savedAlloc) {
+    if (!savedAlloc) return;
+    Object.keys(liveAlloc).forEach(key => {
+        if (savedAlloc[key] !== undefined) liveAlloc[key] = savedAlloc[key];
+    });
 }
 
 function loadGameState() {
@@ -85,22 +99,15 @@ function loadGameState() {
     try {
         const parsed = JSON.parse(saved);
         Object.assign(gameState, parsed);
-        // Restore talent alloc
-        if (parsed.talentAlloc) {
-            Object.keys(alloc).forEach(key => {
-                if (parsed.talentAlloc[key] !== undefined) {
-                    alloc[key] = parsed.talentAlloc[key];
-                }
-            });
-        }
-        // Restore talent points
-        if (parsed.talentPoints !== undefined) {
-            talentPoints = parsed.talentPoints;
-        }
-        // Ensure talentPointsGranted is an array
-        if (!Array.isArray(gameState.talentPointsGranted)) {
-            gameState.talentPointsGranted = [];
-        }
+
+        restoreAlloc(alloc, parsed.talentAlloc);
+        if (parsed.talentPoints !== undefined) talentPoints = parsed.talentPoints;
+
+        restoreAlloc(sorcAlloc, parsed.sorcTalentAlloc);
+        if (parsed.sorcTalentPoints !== undefined) sorcTalentPoints = parsed.sorcTalentPoints;
+
+        if (!Array.isArray(gameState.talentPointsGranted)) gameState.talentPointsGranted = [];
+
         console.log('Game Loaded Successfully');
     } catch (e) {
         console.error('Failed to parse save data', e);
@@ -112,6 +119,8 @@ function hardReset() {
     // Zero out talent alloc and points before reload
     Object.keys(alloc).forEach(k => alloc[k] = 0);
     talentPoints = 0;
+    Object.keys(sorcAlloc).forEach(k => sorcAlloc[k] = 0);
+    sorcTalentPoints = 0;
     localStorage.removeItem('gameState');
     location.reload();
 }
@@ -143,13 +152,17 @@ function ascend() {
     if (lvl >= 3) { gameState.autoEvoUnlocked = true; gameState.autoClassUnlocked = true; }
 
     Object.values(UPGRADE_KEY_MAP).forEach(key => {
-    gameState[key] = 0;
+        gameState[key] = 0;
     });
 
     // Reset talent tree on ascension
     resetTalents();
     talentPoints = 0;
+    sorcResetTalents();
+    sorcTalentPoints = 0;
     gameState.talentPointsGranted = [];
+    renderTalents();
+    renderSorcTalents();
 
     updateInventoryUI();
     saveGameState();
@@ -195,8 +208,7 @@ function showClassSelection() {
         ascendButton.textContent = 'Ascend';
     }
     ascendButton.addEventListener('click', () => {
-        if (gameState.highestStageReached >= ASCENSION_STAGES[gameState.ascensionLevel])
-            showAscensionOverlay();
+        if (canAscend) showAscensionOverlay();
     });
 
     const hardResetButton = document.getElementById('hard-reset-btn');
@@ -216,13 +228,7 @@ function showClassSelection() {
         const btnId = className === 'Sorceress' ? 'sorc-plus' : className === 'Divine Knight' ? 'divi-plus' : null;
         if (btnId) {
             const btn = document.getElementById(btnId);
-            if (btn) {
-                if (unlocked) {
-                    btn.classList.remove('plus-btn-locked');
-                } else {
-                    btn.classList.add('plus-btn-locked');
-                }
-            }
+            if (btn) btn.classList.toggle('plus-btn-locked', !unlocked);
         }
 
         if (unlocked) {
@@ -319,8 +325,14 @@ function createGameArea() {
 
 function startWave() {
     cancelAnimationFrame(animationFrameId);
+    clearTimeout(animationFrameId);
     spawnEnemies();
-    animationFrameId = requestAnimationFrame(gameLoop);
+    lastTimestamp = performance.now();
+    if (document.hidden) {
+        animationFrameId = setTimeout(backgroundLoop, 1000 / 60);
+    } else {
+        animationFrameId = requestAnimationFrame(gameLoop);
+    }
 }
 
 function grantSkippedWaveExperience() {
@@ -367,12 +379,20 @@ function processNextLevelUp() {
 function checkAndGrantTalentPoints(completedWave) {
     if (completedWave !== 10 && completedWave !== 20) return;
     if (!Array.isArray(gameState.talentPointsGranted)) gameState.talentPointsGranted = [];
-    const key = `${gameState.currentStage}_${completedWave}`;
+    const className = player instanceof Sorceress ? 'Sorceress' : (player?.class || 'Acolyte');
+    const key = `${className}_${gameState.currentStage}_${completedWave}`;
     if (!gameState.talentPointsGranted.includes(key)) {
-        talentPoints++;
+        // Grant only to the current player's class talent pool
+        if (player instanceof Sorceress) {
+            sorcTalentPoints++;
+            renderSorcTalents();
+        } else {
+            // Acolyte (and any future non-Sorc classes) use the acolyte pool
+            talentPoints++;
+            renderTalents();
+        }
         gameState.talentPointsGranted.push(key);
         saveGameState();
-        renderTalents();
         // Brief notification
         const notify = document.createElement('div');
         notify.className = 'talent-point-notify';
@@ -385,7 +405,7 @@ function checkAndGrantTalentPoints(completedWave) {
 function gameLoop(timestamp) {
     if (!gameState.gameRunning || gameState.isPaused) return;
 
-    const deltaTime = (timestamp - lastTimestamp) / 1000;
+    const deltaTime = Math.min((timestamp - lastTimestamp) / 1000, 0.5);
     lastTimestamp = timestamp;
 
     updateEnemies(deltaTime);
@@ -415,12 +435,20 @@ function gameLoop(timestamp) {
     } else if (player.hp <= 0) {
         gameOver();
     } else {
-        requestAnimationFrame(gameLoop);
+        if (document.hidden) {
+            animationFrameId = setTimeout(backgroundLoop, 1000 / 60);
+        } else {
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
     }
 }
 
+function getBgMusic() {
+    return document.getElementById('bckgloopmu');
+}
+
 function playBackgroundMusic() {
-    const bgMusic = document.getElementById('bckgloopmu');
+    const bgMusic = getBgMusic();
     if (!bgMusic) return;
     bgMusic.currentTime = 0;
     bgMusic.volume = 0.09;
@@ -428,7 +456,7 @@ function playBackgroundMusic() {
 }
 
 function stopBackgroundMusic() {
-    const bgMusic = document.getElementById('bckgloopmu');
+    const bgMusic = getBgMusic();
     if (!bgMusic) return;
     bgMusic.pause();
     bgMusic.currentTime = 0;
@@ -474,17 +502,23 @@ function gameOver() {
     });
 
     const gameArea = document.getElementById('game-area');
-    if (gameArea) gameArea.style.display = 'none';
-
     const playerElement = document.getElementById('player');
     if (playerElement) playerElement.style.display = 'none';
 
-    const inventoryMenu = document.getElementById('inventory-menu');
-    if (inventoryMenu) { inventoryMenu.style.display = 'block'; updateInventoryUI(); }
+    const youDied = document.createElement('div');
+    youDied.className = 'you-died-text';
+    youDied.textContent = 'You Died';
+    gameArea.appendChild(youDied);
 
     saveGameState();
-    showClassSelection();
-    updateSoulsUI();
+    setTimeout(() => {
+        youDied.remove();
+        gameArea.style.display = 'none';
+        const inventoryMenu = document.getElementById('inventory-menu');
+        if (inventoryMenu) { inventoryMenu.style.display = 'block'; updateInventoryUI(); }
+        showClassSelection();
+        updateSoulsUI();
+    }, 3000);
 }
 
 function allEnemiesDefeated() { return enemies.length === 0; }
@@ -501,13 +535,14 @@ document.addEventListener('DOMContentLoaded', () => {
     createInventoryMenu();
     showClassSelection();
     buildTree();
+    buildSorcTree();
     document.getElementById('debug-level-up').addEventListener('click', debugLevelUp);
     // TEMP DEBUG: Add talent point button for testing
     const debugTalentBtn = document.createElement('button');
     debugTalentBtn.id = 'debug-talent-btn';
     debugTalentBtn.textContent = '+1 Talent';
     debugTalentBtn.style.cssText = 'position:fixed;bottom:10px;left:10px;z-index:9999;padding:4px 10px;background:#2a1a3e;border:1px solid #9370DB;color:#c8aaff;font-size:11px;cursor:pointer;border-radius:4px;';
-    debugTalentBtn.addEventListener('click', () => { talentPoints++; renderTalents(); saveGameState(); });
+    debugTalentBtn.addEventListener('click', () => { talentPoints++; sorcTalentPoints++; renderTalents(); renderSorcTalents(); saveGameState(); });
     document.body.appendChild(debugTalentBtn);
     const autoCastToggle = document.getElementById('auto-cast-toggle');
     if (autoCastToggle) {
@@ -541,5 +576,4 @@ function backgroundLoop() {
     if (!gameState.gameRunning || gameState.isPaused || !document.hidden) return;
     const now = performance.now();
     gameLoop(now);
-    animationFrameId = setTimeout(backgroundLoop, 1000 / 60);
 }

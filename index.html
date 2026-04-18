@@ -42,10 +42,10 @@
             <div class="class-option" data-class="Sorceress">
                 <img src="img/sorc.png" alt="Sorceress">
                 <span class="class-name">Sorceress</span>
-                <span class="unlock-text">( Beat stage 3 to unlock )</span>
+                <span class="unlock-text">( Beat stage 2 to unlock )</span>
             </div>
             <div class="plus-wrap">
-                <button class="plus-btn plus-btn-locked" id="sorc-plus" onclick="openTalentsNotImplemented(this, 'Sorceress'); event.stopPropagation();"><i>+</i></button>
+                <button class="plus-btn" id="sorc-plus" onclick="openSorcTalents(); event.stopPropagation();"><i>+</i></button>
                 <span class="plus-lbl">TALENTS</span>
             </div>
         </div>
@@ -53,7 +53,7 @@
             <div class="class-option" data-class="Divine Knight">
                 <img src="img/divi.png" alt="Divine Knight">
                 <span class="class-name">Divine Knight</span>
-                <span class="unlock-text">( Beat stage 5 to unlock )</span>
+                <span class="unlock-text">( Beat stage 4 to unlock )</span>
             </div>
             <div class="plus-wrap">
                 <button class="plus-btn plus-btn-locked" id="divi-plus" onclick="openTalentsNotImplemented(this, 'Divine Knight'); event.stopPropagation();"><i>+</i></button>
@@ -103,6 +103,28 @@
   <div class="tt-lock" id="tt-lock" style="display:none"></div>
 </div>
 
+<!-- Sorceress Talent Tree Backdrop -->
+<div id="sorc-backdrop">
+  <div id="stw">
+    <div class="tw-head sorc-tw-head">
+      <div>
+        <div class="tw-title">Sorceress Talents</div>
+        <div class="tw-sub sorc-tw-sub">Storm Mastery Tree</div>
+      </div>
+      <button class="tw-close" onclick="closeSorcTalents()">✕</button>
+    </div>
+    <div class="tw-bar">
+      <div class="tw-pts">Unspent Points: <span id="sorc-pts" class="sorc-pts-val">0</span> &nbsp;·&nbsp; <span style="font-size:10px;color:var(--brown);">Hover a talent for details</span></div>
+      <button class="reset-btn" onclick="sorcResetTalents()">↺ Reset All</button>
+    </div>
+    <div class="tw-body">
+      <div class="canvas" id="sorc-canvas">
+        <svg class="conn-svg" id="sorc-svg"></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="refund-msg"></div>
 <div id="not-implemented-msg"></div>
 
@@ -117,7 +139,9 @@
 <audio id="skelehurtmu1" src="sound/skelehurtmu.mp3" preload="auto"></audio>
 <audio id="skelehurtmu2" src="sound/skelehurtmu2.mp3" preload="auto"></audio>
 <audio id="skelehurtmu3" src="sound/skelehurtmu3.mp3" preload="auto"></audio>
+<audio id="soulfragmentcrack" src="sound/soulfragmentcrack.mp3" preload="auto"></audio>
 <audio id="levelupmu" src="sound/levelup.mp3" preload="auto"></audio>
+<audio id="weaponLvlUpSnd" src="sound/weaponLvlUp.mp3" preload="auto"></audio>
 <audio id="bckgloopmu" src="sound/bckgloop.mp3" preload="auto" loop></audio>
 
 <div id="achievements-menu" class="overlay">

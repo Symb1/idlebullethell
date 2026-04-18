@@ -535,42 +535,16 @@ hr {
 }
 
 /* ============================================================
-   LEVEL-UP PANEL
+   LEVEL-UP PANEL  (position/sizing handled by .sf-overlay injected at runtime)
    ============================================================ */
-#level-up {
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    background: linear-gradient(135deg, rgba(20, 10, 10, 0.95) 0%, rgba(40, 20, 20, 0.95) 50%, rgba(20, 10, 10, 0.95) 100%);
-    border: 4px solid var(--brown-red);
-    border-image: var(--border-ornate) 1;
-    z-index: 1000;
-    width: 800px;
-    height: 600px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    box-shadow:
-        0 0 40px var(--glow-gold),
-        inset 0 0 60px rgba(0, 0, 0, 0.6);
-    animation: torchFlicker 4s ease-in-out infinite;
-}
 
-#level-up::before,
-#weapon-evolution::before {
-    content: '';
-    position: absolute;
-    top: 10px; left: 10px; right: 10px; bottom: 10px;
-    border: 1px solid rgba(212, 175, 55, 0.2);
-    border-radius: 8px;
-    pointer-events: none;
-}
+/* golden border pseudo removed — overlay is now scoped to game-area */
 
 .level-up-title {
     font-size: 52px;
     font-weight: bold;
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 32px;
     font-family: var(--font-display);
     letter-spacing: 3px;
     text-transform: uppercase;
@@ -743,28 +717,8 @@ hr {
 .evolution-description .stat-neutral::before { content: ''; }
 
 /* ============================================================
-   WEAPON EVOLUTION PANEL
+   WEAPON EVOLUTION PANEL  (position/sizing handled by .sf-overlay injected at runtime)
    ============================================================ */
-#weapon-evolution {
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    background: linear-gradient(135deg, rgba(15, 8, 8, 0.98) 0%, rgba(35, 18, 18, 0.98) 50%, rgba(15, 8, 8, 0.98) 100%);
-    border: 5px solid var(--brown-red);
-    border-image: var(--border-ornate) 1;
-    z-index: 1001;
-    width: 800px;
-    height: 600px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border-radius: 12px;
-    box-shadow:
-        0 0 60px rgba(212, 175, 55, 0.5),
-        inset 0 0 80px rgba(0, 0, 0, 0.7);
-    animation: torchFlicker 4s ease-in-out infinite;
-}
 
 .evolution-title {
     font-size: 44px;
@@ -1857,7 +1811,8 @@ input:checked + .slider:before {
    NOTIFICATIONS: BOSS SPAWN / AMULET FOUND
    ============================================================ */
 .boss-spawned-text,
-.amulet-found-text {
+.amulet-found-text,
+.you-died-text {
     position: absolute;
     left: 50%;
     font-weight: bold;
@@ -1875,6 +1830,19 @@ input:checked + .slider:before {
     font-size: 36px;
     color: var(--red-bright);
     letter-spacing: 3px;
+    text-shadow:
+        0 0 20px rgba(220, 20, 60, 1),
+        0 0 40px rgba(139, 0, 0, 0.8),
+        0 0 60px rgba(139, 0, 0, 0.6),
+        3px 3px 6px #000;
+    animation: bossSpawnAnimation 3s ease-out forwards;
+}
+
+.you-died-text {
+    top: 50%;
+    font-size: 72px;
+    color: var(--red-bright);
+    letter-spacing: 6px;
     text-shadow:
         0 0 20px rgba(220, 20, 60, 1),
         0 0 40px rgba(139, 0, 0, 0.8),
@@ -2068,7 +2036,7 @@ input:checked + .slider:before {
 .node.maxed{border-color:var(--acolyte-max);box-shadow:0 0 20px rgba(212,170,255,.75),0 0 38px rgba(147,112,219,.45),inset 0 0 14px rgba(180,130,255,.18)}
 .node.locked{opacity:.35;cursor:not-allowed;border-color:rgba(100,80,70,.45)}
 .node.locked:hover{transform:none}
-.node.bvow{border-radius:50%;width:56px;height:56px;border:3px solid var(--acolyte-base)}
+.node.bvow{border-radius:50%;width:56px;height:56px;border:3px solid transparent;background:linear-gradient(145deg,#1e0e0a,#2d1810) padding-box,linear-gradient(135deg,#fff 50%,#b06eff 50%) border-box}
 .node.bvow.partial,.node.bvow.maxed{border:3px solid transparent;background:linear-gradient(145deg,#1e0e0a,#2d1810) padding-box,linear-gradient(135deg,#fff 50%,#b06eff 50%) border-box}
 .node.bvow.partial{box-shadow:0 0 18px rgba(255,255,255,.55),0 0 22px rgba(176,110,255,.65),0 0 40px rgba(176,110,255,.35)}
 .node.bvow.maxed{box-shadow:0 0 24px rgba(255,255,255,.7),0 0 30px rgba(176,110,255,.85),0 0 55px rgba(176,110,255,.45)}
@@ -2153,7 +2121,196 @@ input:checked + .slider:before {
     100% { opacity: 0; transform: translateX(-50%) translateY(-18px); }
 }
 
-/* Hide debug/dev buttons, no looky :) */
-#debug-skip-wave,
-#debug-level-up,
-#debug-talent-btn { display: none !important; }
+/* ============================================================
+   SORCERESS TALENT TREE — Storm Mastery
+   ============================================================ */
+:root {
+  --sorceress-base:#4169E1;--sorceress-bright:#7090ff;--sorceress-max:#a0bcff;
+  --sorceress-glow:rgba(65,105,225,0.55);
+}
+#stw, #sorc-backdrop {
+  --sorceress-base:#4169E1;--sorceress-bright:#7090ff;--sorceress-max:#a0bcff;
+  --sorceress-glow:rgba(65,105,225,0.55);
+}
+#sorc-backdrop{display:none;position:fixed;inset:0;background:rgba(4,6,18,.82);backdrop-filter:blur(4px);z-index:800;align-items:center;justify-content:center}
+#sorc-backdrop.open{display:flex}
+#stw{position:relative;width:660px;max-height:92vh;background:linear-gradient(145deg,#0e0a1a,#150d28,#0a0818);border:3px solid #2a1a3e;border-radius:12px;box-shadow:0 0 60px rgba(65,105,225,.2),0 0 120px rgba(65,105,225,.08),inset 0 0 50px rgba(0,0,0,.7);overflow:hidden;animation:tw-open .28s cubic-bezier(.34,1.56,.64,1) forwards}
+.sorc-tw-head{border-image:linear-gradient(90deg,transparent,#4169E1,var(--gold),#4169E1,transparent) 1 !important;background:linear-gradient(180deg,rgba(65,105,225,.1),transparent) !important}
+.sorc-tw-sub{color:var(--sorceress-base) !important}
+#stw .tw-pts span, .sorc-pts-val{color:var(--sorceress-bright) !important;font-weight:700;font-size:16px}
+/* Sorceress nodes */
+.sorc-node:hover:not(.locked){border-color:var(--sorceress-base) !important;box-shadow:0 0 12px var(--sorceress-glow) !important;}
+.sorc-node.partial{border-color:rgba(65,105,225,.65) !important;box-shadow:0 0 8px rgba(65,105,225,.3) !important}
+.sorc-node.maxed{border-color:var(--sorceress-max) !important;box-shadow:0 0 20px rgba(160,188,255,.75),0 0 38px rgba(65,105,225,.45),inset 0 0 14px rgba(112,144,255,.18) !important}
+.sorc-bvow{border:3px solid transparent !important;background:linear-gradient(145deg,#060e20,#0a1428) padding-box,linear-gradient(135deg,#fff 50%,#4169E1 50%) border-box !important}
+.sorc-bvow.partial,.sorc-bvow.maxed{background:linear-gradient(145deg,#060e20,#0a1428) padding-box,linear-gradient(135deg,#fff 50%,#4169E1 50%) border-box !important;border-color:transparent !important}
+.sorc-bvow.partial{box-shadow:0 0 18px rgba(255,255,255,.55),0 0 22px rgba(65,105,225,.65),0 0 40px rgba(65,105,225,.35) !important}
+.sorc-bvow.maxed{box-shadow:0 0 24px rgba(255,255,255,.7),0 0 30px rgba(65,105,225,.85),0 0 55px rgba(65,105,225,.45) !important}
+.sorc-fill-inner{background:linear-gradient(180deg,rgba(40,80,190,.4),rgba(65,105,225,.7)) !important}
+.sorc-node.maxed .sorc-fill-inner{background:linear-gradient(180deg,rgba(30,60,160,.55),rgba(112,144,255,.8)) !important}
+.sorc-counter{color:var(--sorceress-base) !important;text-shadow:0 0 6px rgba(65,105,225,.5) !important}
+.sorc-pulse{animation:sorc-talent-pulse 1.6s ease-in-out infinite alternate !important;border-color:var(--sorceress-base) !important}
+@keyframes sorc-talent-pulse{from{box-shadow:0 0 8px var(--sorceress-glow)}to{box-shadow:0 0 22px var(--sorceress-glow),0 0 40px rgba(65,105,225,.3)}}
+
+/* ============================================================
+   SOUL FRAGMENT / CLASS HEX / WEAPON EVOLUTION UI
+   (moved from runtime injection in upgrades.js / weapons.js)
+   ============================================================ */
+
+/* Keyframes */
+@keyframes sfShardFly {
+    0%   { opacity: 1; transform: translate(0,0) rotate(0deg) scale(1); }
+    85%  { opacity: 1; }
+    100% { opacity: 0; transform: var(--tx) rotate(var(--rot)) scale(0.25); }
+}
+@keyframes sfBurstExpand {
+    0%   { transform: scale(1);  opacity: 1; }
+    100% { transform: scale(22); opacity: 0; }
+}
+@keyframes sfLegGlow {
+    0%, 100% { opacity: 0.55; }
+    50%       { opacity: 1;    }
+}
+@keyframes sfReflection {
+    0%   { transform: translateX(-200px) skewX(-18deg); opacity: 0; }
+    8%   { opacity: 1; }
+    92%  { opacity: 1; }
+    100% { transform: translateX(360px)  skewX(-18deg); opacity: 0; }
+}
+@keyframes sfHexReflect {
+    0%   { transform: translateX(-220px) skewX(-20deg); opacity: 0; }
+    6%   { opacity: 0.9; }
+    94%  { opacity: 0.9; }
+    100% { transform: translateX(340px)  skewX(-20deg); opacity: 0; }
+}
+@keyframes sfHexGlow {
+    0%, 100% { opacity: 0.4;  }
+    50%       { opacity: 0.85; }
+}
+@keyframes sfAutoGlow {
+    from { filter: drop-shadow(0 6px  18px rgba(255,215,0,0.3)); }
+    to   { filter: drop-shadow(0 12px 32px rgba(255,215,0,0.9)); }
+}
+@keyframes wevoBgRot {
+    0%   { transform: rotate(0deg);  }
+    50%  { transform: rotate(15deg); }
+    100% { transform: rotate(0deg);  }
+}
+@keyframes wepoFloat {
+    0%   { transform: translate(-50%,-50%) translateY(0px);  }
+    50%  { transform: translate(-50%,-50%) translateY(-9px); }
+    100% { transform: translate(-50%,-50%) translateY(0px);  }
+}
+
+/* ── Shared overlay ── */
+.sf-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 1000;
+    background: linear-gradient(135deg, rgba(20,10,10,0.92) 0%, rgba(40,20,20,0.92) 50%, rgba(20,10,10,0.92) 100%);
+    animation: torchFlicker 4s ease-in-out infinite;
+    overflow: hidden;
+}
+.sf-row { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+
+/* ── Fragment cards ── */
+.sf-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: pointer; }
+.sf-shell { position: relative; filter: drop-shadow(0 6px 18px rgba(0,0,0,0.7)); transition: transform 0.18s ease, filter 0.18s ease; }
+.sf-wrap:hover .sf-shell                 { transform: translateY(-6px) scale(1.04); }
+.sf-wrap:hover .normal-shell             { filter: drop-shadow(0 10px 24px rgba(120,120,120,0.6)); }
+.sf-wrap:hover .magic-shell              { filter: drop-shadow(0 10px 28px rgba(70,130,220,0.7));  }
+.sf-wrap:hover .epic-shell               { filter: drop-shadow(0 10px 28px rgba(160,80,220,0.7));  }
+.sf-wrap:hover .legendary-shell          { filter: drop-shadow(0 10px 32px rgba(255,200,60,0.8));  }
+.sf-text { text-align: center; }
+.name-normal    { color: #a0a0a0; }
+.name-magic     { color: #6aadea; }
+.name-epic      { color: #c07aee; }
+.name-legendary { color: #f0c040; }
+.sf-wrap.sf-disabled                     { cursor: not-allowed; opacity: 0.5; pointer-events: none; }
+.sf-wrap.sf-auto-glow .sf-shell         { animation: sfAutoGlow 0.7s ease-in-out infinite alternate; }
+
+/* ── Hex cards (class upgrade) ── */
+.sf-hex-shell { position: relative; filter: drop-shadow(0 8px 28px rgba(0,0,0,0.8)); transition: transform 0.2s ease, filter 0.2s ease; }
+.sf-wrap:hover .sf-hex-shell            { transform: translateY(-7px) scale(1.05); }
+.sf-wrap:hover .purple-hex              { filter: drop-shadow(0 12px 36px rgba(147,80,255,0.75));  }
+.sf-wrap:hover .blue-hex                { filter: drop-shadow(0 12px 36px rgba(65,120,255,0.75));  }
+.sf-wrap:hover .gold-hex                { filter: drop-shadow(0 12px 36px rgba(255,195,50,0.75));  }
+.sf-wrap.sf-auto-glow .sf-hex-shell    { animation: sfAutoGlow 0.7s ease-in-out infinite alternate; }
+
+/* ── Plaque ── */
+.sf-plaque {
+    position: relative; width: 188px;
+    background: linear-gradient(180deg, #1c1508 0%, #140f04 40%, #120d03 60%, #1a1307 100%);
+    border-radius: 3px; padding: 10px 14px 12px;
+    border-top:    1px solid rgba(200,160,60,0.55);
+    border-left:   1px solid rgba(180,130,40,0.30);
+    border-right:  1px solid rgba(100,70,10,0.25);
+    border-bottom: 1px solid rgba(80,50,5,0.35);
+    box-shadow: inset 0 1px 0 rgba(220,175,70,0.12), inset 0 -1px 0 rgba(0,0,0,0.5), 0 4px 18px rgba(0,0,0,0.7);
+}
+.sf-plaque::before, .sf-plaque::after {
+    content: ''; position: absolute; width: 5px; height: 5px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #c8a040, #5a3a08);
+    border: 1px solid rgba(200,155,40,0.4);
+}
+.sf-plaque::before { top: 5px;    left: 6px;  }
+.sf-plaque::after  { bottom: 5px; right: 6px; }
+.sf-plaque-rule   { display: block; width: 100%; height: 1px; background: linear-gradient(to right, transparent, rgba(180,140,50,0.35), transparent); margin-bottom: 8px; }
+.sf-plaque-rule-b { display: block; width: 100%; height: 1px; background: linear-gradient(to right, transparent, rgba(180,140,50,0.25), transparent); margin-top: 8px; }
+.sf-stat          { display: flex; align-items: baseline; gap: 5px; line-height: 1.55; font-size: 10.5px; }
+.sf-bullet        { font-size: 8px; opacity: 0.55; flex-shrink: 0; position: relative; top: -1px; }
+.sf-stat-text     { font-family: 'Cinzel', 'Georgia', serif; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; }
+.sf-stat.sp .sf-bullet, .sf-stat.sp .sf-stat-text { color: #c090ff; }
+.sf-stat.sb .sf-bullet, .sf-stat.sb .sf-stat-text { color: #80c0ff; }
+.sf-stat.sg .sf-bullet, .sf-stat.sg .sf-stat-text { color: #f0c840; }
+.sf-stat.sn .sf-bullet, .sf-stat.sn .sf-stat-text { color: #d47a7a; }
+.sf-stat.green .sf-bullet, .sf-stat.green .sf-stat-text { color: #9cd47a; }
+
+/* ── Weapon evo cards ── */
+.wevo-shell {
+    position: relative; width: 160px; height: 210px; overflow: hidden; border-radius: 6px;
+    filter: drop-shadow(0 8px 24px rgba(0,0,0,0.8));
+    transition: filter 0.2s ease, transform 0.2s ease;
+}
+.wevo-bg {
+    position: absolute; top: 15%; left: 0; width: 80%; height: 80%;
+    transform: translate(-50%,-50%); object-fit: contain;
+    transform-origin: center; animation: wevoBgRot 6s ease-in-out infinite;
+}
+.wevo-weapon {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    width: 90px; height: 180px; object-fit: contain;
+    animation: wepoFloat 3s ease-in-out infinite;
+    pointer-events: none; filter: drop-shadow(0 4px 16px rgba(0,0,0,0.9)); z-index: 2;
+}
+.sf-wrap:hover .wevo-shell               { filter: drop-shadow(0 14px 32px rgba(0,0,0,0.9)); transform: translateY(-4px); }
+.sf-wrap.aco:hover  .wevo-shell          { filter: drop-shadow(0 12px 28px rgba(140,80,220,0.6));  }
+.sf-wrap.sorc:hover .wevo-shell          { filter: drop-shadow(0 12px 28px rgba(60,160,255,0.6));  }
+.sf-wrap.dk:hover   .wevo-shell          { filter: drop-shadow(0 12px 28px rgba(255,200,50,0.6));  }
+.sf-wrap:nth-child(1) .wevo-weapon       { animation-delay: 0s;    }
+.sf-wrap:nth-child(2) .wevo-weapon       { animation-delay: -1.1s; }
+.wevo-name { font-family: 'Cinzel', 'Georgia', serif; font-size: 16px; font-weight: 700; letter-spacing: 0.08em; text-align: center; margin-top: 14px; margin-bottom: 10px; }
+.wevo-name.aco  { color: #b070e8; }
+.wevo-name.sorc { color: #5ab0f0; }
+.wevo-name.dk   { color: #f0d060; }
+.sf-wrap.wevo-disabled                   { cursor: not-allowed; opacity: 0.5; pointer-events: none; }
+.sf-wrap.sf-auto-glow .wevo-shell        { animation: sfAutoGlow 0.7s ease-in-out infinite alternate; }
+
+/* ── Weapon evo screen title ── */
+.sf-wevo-title { font-family: 'Cinzel Decorative', 'Cinzel', 'Georgia', serif; font-size: 24px; color: #e8d5a0; text-shadow: 0 0 30px rgba(220,190,100,0.4), 0 2px 0 rgba(0,0,0,0.8); letter-spacing: 0.08em; margin-bottom: 4px; text-align: center; }
+.sf-wevo-sub   { font-family: 'IM Fell English', 'Georgia', serif; font-style: italic; font-size: 13px; color: #6a5c42; margin-bottom: 24px; letter-spacing: 0.05em; text-align: center; }
+
+/* ── Animations on SVG elements ── */
+.sf-leg-glow    { animation: sfLegGlow    2.2s ease-in-out infinite; }
+.sf-leg-ref     { animation: sfReflection 2.2s linear       infinite; }
+.sf-hex-glow-anim { animation: sfHexGlow    2.4s ease-in-out infinite; }
+.sf-hex-reflect { animation: sfHexReflect 2.8s linear       infinite; }
+
+/* ── Level-up / class-ascension screen titles ── */
+.sf-screen-title { font-family: 'Cinzel Decorative', 'Cinzel', 'Georgia', serif; font-size: 26px; color: #e8d5a0; text-shadow: 0 0 30px rgba(220,190,100,0.4), 0 2px 0 rgba(0,0,0,0.8); letter-spacing: 0.08em; margin-bottom: 4px; text-align: center; }
+.sf-screen-title.ascension { color: #d090ff; text-shadow: 0 0 30px rgba(160,80,255,0.45), 0 2px 0 rgba(0,0,0,0.8); }
+.sf-screen-sub  { font-family: 'IM Fell English', 'Georgia', serif; font-style: italic; font-size: 13px; color: #6a5c42; margin-bottom: 24px; letter-spacing: 0.05em; text-align: center; }
+.sf-name        { font-family: 'Cinzel', 'Georgia', serif; font-size: 15px; font-weight: 600; letter-spacing: 0.06em; line-height: 1.3; margin-bottom: 2px; }
+.sf-dmgtype     { font-family: 'IM Fell English', 'Georgia', serif; font-style: italic; font-size: 12px; color: #7a6848; line-height: 1.4; }
+.tag-additive        { color: #7eb8c4; }
+.tag-multiplicative  { color: #c4a87e; }

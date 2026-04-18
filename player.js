@@ -36,32 +36,35 @@ class Player {
     }
 
     gainExp(amount) {
-    const mult = 1 + ((gameState.expUpgrades || 0) * this.getSoulsUpgrade('Exp+').valuePerUpgrade);
-    this.exp += amount * mult;
-    if (this.exp >= this.expToNextLevel) processNextLevelUp();
+        const mult = 1 + ((gameState.expUpgrades || 0) * this.getSoulsUpgrade('Exp+').valuePerUpgrade);
+        this.exp += amount * mult;
+        if (this.exp >= this.expToNextLevel) processNextLevelUp();
     }
 
     gainSouls(amount) {
-    const total = amount * gameState.soulMultiplier;
-    gameState.souls = (gameState.souls || 0) + total;
-    this.currentRunSouls += total;
-    saveGameState();
-    updateSoulsUI();
+        const total = amount * gameState.soulMultiplier;
+        gameState.souls = (gameState.souls || 0) + total;
+        this.currentRunSouls += total;
+        saveGameState();
+        updateSoulsUI();
     }
 
     equipAmulet() {
         if (gameState.amuletEquipped) return;
         gameState.amuletEquipped = true;
-        this.getAmuletDamageBonus();
         if (this.weapon) this.weapon.updateDamage();
         updatePlayerStats();
         updateInventoryUI();
     }
 
+    // Returns an ascension-scaled multiplier, shared by amulet and boss damage calculations
+    _ascensionMult() {
+        return Math.max(1, gameState.ascensionLevel + 1);
+    }
+
     getAmuletDamageBonus() {
         if (!gameState.amuletEquipped) return 0;
-        const mult = Math.max(1, gameState.ascensionLevel + 1);
-        let bonus = this.amuletDamage * mult;
+        let bonus = this.amuletDamage * this._ascensionMult();
         const checks = [
             [DivineKnight, 'Acolyte Master'],
             [Acolyte,      'Sorceress Master'],
@@ -76,12 +79,11 @@ class Player {
 
     getBossDamageBonus() {
         if (!gameState.amuletEquipped) return 0;
-        const mult = Math.max(1, gameState.ascensionLevel + 1);
-        let bonus = (this.bossDamageBonus * mult)
-             + (this.additionalBossDamage || 0)
-             + ((gameState.bossDamageUpgrades || 0) * this.getSoulsUpgrade('Boss Damage+').valuePerUpgrade);
+        let bonus = (this.bossDamageBonus * this._ascensionMult())
+            + (this.additionalBossDamage || 0)
+            + ((gameState.bossDamageUpgrades || 0) * this.getSoulsUpgrade('Boss Damage+').valuePerUpgrade);
         // Umbral Collapse: +100% boss damage when using Umbral Staff
-        if (this.weapon && this.weapon.name === 'Umbral Staff' && alloc['umbral_collapse'] >= 1) {
+        if (this.weapon?.name === 'Umbral Staff' && alloc['umbral_collapse'] >= 1) {
             bonus += 1.0;
         }
         return bonus;
@@ -129,6 +131,11 @@ class Player {
     }
 }
 
+// Returns value * ranks, doubled if ranks >= 5 (talent node scaling pattern)
+function talentBonus(ranks, value) {
+    return ranks * value * (ranks >= 5 ? 2 : 1);
+}
+
 function initializePlayer(playerClass) {
     const classMap = { 'Acolyte': Acolyte, 'Sorceress': Sorceress, 'Divine Knight': DivineKnight };
     if (!classMap[playerClass]) return;
@@ -153,12 +160,16 @@ function initializePlayer(playerClass) {
 
     // Apply Acolyte talent node stat bonuses
     if (player instanceof Acolyte) {
-        const vrRanks = alloc['void_rupture'];
-        player.critDamage += vrRanks * 0.10 * (vrRanks >= 5 ? 2 : 1);
-        const dpRanks = alloc['dark_precision'];
-        player.adjustCritChance(dpRanks * 0.01 * (dpRanks >= 5 ? 2 : 1));
-        const svRanks = alloc['siphon_vitality'];
-        player.hpRegen += svRanks * 0.05 * (svRanks >= 5 ? 2 : 1);
+        player.critDamage += talentBonus(alloc['void_rupture'], 0.10);
+        player.adjustCritChance(talentBonus(alloc['dark_precision'], 0.01));
+        player.hpRegen += talentBonus(alloc['siphon_vitality'], 0.05);
+    }
+
+    // Apply Sorceress talent node stat bonuses
+    if (player instanceof Sorceress) {
+        player.adjustCritChance(talentBonus(sorcAlloc['storm_precision'], 0.015));
+        player.attacksPerSecond += talentBonus(sorcAlloc['static_acceleration'], 0.04);
+        player.critDamage += talentBonus(sorcAlloc['lethal_current'], 0.10);
     }
 
     player.updateCooldownReduction();
@@ -190,7 +201,7 @@ function updatePlayer() {
             enemy instanceof EliteEnemy ? [3, 4000, 1000] :
             /* regular Enemy */           [1, 2000, 500];
 
-        if (!enemy.lastDamageTime || now - enemy.lastDamageTime >= cd) {
+        if ((!enemy.lastDamageTime || now - enemy.lastDamageTime >= cd) && !enemy.element.classList.contains('frozen')) {
             player.takeDamage(dmg);
             enemy.lastDamageTime = now;
             const audio = document.getElementById('skeleattmu');

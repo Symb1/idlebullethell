@@ -35,9 +35,19 @@ class Enemy {
     }
 
     getRandomPosition() {
+        const r = this.radius || 10;
+        const maxX = 800 - r * 2;
+        const maxY = 600 - r * 2;
         const side = Math.floor(Math.random() * 4);
-        const x = side % 2 === 0 ? Math.random() * 800 : (side === 1 ? 800 : 0);
-        const y = side % 2 === 1 ? Math.random() * 600 : (side === 2 ? 600 : 0);
+        // Each side spawns flush to an edge but within the valid clamped range
+        const x = side === 0 ? Math.random() * maxX :   // top edge
+                  side === 1 ? maxX                 :   // right edge
+                  side === 2 ? Math.random() * maxX :   // bottom edge
+                               0;                       // left edge
+        const y = side === 0 ? 0                    :   // top edge
+                  side === 1 ? Math.random() * maxY :   // right edge
+                  side === 2 ? maxY                 :   // bottom edge
+                               Math.random() * maxY;    // left edge
         return { x, y };
     }
 
@@ -105,6 +115,12 @@ class Enemy {
             const sx = this.position.x - other.position.x;
             const sy = this.position.y - other.position.y;
             const dist = Math.hypot(sx, sy);
+            // Guard: two enemies exactly overlapping would produce NaN — nudge to break the tie
+            if (dist === 0) {
+                this.position.x += (Math.random() - 0.5) * 2;
+                this.position.y += (Math.random() - 0.5) * 2;
+                return;
+            }
             if (dist < this.radius + other.radius) {
                 const overlap = (this.radius + other.radius - dist) / 2;
                 const px = (sx / dist) * overlap;
@@ -113,6 +129,9 @@ class Enemy {
                 this.position.y  += py;
                 other.position.x -= px;
                 other.position.y -= py;
+                // Clamp other so a push can never shove it outside the arena
+                other.position.x = Math.max(0, Math.min(other.position.x, 800 - other.radius * 2));
+                other.position.y = Math.max(0, Math.min(other.position.y, 600 - other.radius * 2));
                 vx += px * 0.1;
                 vy += py * 0.1;
             }
@@ -199,7 +218,7 @@ class Enemy {
         if (this.isDying) return;
         this.isDying = true;
         this.playDeathSound(isCritical);
-        player.gainSouls(Math.floor(this.maxHp * 0.15));
+        player.gainSouls(Math.floor(this.maxHp * 0.1));
         player.gainExp(10 * this.getExpMultiplier());
         this.element.classList.add('dying');
         setTimeout(() => {
@@ -291,7 +310,7 @@ class EliteEnemy extends Enemy {
         if (this.isDying) return;
         this.isDying = true;
         this.playDeathSound(isCritical, 0.3);
-        player.gainSouls(Math.floor(this.maxHp * 0.2));
+        player.gainSouls(Math.floor(this.maxHp * 0.15));
 
         this.activeEffects.forEach(effect => {
                 clearTimeout(effect.timer);

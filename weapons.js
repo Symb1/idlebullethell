@@ -19,24 +19,44 @@ function initializeWeapon(playerClass, weaponName = null) {
     }
     // Apply Acolyte talent bonuses post-weapon init
     if (player instanceof Acolyte) {
+        const aAlloc = typeof alloc !== 'undefined' ? alloc : null;
         // abyssal_core: +0.5 base damage per rank
-        if (typeof alloc !== 'undefined' && alloc['abyssal_core'] > 0) {
-            player.weapon.baseDamage += alloc['abyssal_core'] * 1.0;
+        if (aAlloc && aAlloc['abyssal_core'] > 0) {
+            player.weapon.baseDamage += aAlloc['abyssal_core'] * 1.0;
             player.weapon.damage = player.weapon.baseDamage;
         }
         // Umbral Collapse: +10% crit chance when Umbral Staff is equipped
-        if (typeof alloc !== 'undefined' && alloc['umbral_collapse'] >= 1 && player.weapon && player.weapon.name === 'Umbral Staff') {
+        if (aAlloc && aAlloc['umbral_collapse'] >= 1 && player.weapon && player.weapon.name === 'Umbral Staff') {
             player.adjustCritChance(0.10);
         }
         // Group C Binding Vow — reduce penalties of chosen class shard
         const chosen = player.classUpgradeChosen;
-        if (chosen && typeof alloc !== 'undefined') {
+        if (chosen && aAlloc) {
             // These bonuses would apply to weapon-specific penalty modifiers
             // They are stored on the weapon for use in upgrade screens
-            player.weapon.temporalExcellenceRanks    = alloc['temporal_excellence']    || 0;
-            player.weapon.abyssalExcellenceRanks     = alloc['abyssal_excellence']     || 0;
-            player.weapon.ravenousExcellenceRanks    = alloc['ravenous_excellence']    || 0;
+            player.weapon.temporalExcellenceRanks    = aAlloc['temporal_excellence']    || 0;
+            player.weapon.abyssalExcellenceRanks     = aAlloc['abyssal_excellence']     || 0;
+            player.weapon.ravenousExcellenceRanks    = aAlloc['ravenous_excellence']    || 0;
         }
+    }
+
+    // Apply Sorceress talent bonuses post-weapon init
+    if (player instanceof Sorceress) {
+        const sAlloc = typeof sorcAlloc !== 'undefined' ? sorcAlloc : null;
+        // arcane_voltage: +1 base damage per rank
+        if (sAlloc && sAlloc['arcane_voltage'] > 0) {
+            player.weapon.baseDamage += sAlloc['arcane_voltage'] * 1.0;
+            player.weapon.damage = player.weapon.baseDamage;
+        }
+        // unbroken_current: Chain Wand no chain damage penalty, +2 chain targets
+        if (sAlloc && sAlloc['unbroken_current'] >= 1 && player.weapon instanceof ChainWand) {
+            player.weapon.chainDamageMultiplier = 1.0;
+            player.weapon.chainCount += 2;
+        }
+        // Excellence ranks stored on weapon
+        player.weapon.spellweaversExcellenceRanks = (sAlloc && sAlloc['spellweavers_excellence']) || 0;
+        player.weapon.nexusExcellenceRanks        = (sAlloc && sAlloc['nexus_excellence'])        || 0;
+        player.weapon.stormheartExcellenceRanks   = (sAlloc && sAlloc['stormheart_excellence'])   || 0;
     }
     player.weapon.updateDamage();
 }
@@ -54,22 +74,20 @@ class Weapon {
         this.lastAbilityUseTime = 0;
         this.globalRange = globalRange;
         this.chainRange = chainRange;
-        
     }
 
     attack() {
-    const now = Date.now();
-    const aps = this.getAttackSpeed ? this.getAttackSpeed() : player.attacksPerSecond;
-    if (now - this.lastAttackTime >= 1000 / aps) {
-        this.performAttack();
-        this.lastAttackTime = now;
+        const now = Date.now();
+        const aps = this.getAttackSpeed();
+        if (now - this.lastAttackTime >= 1000 / aps) {
+            this.performAttack();
+            this.lastAttackTime = now;
+        }
     }
-}
 
-
-getAttackSpeed() {
-    return player.attacksPerSecond;
-}
+    getAttackSpeed() {
+        return player.attacksPerSecond;
+    }
 
     triggerPlayerAttackAnimation() {
         const playerElement = document.getElementById('player');
@@ -153,7 +171,6 @@ getAttackSpeed() {
             if (!this._eternalTormentReset) {
                 this.lastAbilityUseTime = now;
             }
-            this._eternalTormentReset = false;
             this.showAbilityCooldown();
         }
     }
@@ -217,9 +234,9 @@ class BasicStaff extends Weapon {
 
 class BasicWand extends Weapon {
     constructor() {
-        super('Basic Wand', 10, 20, 'Lightning Storm', 200, 275);
-        this.chainCount = 3;
-        this.chainDamageMultiplier = 0.70;
+        super('Basic Wand', 10, 20, 'Lightning Storm', 200, 100);
+        this.chainCount = 2;
+        this.chainDamageMultiplier = 0.75;
     }
 
     performAttack() {
@@ -236,6 +253,20 @@ class BasicWand extends Weapon {
             enemy.takeDamage(abilityDamage, false);
             drawSkyLightning(enemy.position.x + enemy.radius, enemy.position.y + enemy.radius);
         });
+
+        // Tempest Echo: chance to recast Lightning Storm after 1 sec
+        const echoRanks = typeof sorcAlloc !== 'undefined' ? sorcAlloc['tempest_echo'] : 0;
+        if (echoRanks > 0 && Math.random() < echoRanks * 0.10) {
+            setTimeout(() => {
+                if (!player || !player.weapon) return;
+                const echoMax = echoRanks >= 3;
+                const echoDmg = echoMax ? abilityDamage * 2 : abilityDamage;
+                enemies.forEach(enemy => {
+                    enemy.takeDamage(echoDmg, false);
+                    drawSkyLightning(enemy.position.x + enemy.radius, enemy.position.y + enemy.radius);
+                });
+            }, 1000);
+        }
     }
 
     dealDamageWithChain(target, initialDamage, isCritical) {
@@ -247,18 +278,65 @@ class BasicWand extends Weapon {
             { x: target.position.x + target.radius, y: target.position.y + target.radius }
         ];
 
+        // Conductor's Oath: if first hit critted, all chains also crit (no crit penalty)
+        const conductorsOath = typeof sorcAlloc !== 'undefined' && sorcAlloc['conductors_oath'] >= 1;
+        // Chain Reverb only applies when a Chain Wand is equipped
+        const chainReverb    = (typeof sorcAlloc !== 'undefined' && this instanceof ChainWand) ? sorcAlloc['chain_reverb'] : 0;
+
         let remaining = this.chainCount;
         let currentDamage = initialDamage;
         let lastHit = target;
+        // first chain crit reduction (-30%) unless Conductor's Oath + first hit crit
+        let chainCritChance = (conductorsOath && isCritical) ? player.critChance : player.critChance * 0.70;
+        let chainStep = 1; // used for crit reduction accumulation
 
         while (remaining > 0 && enemies.length > 0) {
             const next = this.findRandomEnemyInChainRange(lastHit);
-            if (!next) break;
+
+            // Chain Reverb: no-target fallback — only the next 2 remaining chains can fall back to primary
+            if (!next) {
+                if (chainReverb > 0) {
+                    const fallbackChance = chainReverb * 0.08;
+                    // Cap fallback attempts to 2 regardless of remaining chain count
+                    const fallbackAttempts = Math.min(remaining, 2);
+                    for (let fb = 0; fb < fallbackAttempts; fb++) {
+                        if (Math.random() < fallbackChance) {
+                            const fbDamage = currentDamage * Math.pow(this.chainDamageMultiplier, fb);
+                            // Conductor's Oath: if first hit critted, fallback hits also crit
+                            const fbCritChance = (conductorsOath && isCritical) ? player.critChance : chainCritChance * Math.pow(0.70, fb);
+                            const fbCrit = (conductorsOath && isCritical) ? true : Math.random() < fbCritChance;
+                            const fbDmg  = fbCrit ? fbDamage * player.critDamage : fbDamage;
+                            this.dealDamageToEnemy(target, fbDmg, fbCrit);
+                            chainPath.push({ x: target.position.x + target.radius, y: target.position.y + target.radius });
+                            drawChainReverbCollapse(target.position.x + target.radius, target.position.y + target.radius, fbCrit);
+                        }
+                    }
+                }
+                break;
+            }
+
             currentDamage *= this.chainDamageMultiplier;
-            this.dealDamageToEnemy(next, currentDamage, isCritical);
+            // Conductor's Oath: if first hit critted, chain hits also crit (guaranteed)
+            const chainIsCrit = (conductorsOath && isCritical) ? true : Math.random() < chainCritChance;
+            const chainDmg = chainIsCrit ? currentDamage * player.critDamage : currentDamage;
+            this.dealDamageToEnemy(next, chainDmg, chainIsCrit);
             chainPath.push({ x: next.position.x + next.radius, y: next.position.y + next.radius });
+
+            // Chain Reverb: chance to hit same chained target again (8% per rank)
+            if (chainReverb > 0 && Math.random() < chainReverb * 0.08) {
+                // Conductor's Oath: reverb echo also crits if first hit critted
+                const echoIsCrit = (conductorsOath && isCritical) ? true : Math.random() < chainCritChance;
+                const echoDmg = echoIsCrit ? currentDamage * player.critDamage : currentDamage;
+                this.dealDamageToEnemy(next, echoDmg, echoIsCrit);
+                chainPath.push({ x: next.position.x + next.radius, y: next.position.y + next.radius });
+            }
+
             remaining--;
             lastHit = next;
+            chainStep++;
+            if (!(conductorsOath && isCritical)) {
+                chainCritChance *= 0.70; // another -30% reduction per subsequent chain
+            }
         }
 
         drawLightningChain(chainPath, isCritical);
@@ -357,54 +435,85 @@ function updateWeapon() {
 function showWeaponEvolutionScreen() {
     gameState.isPaused = true;
 
-    const gameArea = document.getElementById('game-area');
-    let evolutionScreen = document.getElementById('weapon-evolution');
+    document.getElementById('weapon-evolution')?.remove();
 
-    if (!evolutionScreen) {
-        evolutionScreen = document.createElement('div');
-        evolutionScreen.id = 'weapon-evolution';
-        gameArea.appendChild(evolutionScreen);
-    }
+    const overlay = document.createElement('div');
+    overlay.id = 'weapon-evolution';
+    overlay.className = 'sf-overlay';
+    const gameArea = document.getElementById('game-area') || document.body;
+    gameArea.appendChild(overlay);
 
-    evolutionScreen.innerHTML = '<h2 class="evolution-title">Choose Your Weapon Evolution</h2>';
+    const title = document.createElement('h1');
+    title.className = 'sf-wevo-title';
+    title.textContent = 'Weapon Evolution';
+    overlay.appendChild(title);
 
-    const evolutionOptions = document.createElement('div');
-    evolutionOptions.id = 'evolution-options';
-    evolutionScreen.appendChild(evolutionOptions);
+    const sub = document.createElement('p');
+    sub.className = 'sf-wevo-sub';
+    sub.textContent = 'Choose the path of your weapon\'s ascension';
+    overlay.appendChild(sub);
+
+    const row = document.createElement('div');
+    row.className = 'sf-row';
+    overlay.appendChild(row);
 
     const weaponOptions = getWeaponEvolutionOptions(player.class);
     const isAuto = gameState.autoWeaponEvolutionEnabled;
+    const classKey = player.class === 'Acolyte' ? 'aco' : player.class === 'Sorceress' ? 'sorc' : 'dk';
+
+    const bgImgMap   = { aco:'img/weapons/weapBcgAco.png', sorc:'img/weapons/weapBcgSor.png', dk:'img/weapons/weapBcgDK.png' };
+    const weapImgMap = {
+        'Vortex Staff':'img/weapons/acoVortexStaff.png', 'Umbral Staff':'img/weapons/acoUmbralStaff.png',
+        'Chain Wand':'img/weapons/sorcChainWand.png',    'Spark Wand':'img/weapons/sorcSparkWand.png',
+        'Blessed Shield':'img/weapons/dkBlessedShield.png','Smite Shield':'img/weapons/dkSmiteShield.png',
+    };
 
     weaponOptions.forEach((weapon, index) => {
-        const card = document.createElement('div');
-        card.className = 'upgrade-card evolution-card';
-        card.dataset.index = index;
+        const wrap = document.createElement('div');
+        wrap.className = `sf-wrap ${classKey}${isAuto ? ' wevo-disabled' : ''}`;
+        wrap.dataset.index = index;
 
-        const statsHTML = weapon.stats
-            .map(stat => `<p class="stat-${stat.type}">✦ ${stat.text}</p>`)
-            .join('');
+        const bgSrc   = bgImgMap[classKey]    || '';
+        const weapSrc = weapImgMap[weapon.name] || '';
+        const imgHtml = `
+          <img class="wevo-bg"     src="${bgSrc}"   alt="" onerror="this.style.display='none'">
+          <img class="wevo-weapon" src="${weapSrc}" alt="${weapon.name}" onerror="this.style.display='none'">`;
 
-        card.innerHTML = `
-            <div class="evolution-name">${weapon.name}</div>
-            ${weapon.flavor ? `<div class="upgrade-flavor">${weapon.flavor}</div>` : ''}
-            <div class="evolution-description">${statsHTML}</div>
-        `;
+        const statsHtml = weapon.stats.map(s =>
+            `<div class="sf-stat ${s.type === 'positive' ? 'green' : s.type === 'negative' ? 'sn' : 'sg'}">` +
+            `<span class="sf-bullet">✦</span><span class="sf-stat-text">${s.text}</span></div>`
+        ).join('');
 
-        if (isAuto) {
-            card.classList.add('disabled');
-        } else {
-            card.addEventListener('click', () => selectWeaponEvolution(weapon));
+        wrap.innerHTML = `
+          <div class="wevo-shell">${imgHtml}</div>
+          <div class="wevo-name ${classKey}">${weapon.name}</div>
+          <div class="sf-plaque">
+            <span class="sf-plaque-rule"></span>
+            ${statsHtml}
+            <span class="sf-plaque-rule-b"></span>
+          </div>`;
+
+        if (!isAuto) {
+            wrap.addEventListener('click', () => {
+                // Immediately lock ALL cards to prevent double-picks
+                row.querySelectorAll('.sf-wrap').forEach(w => w.style.pointerEvents = 'none');
+                // Play weapon level up sound
+                const wepLvlUpSound = document.getElementById('weaponLvlUpSnd');
+                if (wepLvlUpSound) { wepLvlUpSound.currentTime = 0; wepLvlUpSound.volume = 0.5; wepLvlUpSound.play().catch(()=>{}); }
+                // Fade out briefly then select
+                wrap.style.transition = 'opacity 0.25s, transform 0.25s';
+                wrap.style.opacity = '0';
+                wrap.style.transform = 'scale(0.92) translateY(-8px)';
+                setTimeout(() => selectWeaponEvolution(weapon), 280);
+            });
         }
-
-        evolutionOptions.appendChild(card);
+        row.appendChild(wrap);
     });
-
-    evolutionScreen.style.display = 'flex';
 
     if (isAuto) {
         const selectedWeapon = autoSelectWeaponEvolution(weaponOptions);
-        const selectedIndex = weaponOptions.indexOf(selectedWeapon);
-        evolutionOptions.querySelector(`[data-index="${selectedIndex}"]`).classList.add('auto-select-glow2');
+        const selectedIndex  = weaponOptions.indexOf(selectedWeapon);
+        row.querySelector(`[data-index="${selectedIndex}"]`)?.classList.add('sf-auto-glow');
         setTimeout(() => selectWeaponEvolution(selectedWeapon), 3000);
     }
 }
@@ -425,8 +534,7 @@ function autoSelectWeaponEvolution(weaponOptions) {
 }
 
 function hideWeaponEvolutionScreen() {
-    const el = document.getElementById('weapon-evolution');
-    if (el) el.style.display = 'none';
+    document.getElementById('weapon-evolution')?.remove();
 }
 
 function getWeaponEvolutionOptions(playerClass) {
@@ -500,8 +608,7 @@ class VortexStaff extends BasicStaff {
     }
 
     splashDamage(centerEnemy, originalDamage) {
-        const splashMult = (this.splashMultiplier !== undefined) ? this.splashMultiplier : 0.5;
-        const splashBase = originalDamage * splashMult;
+        const splashBase = originalDamage * this.splashMultiplier;
         enemies.forEach(enemy => {
             if (enemy !== centerEnemy && calculateDistance(centerEnemy.position, enemy.position) <= this.splashRange) {
                 const isSplashCrit = Math.random() < player.critChance;
@@ -531,7 +638,7 @@ class UmbralStaff extends BasicStaff {
     constructor() {
         super();
         this.name = 'Umbral Staff';
-        this.baseDamage = 35;
+        this.baseDamage = 36;
         this.baseCooldown = 25;
         this.globalRange = 450;
         // umbral_zenith talent: -1s cooldown per rank
@@ -547,7 +654,7 @@ class UmbralStaff extends BasicStaff {
         const hasVoidAscension  = typeof alloc !== 'undefined' && alloc['void_ascension']  >= 1;
         const stats = [
             { text: 'High Single Target Damage', type: 'positive' },
-            { text: 'Ability Guaranteed Crit', type: 'positive' },
+            { text: 'Ability Always Crits, -50% Dmg', type: 'positive' },
             { text: `Range: ${this.globalRange}`, type: 'positive' },
             { text: `Ability Cooldown: ${this.baseCooldown}s`, type: 'neutral' },
         ];
@@ -571,14 +678,10 @@ class UmbralStaff extends BasicStaff {
                 drawVoidBlast(target.position.x + target.radius, target.position.y + target.radius, true);
                 if (target instanceof EliteEnemy) checkEternalTormentReset(this, target, shotDmg);
             }
-            return target;
         };
 
-        const firstTarget = fireShot();
-        if (typeof alloc !== 'undefined' && alloc['void_ascension'] >= 1) {
-            fireShot();
-            fireShot();
-        }
+        const shotCount = (typeof alloc !== 'undefined' && alloc['void_ascension'] >= 1) ? 3 : 1;
+        for (let i = 0; i < shotCount; i++) fireShot();
     }
 
     findRandomTarget() {
@@ -593,27 +696,32 @@ class ChainWand extends BasicWand {
         super();
         this.name = 'Chain Wand';
         this.baseDamage = 16;
-        this.baseCooldown = 28;
-        this.globalRange = 225;
-        this.chainRange = 325;
-        this.chainCount = 6;
+        this.baseCooldown = 30;
+        this.globalRange = 215;
+        this.chainRange = 150;
+        this.chainCount = 4; // BasicWand 2 + extra 2
         this.chainDamageMultiplier = 0.85;
         this.damage = this.baseDamage;
         this.updateDamage();
     }
 
     getEvolutionStats() {
-        return [
-            { text: `Chains: +3 targets`, type: 'positive' },
-            { text: `Chain Damage: +${((this.chainDamageMultiplier - 0.70) * 100).toFixed(0)}% Increase`, type: 'positive' },
+        const chainReverbRanks = typeof sorcAlloc !== 'undefined' ? sorcAlloc['chain_reverb'] : 0;
+        const stats = [
+            { text: `Chains: +2 targets`, type: 'positive' },
+            { text: `Chain Damage: +10% increase`, type: 'positive' },
             { text: `Ability Cooldown: ${this.baseCooldown}s`, type: 'neutral' },
-            { text: 'Ability Guaranteed Crit, -25% Damage', type: 'neutral' },
-            { text: `Range: ${this.globalRange} / Chain ${this.chainRange}`, type: this.globalRange < 200 ? 'negative' : this.globalRange <= 400 ? 'neutral' : 'positive' }
+            { text: 'Ability Always Crits, -50% Dmg', type: 'neutral' },
+            { text: `Range: ${this.globalRange} / Chain ${this.chainRange}`, type: 'neutral' }
         ];
+        if (chainReverbRanks >= 1) {
+            stats.push({ text: 'Chain Reverb: Active', type: 'positive' });
+        }
+        return stats;
     }
 
     performAbility() {
-        const abilityDamage = this.damage * player.critDamage * 0.75;
+        const abilityDamage = this.damage * player.critDamage * 0.50;
         enemies.forEach(enemy => {
             enemy.takeDamage(abilityDamage, true);
             drawSkyLightning(enemy.position.x + enemy.radius, enemy.position.y + enemy.radius);
@@ -625,57 +733,104 @@ class SparkWand extends BasicWand {
     constructor() {
         super();
         this.name = 'Spark Wand';
-        this.baseDamage = 3;
-        this.baseCooldown = 20;
+        this.baseDamage = 1;
+        this.baseCooldown = 25;
         this.globalRange = 1000;
         this.chainRange = 0;
-        this.freezeDuration = 2.5;
+        this.chainCount = 0;
+        this.freezeDuration = 2;
         this.damage = this.baseDamage;
         this.abilityName = 'Flash Freeze';
         this.updateDamage();
     }
 
     getEvolutionStats() {
+        const cdRanks = typeof sorcAlloc !== 'undefined' ? sorcAlloc['charged_dominance'] : 0;
+        const shockChance = Math.round((0.25 + cdRanks * 0.05) * 100);
         return [
             { text: 'Hits All Enemies', type: 'positive' },
-            { text: 'Damage: -70%', type: 'negative' },
+            { text: 'Damage drastically lowered', type: 'negative' },
             { text: 'Ability: Flash Freeze', type: 'positive' },
             { text: `Freeze Duration: ${this.freezeDuration}s`, type: 'positive' },
             { text: `Ability Cooldown: ${this.baseCooldown}s`, type: 'neutral' },
-            { text: `Range: ${this.globalRange}`, type: 'positive' }
+            { text: `Chance to apply Shock: ${shockChance}%`, type: 'positive' }
         ];
     }
 
-    performAttack() {
-    const target = this.findNearestEnemy();
-    if (target) {
-        const { damage, isCritical } = this.calculateDamage();
-        this.triggerPlayerAttackAnimation();
-        enemies.forEach(enemy => {
-            this.dealDamageToEnemy(enemy, damage, isCritical);
-            // Sky-strike bolt per enemy instead of flat chain bolt
-            drawSparkAttackLightning(
-                enemy.position.x + enemy.radius,
-                enemy.position.y + enemy.radius,
-                isCritical
-            );
-        });
+    applyShock(enemy, isBoss = false) {
+        // Charged Dominance: +5% base chance per rank (+15% vs bosses per rank)
+        const cdRanks = typeof sorcAlloc !== 'undefined' ? sorcAlloc['charged_dominance'] : 0;
+        const baseChance = 0.25 + (cdRanks * 0.05) + (isBoss ? cdRanks * 0.15 : 0);
+        if (Math.random() < baseChance) {
+            enemy.shockStacks = (enemy.shockStacks || 0) + 1;
+        }
     }
-}
 
-performAbility() {
-    enemies.forEach(enemy => {
-        this.stunEnemy(enemy);
-    });
-}
+    getShockDamageMultiplier(enemy) {
+        const stacks = enemy.shockStacks || 0;
+        // Overcharge: 15% per stack instead of 10%
+        const overcharge = typeof sorcAlloc !== 'undefined' && sorcAlloc['overcharge'] >= 1;
+        return 1 + stacks * (overcharge ? 0.15 : 0.10);
+    }
 
-    stunEnemy(enemy) {
-        enemy.applySpeedEffect(0, this.freezeDuration * 1000);
+    performAttack() {
+        const target = this.findNearestEnemy();
+        if (target) {
+            this.triggerPlayerAttackAnimation();
+            enemies.forEach(enemy => {
+                // Crit is rolled independently per enemy
+                const { damage, isCritical } = this.calculateDamage();
+                const isBoss = typeof Boss !== 'undefined' && enemy instanceof Boss;
+                const shockMult = this.getShockDamageMultiplier(enemy);
+                this.dealDamageToEnemy(enemy, damage * shockMult, isCritical);
+                this.applyShock(enemy, isBoss);
+                drawSparkAttackLightning(
+                    enemy.position.x + enemy.radius,
+                    enemy.position.y + enemy.radius,
+                    isCritical
+                );
+            });
+        }
+    }
+
+    performAbility() {
+        const shockInfusion = typeof sorcAlloc !== 'undefined' && sorcAlloc['shock_infusion'] >= 1;
+        enemies.forEach(enemy => {
+            this.stunEnemy(enemy);
+            // Shock Infusion: automatically apply 12 stacks of Shock on Flash Freeze
+            if (shockInfusion) {
+                enemy.shockStacks = (enemy.shockStacks || 0) + 12;
+            }
+        });
+
+        // Tempest Echo: chance to recast Flash Freeze after 1 sec
+        const echoRanks = typeof sorcAlloc !== 'undefined' ? sorcAlloc['tempest_echo'] : 0;
+        if (echoRanks > 0 && Math.random() < echoRanks * 0.10) {
+            setTimeout(() => {
+                if (!player || !player.weapon) return;
+                const echoMax = echoRanks >= 3;
+                enemies.forEach(enemy => {
+                    const dur = echoMax ? this.freezeDuration * 2 : this.freezeDuration;
+                    this._stunEnemyDuration(enemy, dur);
+                    if (shockInfusion) {
+                        enemy.shockStacks = (enemy.shockStacks || 0) + 12;
+                    }
+                });
+            }, 1000);
+        }
+    }
+
+    _stunEnemyDuration(enemy, dur) {
+        enemy.applySpeedEffect(0, dur * 1000);
         enemy.element.classList.add('frozen');
         setTimeout(() => {
             enemy.speed = enemy.baseSpeed;
             enemy.element.classList.remove('frozen');
-        }, this.freezeDuration * 1000);
+        }, dur * 1000);
+    }
+
+    stunEnemy(enemy) {
+        this._stunEnemyDuration(enemy, this.freezeDuration);
     }
 }
 
@@ -726,11 +881,6 @@ class SmiteShield extends BasicShield {
 
     getAttackSpeed() {
         return player.attacksPerSecond + this.attackSpeedBonus;
-    }
-
-    updateDamage() {
-        super.updateDamage();
-
     }
 
     getEvolutionStats() {
