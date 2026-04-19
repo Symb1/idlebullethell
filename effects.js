@@ -860,3 +860,98 @@ function _sfClassHexSVG(upgrade) {
         ${line2 ? `<text x="80" y="${y2}" text-anchor="middle" font-family="'Cinzel','Georgia',serif" font-size="${fs}" font-weight="700" fill="${textFill}" opacity="0.97">${line2}</text>` : ''}
       </svg>`};
 }
+// ─────────────────────────────────────────────
+//  drawDivineAura  –  Divine Knight pulsing aura
+//
+//  Spawns gradient rings that radiate outward
+//  from the aura boundary with staggered timing,
+//  giving a "breathing holy energy" feel.
+//  Called every frame from updateAuraVisual().
+// ─────────────────────────────────────────────
+
+(function () {
+    let _auraRafId  = null;
+    let _auraActive = false;
+
+    // Two overlapping pulses staggered by half a cycle so the glow is
+    // always present — one blooming while the other fades.
+    const PULSE_DUR   = 3600;  // ms per expand cycle
+    const PULSE_COUNT = 2;
+
+    function ensureAuraCanvas() {
+        let cvs = document.getElementById('divine-aura-canvas');
+        if (!cvs) {
+            cvs = document.createElement('canvas');
+            cvs.id = 'divine-aura-canvas';
+            cvs.style.cssText = 'position:absolute;left:0;top:0;width:800px;height:600px;pointer-events:none;z-index:2;';
+            cvs.width  = 800;
+            cvs.height = 600;
+            const ga = document.getElementById('game-area');
+            if (ga) ga.appendChild(cvs);
+        }
+        return cvs;
+    }
+
+    window.updateDivineAuraPulse = function (cx, cy, radius, fireMode) {
+        if (!_auraActive) _startAuraLoop();
+        window._divineAuraState = { cx, cy, radius, fireMode };
+    };
+
+    window.stopDivineAuraPulse = function () {
+        _auraActive = false;
+        if (_auraRafId) { cancelAnimationFrame(_auraRafId); _auraRafId = null; }
+        const cvs = document.getElementById('divine-aura-canvas');
+        if (cvs) { cvs.getContext('2d').clearRect(0, 0, cvs.width, cvs.height); }
+    };
+
+    function _startAuraLoop() {
+        _auraActive = true;
+        const origin = performance.now();
+
+        function loop(ts) {
+            if (!_auraActive) return;
+            const cvs = ensureAuraCanvas();
+            const ctx = cvs.getContext('2d');
+            ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+            const state = window._divineAuraState;
+            if (!state) { _auraRafId = requestAnimationFrame(loop); return; }
+
+            const { cx, cy, radius, fireMode } = state;
+            const elapsed = ts - origin;
+
+            for (let i = 0; i < PULSE_COUNT; i++) {
+                // t goes 0→1 over PULSE_DUR, each pulse offset by half a cycle
+                const t = ((elapsed + i * (PULSE_DUR / PULSE_COUNT)) % PULSE_DUR) / PULSE_DUR;
+
+                // Radius grows from ~10% to 100% of aura radius
+                const r = radius * (0.1 + t * 1);
+
+                // Opacity: smooth bell curve — fades in, peaks around t=0.3, fades out
+                const op = Math.pow(Math.sin(t * Math.PI), 1.6) * 0.25;
+                if (op < 0.004 || r < 1) continue;
+
+                // Colour: gold for normal, orange-red for fire mode
+                const inner = fireMode ? `255,90,20`  : `255,245,140`;
+                const mid   = fireMode ? `220,55,5`   : `255,235,80`;
+                const outer = fireMode ? `180,25,0`   : `255,220,50`;
+
+                // Pure radial fill — transparent at centre, peaks near outer edge, fades to nothing
+                const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+                grad.addColorStop(0,    `rgba(${inner},0)`);
+                grad.addColorStop(0.35, `rgba(${inner},${(op * 0.08).toFixed(3)})`);
+                grad.addColorStop(0.65, `rgba(${mid},  ${(op * 0.35).toFixed(3)})`);
+                grad.addColorStop(0.85, `rgba(${outer},${(op * 0.65).toFixed(3)})`);
+                grad.addColorStop(1,    `rgba(${outer},0)`);
+
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.fillStyle = grad;
+                ctx.fill();
+            }
+
+            _auraRafId = requestAnimationFrame(loop);
+        }
+        _auraRafId = requestAnimationFrame(loop);
+    }
+})();

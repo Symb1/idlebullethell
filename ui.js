@@ -11,6 +11,7 @@ function initializeUI() {
     createInventoryMenu();
     createAchievementsMenu();
     createAchievementsButton();
+    createLeaderboardButton();
 }
 
 function updateUI() {
@@ -45,9 +46,26 @@ function updatePlayerStats() {
     const critText = critCapped ? '80% CAP' : `${(crit * 100).toFixed(1)}%`;
     const critStyle = critCapped ? 'color:#4A6741' : player.critChance < 0 ? 'color:#DC143C' : '';
 
-    const regenCapped = player.hpRegen >= 1.25;
-    const regenText = regenCapped ? '1.25/s CAP' : `${player.hpRegen.toFixed(2)}/s`;
-    const regenStyle = regenCapped ? 'color:#4A6741' : '';
+    const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
+    const hasBlessedShield = player.weapon instanceof BlessedShield;
+    const hasSmiteShield   = player.weapon instanceof SmiteShield;
+    const oathJudgement = dAlloc && dAlloc['oath_of_judgement'] >= 1 && hasBlessedShield;
+    const oathEternity  = dAlloc && dAlloc['oath_of_eternity']  >= 1 && hasSmiteShield;
+    const oathAegis     = dAlloc && dAlloc['oath_of_aegis']     >= 1 && hasSmiteShield;
+    let regenText, regenStyle;
+    if (oathJudgement) {
+        regenText  = 'DISABLED';
+        regenStyle = 'color:#DC143C';
+    } else if (oathEternity) {
+        regenText  = `${player.hpRegen.toFixed(2)}/s`;
+        regenStyle = '';
+    } else {
+        const regenCapVal   = oathAegis ? 1.5 : 1.00;
+        const regenCapped   = player.hpRegen >= regenCapVal;
+        const regenCapLabel = oathAegis ? '1.50/s CAP' : '1.00/s CAP';
+        regenText  = regenCapped ? regenCapLabel : `${player.hpRegen.toFixed(2)}/s`;
+        regenStyle = regenCapped ? 'color:#4A6741' : '';
+    }
 
     const critDmgPct = player.critDamage * 100 - 100;
     const critDmgStyle = critDmgPct < 0 ? 'color:#DC143C' : '';
@@ -129,11 +147,12 @@ function showAscensionOverlay() {
             <h2>Ascension ${gameState.ascensionLevel + 1}</h2>
             <p>Resetting everything except unlocked classes.</p>
             <p>${amuletUpgradeText}</p>
-            <p>Soul gain multiplier: x${SOUL_MULTIPLIERS[gameState.ascensionLevel + 1] ?? SOUL_MULTIPLIERS.at(-1)}</p>
+            <p>Soul gain multiplier: x${SOUL_MULTIPLIERS[gameState.ascensionLevel + 1] ?? SOUL_MULTIPLIERS.at(-1)}</strong></p>
             <p>${maxUpgradesText}</p>
             <p>${unlockText}</p>
             <p>${qolUnlockText}</p>
             <p>Talent points and talent tree are reset.</p>
+            ${gameState.ascensionLevel === 0 ? '<p>Adds a Skip Wave button — skip up to 3 consecutive waves at once</p>' : ''}
             <button onclick="ascend()">Confirm Ascension</button>
         </div>
     `;
@@ -500,6 +519,23 @@ function showAchievementPopup(key) {
     setTimeout(() => popup.remove(), 3000);
 }
 
+function ensureActionsPanel() {
+    let panel = document.getElementById('actions-panel');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'actions-panel';
+        // Move hard-reset-btn inside the panel
+        const hardReset = document.getElementById('hard-reset-btn');
+        if (hardReset) {
+            hardReset.parentNode.insertBefore(panel, hardReset);
+            panel.appendChild(hardReset);
+        } else {
+            document.body.appendChild(panel);
+        }
+    }
+    return panel;
+}
+
 function createAchievementsButton() {
     if (document.getElementById('achievements-button')) return;
     const btn = document.createElement('button');
@@ -508,8 +544,7 @@ function createAchievementsButton() {
     const menu = document.getElementById('achievements-menu');
     btn.addEventListener('click', () => { menu.style.display = 'block'; });
     menu.querySelector('.close-btn').addEventListener('click', () => { menu.style.display = 'none'; });
-    const hardReset = document.getElementById('hard-reset-btn');
-    hardReset.parentNode.insertBefore(btn, hardReset);
+    ensureActionsPanel().appendChild(btn);
 }
 
 function flashScreen(color) {
@@ -520,4 +555,217 @@ function flashScreen(color) {
     };
     flash();
     setTimeout(flash, 200);
+}
+// ─── LEADERBOARD ───────────────────────────────────────────────────────────────
+
+const LB_KEY = 'rpgLeaderboard';
+const LB_MAX = 3;
+
+// Weapon key → display name mapping
+const LB_WEAPON_KEYS = {
+    // Evolved weapons
+    'Vortex Staff':   'vortex',
+    'Umbral Staff':   'umbral',
+    'Chain Wand':     'chain',
+    'Spark Wand':     'spark',
+    'Blessed Shield': 'blessed',
+    'Smite Shield':   'smite',
+    // Base weapons (pre-evolution) — grouped under their class base key
+    'Basic Staff':    'basic_staff',
+    'Basic Wand':     'basic_wand',
+    'Basic Shield':   'basic_shield',
+};
+
+const LB_WEAPON_NAMES = {
+    vortex:  'Vortex Staff',
+    umbral:  'Umbral Staff',
+    chain:   'Chain Wand',
+    spark:   'Spark Wand',
+    blessed: 'Blessed Shield',
+    smite:   'Smite Shield',
+};
+
+function loadLeaderboard() {
+    try { return JSON.parse(localStorage.getItem(LB_KEY)) || {}; }
+    catch { return {}; }
+}
+
+function saveLeaderboard(lb) {
+    localStorage.setItem(LB_KEY, JSON.stringify(lb));
+}
+
+function clearLeaderboard() {
+    localStorage.removeItem(LB_KEY);
+}
+
+/**
+ * Returns array of active binding vow abbreviations for the current player class.
+ */
+function getActiveVowAbbrs(playerClass) {
+    const vowNodes = playerClass === 'Acolyte'       ? NODES.filter(n => n.bvow)
+                   : playerClass === 'Sorceress'     ? SORC_NODES.filter(n => n.bvow)
+                   : playerClass === 'Divine Knight' ? DK_NODES.filter(n => n.bvow)
+                   : [];
+    const allocObj = playerClass === 'Acolyte'       ? alloc
+                   : playerClass === 'Sorceress'     ? sorcAlloc
+                   : playerClass === 'Divine Knight' ? dkAlloc
+                   : {};
+    return vowNodes.filter(n => (allocObj[n.id] || 0) >= 1).map(n => n.abbr);
+}
+
+/**
+ * Record a run entry. Call this at game-over time before resetting stage/wave.
+ * @param {number}   stage        - stage the player died on
+ * @param {number}   wave         - wave the player died on
+ * @param {number}   level        - player level
+ * @param {string}   weaponName   - exact weapon .name string
+ * @param {string}   classUpgrade - player.classUpgradeChosen (shard prefix), may be null
+ * @param {string}   playerClass  - 'Acolyte' | 'Sorceress' | 'Divine Knight'
+ * @param {string[]} vows         - active binding vow abbreviations
+ */
+function recordLeaderboardEntry(stage, wave, level, weaponName, classUpgrade, playerClass, vows = []) {
+    const weapKey = LB_WEAPON_KEYS[weaponName];
+    if (!weapKey) return; // unknown weapon, skip
+
+    const lb  = loadLeaderboard();
+    const key = `${playerClass}_${weapKey}`;
+
+    if (!lb[key]) lb[key] = [];
+
+    const entry = { stage, wave, level, evo: classUpgrade || '', vows };
+
+    // Insert in sorted order (higher stage first, then higher wave)
+    lb[key].push(entry);
+    lb[key].sort((a, b) => b.stage !== a.stage ? b.stage - a.stage : b.wave - a.wave);
+    lb[key] = lb[key].slice(0, LB_MAX);
+
+    saveLeaderboard(lb);
+}
+
+// ── Rendering helpers ──────────────────────────────────────────────────────────
+
+function lbRankLabel(i) {
+    if (i === 0) return '<span class="lb-rank lb-gold">①</span>';
+    if (i === 1) return '<span class="lb-rank lb-silver">②</span>';
+    if (i === 2) return '<span class="lb-rank lb-bronze">③</span>';
+    return `<span class="lb-rank">${i + 1}</span>`;
+}
+
+function lbRenderList(containerId, entries, colorClass) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (!entries || !entries.length) {
+        el.innerHTML = '<div class="lb-empty">No runs recorded yet</div>';
+        return;
+    }
+    // Derive the base class name from the color class
+    const baseClass = colorClass === 'lb-acolyte-col' ? 'Acolyte'
+                    : colorClass === 'lb-sorc-col'    ? 'Sorceress'
+                    : 'Divine Knight';
+    el.innerHTML = entries.slice(0, LB_MAX).map((e, i) => {
+        // Full display name: "Temporal Acolyte" or just "Acolyte"
+        const displayName = e.evo ? `${e.evo} ${baseClass}` : baseClass;
+        const vows = (e.vows && e.vows.length)
+            ? e.vows.map(v => `<span class="lb-vow-tag">${v}</span>`).join('')
+            : '<span class="lb-vow-tag lb-vow-none">—</span>';
+        return `<div class="lb-entry-row">
+            ${lbRankLabel(i)}
+            <div class="lb-entry-name ${colorClass}">${displayName}</div>
+            <div class="lb-entry-lvl">${e.level}</div>
+            <div class="lb-entry-stage">
+                <span class="lb-stage-num">Stage ${e.stage}</span>
+                <span class="lb-wave-sep">/</span>
+                <span class="lb-wave-num">Wave ${e.wave}</span>
+            </div>
+            <div class="lb-entry-vows">${vows}</div>
+        </div>`;
+    }).join('');
+}
+
+function lbBuildWeaponSection(weapKey, weaponDisplayName, containerId, colorClass) {
+    return `
+        <div class="lb-weapon-section">
+            <div class="lb-weapon-header">
+                <div class="lb-weapon-name">${weaponDisplayName}</div>
+            </div>
+            <div class="lb-col-headers">
+                <div class="lb-col-hdr lb-center">#</div>
+                <div class="lb-col-hdr">Name</div>
+                <div class="lb-col-hdr lb-center">Lvl</div>
+                <div class="lb-col-hdr">Stage / Wave</div>
+                <div class="lb-col-hdr lb-right lb-vows-col">Vows</div>
+            </div>
+            <div class="lb-entry-list" id="${containerId}"></div>
+        </div>`;
+}
+
+function renderLeaderboardModal() {
+    const lb = loadLeaderboard();
+
+    function buildPanel(panelId, accentClass, sections) {
+        let html = `<div class="lb-accent-strip ${accentClass}"></div>`;
+        const lists = [];
+        for (const { lbKey, displayName, listId, colorClass } of sections) {
+            const entries = lb[lbKey] || [];
+            // Always show evolved weapon sections; only show basic if it has entries
+            const isBasic = lbKey.includes('basic');
+            if (isBasic && !entries.length) continue;
+            html += lbBuildWeaponSection(lbKey, displayName, listId, colorClass);
+            lists.push({ listId, entries, colorClass });
+        }
+        document.getElementById(panelId).innerHTML = html;
+        for (const { listId, entries, colorClass } of lists) {
+            lbRenderList(listId, entries, colorClass);
+        }
+    }
+
+    buildPanel('lb-panel-acolyte', 'lb-accent-acolyte', [
+        { lbKey: 'Acolyte_vortex',      displayName: 'Vortex Staff',          listId: 'lb-list-vortex',       colorClass: 'lb-acolyte-col' },
+        { lbKey: 'Acolyte_umbral',       displayName: 'Umbral Staff',          listId: 'lb-list-umbral',       colorClass: 'lb-acolyte-col' },
+        { lbKey: 'Acolyte_basic_staff',  displayName: 'Basic Staff', listId: 'lb-list-basic-staff',  colorClass: 'lb-acolyte-col' },
+    ]);
+
+    buildPanel('lb-panel-sorceress', 'lb-accent-sorc', [
+        { lbKey: 'Sorceress_chain',      displayName: 'Chain Wand',            listId: 'lb-list-chain',        colorClass: 'lb-sorc-col' },
+        { lbKey: 'Sorceress_spark',      displayName: 'Spark Wand',            listId: 'lb-list-spark',        colorClass: 'lb-sorc-col' },
+        { lbKey: 'Sorceress_basic_wand', displayName: 'Basic Wand',  listId: 'lb-list-basic-wand',   colorClass: 'lb-sorc-col' },
+    ]);
+
+    buildPanel('lb-panel-divine', 'lb-accent-divine', [
+        { lbKey: 'Divine Knight_blessed',       displayName: 'Blessed Shield',          listId: 'lb-list-blessed',       colorClass: 'lb-divine-col' },
+        { lbKey: 'Divine Knight_smite',         displayName: 'Smite Shield',            listId: 'lb-list-smite',         colorClass: 'lb-divine-col' },
+        { lbKey: 'Divine Knight_basic_shield',  displayName: 'Basic Shield',  listId: 'lb-list-basic-shield',  colorClass: 'lb-divine-col' },
+    ]);
+}
+
+function lbSwitchTab(cls) {
+    document.querySelectorAll('.lb-panel').forEach(p => p.classList.remove('lb-active'));
+    document.querySelectorAll('.lb-tab-btn').forEach(b => b.classList.remove('lb-tab-active'));
+    const panel = document.getElementById('lb-panel-' + cls);
+    const btn   = document.getElementById('lb-tab-' + cls);
+    if (panel) panel.classList.add('lb-active');
+    if (btn)   btn.classList.add('lb-tab-active');
+}
+
+function openLeaderboard() {
+    renderLeaderboardModal();
+    lbSwitchTab('acolyte');
+    document.getElementById('leaderboard-menu').style.display = 'flex';
+}
+
+function closeLeaderboard() {
+    document.getElementById('leaderboard-menu').style.display = 'none';
+}
+
+function createLeaderboardButton() {
+    if (document.getElementById('leaderboard-button')) return;
+    const btn = document.createElement('button');
+    btn.id = 'leaderboard-button';
+    btn.textContent = 'Leaderboard';
+    btn.addEventListener('click', openLeaderboard);
+
+    const closeBtn = document.getElementById('lb-close-btn');
+    if (closeBtn) closeBtn.addEventListener('click', closeLeaderboard);
+
+    ensureActionsPanel().appendChild(btn);
 }

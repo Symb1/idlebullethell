@@ -50,12 +50,45 @@ const upgrades = [
     {
         name: 'Regeneration',
         _val: (rarity) => getRarityValue(rarity, 0.1, 0.1, 0.05, 0.02),
+        _hasEternity: () => player instanceof DivineKnight
+            && typeof dkAlloc !== 'undefined' && dkAlloc['oath_of_eternity'] >= 1
+            && player.weapon instanceof SmiteShield,
+        _hasAegis: () => player instanceof DivineKnight
+            && typeof dkAlloc !== 'undefined' && dkAlloc['oath_of_aegis'] >= 1
+            && player.weapon instanceof SmiteShield,
         effect(rarity, secondaryUpgrade, secondaryRarity) {
-            player.hpRegen = Math.min(1.25, player.hpRegen + this._val(rarity));
+            const mult = this._hasEternity() ? 3 : 1;
+            const val  = this._val(rarity) * mult;
+            if (this._hasEternity()) {
+                // No cap
+                player.hpRegen = player.hpRegen + val;
+            } else if (this._hasAegis()) {
+                // Cap raised to 1.5
+                player.hpRegen = Math.min(1.5, player.hpRegen + val);
+            } else {
+                player.hpRegen = Math.min(1, player.hpRegen + val);
+            }
             applySecondary(rarity, secondaryUpgrade, secondaryRarity);
         },
-        getValue(rarity) { return `+${this._val(rarity).toFixed(2)}/s`; },
-        condition: () => player.hpRegen < 1.25,
+        getValue(rarity) {
+            const mult = this._hasEternity ? this._hasEternity() ? 3 : 1 : 1;
+            return `+${(this._val(rarity) * mult).toFixed(2)}/s`;
+        },
+        condition: () => {
+            // Oath of Judgement (Blessed Shield) disables regen entirely — hide card
+            if (player instanceof DivineKnight
+                && typeof dkAlloc !== 'undefined' && dkAlloc['oath_of_judgement'] >= 1
+                && player.weapon instanceof BlessedShield) return false;
+            // Oath of Eternity: no cap, always show
+            if (player instanceof DivineKnight
+                && typeof dkAlloc !== 'undefined' && dkAlloc['oath_of_eternity'] >= 1
+                && player.weapon instanceof SmiteShield) return true;
+            // Oath of Aegis: cap is 1.5
+            if (player instanceof DivineKnight
+                && typeof dkAlloc !== 'undefined' && dkAlloc['oath_of_aegis'] >= 1
+                && player.weapon instanceof SmiteShield) return player.hpRegen < 1.5;
+            return player.hpRegen < 1;
+        },
         description: 'Additive regeneration increase'
     },
     {
@@ -360,40 +393,108 @@ const classUpgrades = {
         {
             name: 'Vigilant Crest', shardName: 'Vigilant',
             flavorText: 'The Light quickens your resolve, you strike swiftly and endlessly, though each blow carries less might.',
-            attackSpeedIncrease: 1.25, damageLoss: 0.25,
-            effect() { classEffect(player, gameState, this); },
+            attackSpeedIncrease: 1.00, damageLoss: 0.20,
+            effect() {
+                const veRanks = (typeof dkAlloc !== 'undefined' ? dkAlloc['vigilant_excellence'] : 0) || 0;
+                // Each rank negates 4% of 20% damage penalty; at rank 5, no penalty
+                const penaltyNegated = Math.min(veRanks, 5) * 0.04;
+                const bonusDmg = Math.max(0, veRanks - 5) * 0.04;
+                const effectiveLoss = Math.max(0, this.damageLoss - penaltyNegated) - bonusDmg;
+                const stats = Object.assign({}, this, {
+                    damageLoss: Math.max(0, effectiveLoss),
+                    damageIncrease: (this.damageIncrease || 0) + (effectiveLoss < 0 ? -effectiveLoss : 0)
+                });
+                classEffect(player, gameState, stats);
+            },
             description() {
+                const veRanks = (typeof dkAlloc !== 'undefined' ? dkAlloc['vigilant_excellence'] : 0) || 0;
+                const penaltyNegated = Math.min(veRanks, 5) * 0.04;
+                const bonusDmg = Math.max(0, veRanks - 5) * 0.04;
+                const effectiveLoss = this.damageLoss - penaltyNegated - bonusDmg;
+                const dmgLine = effectiveLoss > 0
+                    ? `Damage -${pct(effectiveLoss)}%`
+                    : effectiveLoss < 0 ? `Damage +${pct(-effectiveLoss)}%` : '';
                 return classDesc(this.flavorText,
                     [`Attack Speed +${pct(this.attackSpeedIncrease)}%`],
-                    [`Damage -${pct(this.damageLoss)}%`]);
+                    [dmgLine].filter(Boolean));
             }
         },
         {
             name: 'Sanctified Oath', shardName: 'Sanctified',
             flavorText: 'Divine judgment sharpens your strikes, but the weight of faith slows your hand.',
-            damageLoss: 0.1, attackSpeedDecrease: 0.15, cooldownIncrease: 0.15, enablesCritUpgrades: true,
+            damageLoss: 0.25, attackSpeedDecrease: 0.15, cooldownIncrease: 0.15, enablesCritUpgrades: true,
             effect() {
-                classEffect(player, gameState, this);
+                const seRanks = (typeof dkAlloc !== 'undefined' ? dkAlloc['sanctified_excellence'] : 0) || 0;
+                // Each rank negates 5% dmg, 3% atk spd, 3% cd penalty; at rank 5, no penalty
+                const dmgNegated  = Math.min(seRanks, 5) * 0.05;
+                const spdNegated  = Math.min(seRanks, 5) * 0.03;
+                const cdNegated   = Math.min(seRanks, 5) * 0.03;
+                const bonusDmg    = Math.max(0, seRanks - 5) * 0.05;
+                const bonusSpd    = Math.max(0, seRanks - 5) * 0.03;
+                const bonusCdRedux= Math.max(0, seRanks - 5) * 0.03;
+                const effDmgLoss  = Math.max(0, this.damageLoss - dmgNegated) - bonusDmg;
+                const effSpdLoss  = Math.max(0, this.attackSpeedDecrease - spdNegated) - bonusSpd;
+                const effCdInc    = Math.max(0, this.cooldownIncrease - cdNegated) - bonusCdRedux;
+                const stats = Object.assign({}, this, {
+                    damageLoss: Math.max(0, effDmgLoss),
+                    damageIncrease: (this.damageIncrease || 0) + (effDmgLoss < 0 ? -effDmgLoss : 0),
+                    attackSpeedDecrease: Math.max(0, effSpdLoss),
+                    attackSpeedIncrease: (this.attackSpeedIncrease || 0) + (effSpdLoss < 0 ? -effSpdLoss : 0),
+                    cooldownIncrease: Math.max(0, effCdInc),
+                    cooldownReduction: (this.cooldownReduction || 0) + (effCdInc < 0 ? -effCdInc : 0),
+                });
+                classEffect(player, gameState, stats);
                 player.critUpgradesEnabled = true;
                 gameState.critUpgradesEnabled = true;
                 const retro = (gameState.critChanceUpgrades || 0) * 0.01;
                 if (retro > 0) player.adjustCritChance(retro);
             },
             description() {
+                const seRanks = (typeof dkAlloc !== 'undefined' ? dkAlloc['sanctified_excellence'] : 0) || 0;
+                const dmgNegated = Math.min(seRanks, 5) * 0.05;
+                const spdNegated = Math.min(seRanks, 5) * 0.03;
+                const cdNegated  = Math.min(seRanks, 5) * 0.03;
+                const bonusDmg   = Math.max(0, seRanks - 5) * 0.05;
+                const bonusSpd   = Math.max(0, seRanks - 5) * 0.03;
+                const bonusCd    = Math.max(0, seRanks - 5) * 0.03;
+                const effDmg = this.damageLoss - dmgNegated - bonusDmg;
+                const effSpd = this.attackSpeedDecrease - spdNegated - bonusSpd;
+                const effCd  = this.cooldownIncrease - cdNegated - bonusCd;
+                const dmgLine = effDmg > 0 ? `Damage -${pct(effDmg)}%`   : effDmg < 0 ? `Damage +${pct(-effDmg)}%` : '';
+                const spdLine = effSpd > 0 ? `Attack Speed -${pct(effSpd)}%` : effSpd < 0 ? `Attack Speed +${pct(-effSpd)}%` : '';
+                const cdLine  = effCd  > 0 ? `Cooldown +${pct(effCd)}%`  : effCd  < 0 ? `Cooldown -${pct(-effCd)}%`  : '';
                 return classDesc(this.flavorText,
                     ['Enables Crit Globally'],
-                    [`Damage -${pct(this.damageLoss)}%`, `Attack Speed -${pct(this.attackSpeedDecrease)}%`, `Cooldown +${pct(this.cooldownIncrease)}%`]);
+                    [dmgLine, spdLine, cdLine].filter(Boolean));
             }
         },
         {
             name: 'Eternal Bastion', shardName: 'Eternal',
             flavorText: 'The eternal flame dwells within you — your form unyielding, your strength resounding through ages.',
             healthIncrease: 10, damageIncrease: 0.25, cooldownIncrease: 1.0,
-            effect() { classEffect(player, gameState, this); },
+            effect() {
+                const eeRanks = (typeof dkAlloc !== 'undefined' ? dkAlloc['eternal_excellence'] : 0) || 0;
+                // Each rank negates 20% of 100% cooldown penalty; at rank 5, no penalty
+                const cdNegated = Math.min(eeRanks, 5) * 0.20;
+                const bonusCdRedux = Math.max(0, eeRanks - 5) * 0.20;
+                const effCdInc = Math.max(0, this.cooldownIncrease - cdNegated) - bonusCdRedux;
+                const stats = Object.assign({}, this, {
+                    cooldownIncrease: Math.max(0, effCdInc),
+                    cooldownReduction: (this.cooldownReduction || 0) + (effCdInc < 0 ? -effCdInc : 0),
+                });
+                classEffect(player, gameState, stats);
+            },
             description() {
+                const eeRanks = (typeof dkAlloc !== 'undefined' ? dkAlloc['eternal_excellence'] : 0) || 0;
+                const cdNegated = Math.min(eeRanks, 5) * 0.20;
+                const bonusCd   = Math.max(0, eeRanks - 5) * 0.20;
+                const effCd = this.cooldownIncrease - cdNegated - bonusCd;
+                const cdLine = effCd > 0
+                    ? `Cooldown +${pct(effCd)}%`
+                    : effCd < 0 ? `Cooldown -${pct(-effCd)}%` : '';
                 return classDesc(this.flavorText,
                     [`Health +${this.healthIncrease}`, `Damage +${pct(this.damageIncrease)}%`],
-                    [`Cooldown +${pct(this.cooldownIncrease)}%`]);
+                    [cdLine].filter(Boolean));
             }
         }
     ]
@@ -448,7 +549,8 @@ function showLevelUpScreen() {
     const isAutoCard  = gameState.autoCardEnabled  && !isClassScreen;
 
     const title = document.createElement('h1');
-    title.className = isClassScreen ? 'sf-screen-title ascension' : 'sf-screen-title';
+    const classSlug = player.class === 'Divine Knight' ? 'divine-knight' : player.class.toLowerCase();
+    title.className = isClassScreen ? `sf-screen-title ascension ${classSlug}` : 'sf-screen-title';
     title.textContent = isClassScreen ? 'Class Ascension' : 'Level Up!';
     overlay.appendChild(title);
 
@@ -604,11 +706,10 @@ const soulsUpgrades = [
         name: 'Regen+', baseCost: 150, valuePerUpgrade: 0.02,
         effect(gameState) {
             gameState.regenUpgrades = (gameState.regenUpgrades || 0) + 1;
-            if (player) player.hpRegen = Math.min(1.25, gameState.regenUpgrades * this.valuePerUpgrade);
+            if (player) player.hpRegen = Math.min(1, gameState.regenUpgrades * this.valuePerUpgrade);
         },
         canPurchase(gameState) {
-            return (gameState.regenUpgrades || 0) < _ascMaxPurchases(gameState, 'regenUpgrades')
-                && (gameState.regenUpgrades || 0) * this.valuePerUpgrade < 1.25;
+            return (gameState.regenUpgrades || 0) < _ascMaxPurchases(gameState, 'regenUpgrades');
         }
     },
     {
@@ -619,8 +720,9 @@ const soulsUpgrades = [
                 player.adjustCritChance(this.valuePerUpgrade);
         },
         canPurchase(gameState) {
-            if (player instanceof DivineKnight && !player.critUpgradesEnabled) return false;
-            if (player && player.critChance >= 0.80) return false;
+            // Purchase is allowed for all classes (including Divine Knight before critUpgradesEnabled).
+            // The effect() already guards stat application so Divine Knights only benefit once unlocked.
+            if (player && !(player instanceof DivineKnight) && player.critChance >= 0.80) return false;
             return (gameState.critChanceUpgrades || 0) < _ascMaxPurchases(gameState, 'critChanceUpgrades');
         }
     },

@@ -12,6 +12,7 @@ class Enemy {
         this.damageIndicators = [];
         this.isDying = false;
         this.isPlayingHitAnimation = false;
+        this.spawnWave = gameState.currentWave;
         this.resetEnemy();
     }
 
@@ -218,6 +219,7 @@ class Enemy {
         if (this.isDying) return;
         this.isDying = true;
         this.playDeathSound(isCritical);
+        recordWaveKill(this.spawnWave);
         player.gainSouls(Math.floor(this.maxHp * 0.1));
         player.gainExp(10 * this.getExpMultiplier());
         this.element.classList.add('dying');
@@ -310,6 +312,7 @@ class EliteEnemy extends Enemy {
         if (this.isDying) return;
         this.isDying = true;
         this.playDeathSound(isCritical, 0.3);
+        recordWaveKill(this.spawnWave);
         player.gainSouls(Math.floor(this.maxHp * 0.15));
 
         this.activeEffects.forEach(effect => {
@@ -351,6 +354,7 @@ class Boss extends Enemy {
     die() {
         if (this.isDying) return;
         this.isDying = true;
+        recordWaveKill(this.spawnWave);
         player.gainSouls(Math.floor(this.maxHp * 0.2));
         player.gainExp(100 * this.getExpMultiplier());
         if (!gameState.amuletDropped) {
@@ -383,6 +387,20 @@ function placeWithoutOverlap(enemy) {
     }
 }
 
+function recordWaveSpawn(wave, count) {
+    const wp = gameState.waveProgress;
+    wp[wave] = wp[wave] || { spawned: 0, killed: 0 };
+    wp[wave].spawned += count;
+}
+
+function recordWaveKill(wave) {
+    const wp = gameState.waveProgress;
+    if (!wp[wave]) return;
+    wp[wave].killed++;
+    if (wp[wave].killed >= wp[wave].spawned)
+        gameState.highestKillWave = Math.max(gameState.highestKillWave || 0, wave);
+}
+
 function spawnEnemies() {
     enemies = [];
 
@@ -403,6 +421,33 @@ function spawnEnemies() {
         placeWithoutOverlap(elite);
         enemies.push(elite);
     }
+    recordWaveSpawn(gameState.currentWave, enemies.length);
+}
+
+// Like spawnEnemies but ADDS to the existing enemies array instead of clearing it.
+// Previous wave enemies remain alive and continue to chase the player.
+function spawnEnemiesAdditive() {
+    if (gameState.currentStage >= 2 && gameState.currentWave === 1) {
+        const boss = new Boss();
+        placeWithoutOverlap(boss);
+        enemies.push(boss);
+        showBossSpawnedText();
+    }
+
+    const count = 4 + gameState.currentWave;
+    for (let i = 0; i < count; i++) {
+        const enemy = new Enemy();
+        placeWithoutOverlap(enemy);
+        enemies.push(enemy);
+    }
+
+    if (gameState.currentWave % 5 === 0) {
+        const elite = new EliteEnemy();
+        placeWithoutOverlap(elite);
+        enemies.push(elite);
+    }
+    const wave = gameState.currentWave;
+    recordWaveSpawn(wave, enemies.filter(e => e.spawnWave === wave).length);
 }
 
 function spawnGameText(className, text, duration) {

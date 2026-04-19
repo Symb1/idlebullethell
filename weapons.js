@@ -15,6 +15,16 @@ function initializeWeapon(playerClass, weaponName = null) {
             player.weapon = weaponName === 'Blessed Shield' ? new BlessedShield()
                           : weaponName === 'Smite Shield'   ? new SmiteShield()
                           : new BasicShield();
+            // Blessed Shield grants +5 max HP on selection, plus Martyr's Conviction HP and Oath of Dominion HP
+            if (weaponName === 'Blessed Shield') {
+                const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
+                const mcRanks = (dAlloc && dAlloc['martyrs_conviction']) || 0;
+                const odBonus = (dAlloc && dAlloc['oath_of_dominion'] >= 1) ? 15 : 0;
+                const bsHpBonus = 5 + (mcRanks * 3) + odBonus;
+                player.maxHp += bsHpBonus;
+                player.hp = Math.min(player.hp + bsHpBonus, player.maxHp);
+                updatePlayerStats();
+            }
             break;
     }
     // Apply Acolyte talent bonuses post-weapon init
@@ -51,12 +61,26 @@ function initializeWeapon(playerClass, weaponName = null) {
         // unbroken_current: Chain Wand no chain damage penalty, +2 chain targets
         if (sAlloc && sAlloc['unbroken_current'] >= 1 && player.weapon instanceof ChainWand) {
             player.weapon.chainDamageMultiplier = 1.0;
-            player.weapon.chainCount += 2;
+            player.weapon.chainCount += 1;
         }
         // Excellence ranks stored on weapon
         player.weapon.spellweaversExcellenceRanks = (sAlloc && sAlloc['spellweavers_excellence']) || 0;
         player.weapon.nexusExcellenceRanks        = (sAlloc && sAlloc['nexus_excellence'])        || 0;
         player.weapon.stormheartExcellenceRanks   = (sAlloc && sAlloc['stormheart_excellence'])   || 0;
+    }
+
+    // Apply Divine Knight talent bonuses post-weapon init
+    if (player instanceof DivineKnight) {
+        const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
+        // consecrated_steel: +1 base damage per rank
+        if (dAlloc && dAlloc['consecrated_steel'] > 0) {
+            player.weapon.baseDamage += dAlloc['consecrated_steel'] * 1.0;
+            player.weapon.damage = player.weapon.baseDamage;
+        }
+        // Excellence ranks stored on weapon
+        player.weapon.sanctifiedExcellenceRanks = (dAlloc && dAlloc['sanctified_excellence']) || 0;
+        player.weapon.vigilantExcellenceRanks   = (dAlloc && dAlloc['vigilant_excellence'])   || 0;
+        player.weapon.eternalExcellenceRanks    = (dAlloc && dAlloc['eternal_excellence'])    || 0;
     }
     player.weapon.updateDamage();
 }
@@ -154,7 +178,15 @@ class Weapon {
 
     updateDamage() {
         if (!player) { this.damage = this.baseDamage; return; }
-        this.damage = (this.baseDamage + player.getAmuletDamageBonus()) * player.damageModifier;
+        let dmg = (this.baseDamage + player.getAmuletDamageBonus()) * player.damageModifier;
+        // Martyr's Conviction: +20% of max HP as multiplicative bonus (Blessed Shield only)
+        if (player instanceof DivineKnight && typeof dkAlloc !== 'undefined') {
+            const mcRanks = dkAlloc['martyrs_conviction'] || 0;
+            if (mcRanks > 0 && (this instanceof BlessedShield || this.name === 'Blessed Shield')) {
+                dmg *= (1 + mcRanks * 0.20 * player.maxHp / 100);
+            }
+        }
+        this.damage = dmg;
     }
 
     performAttack() {}
@@ -286,12 +318,13 @@ class BasicWand extends Weapon {
         let remaining = this.chainCount;
         let currentDamage = initialDamage;
         let lastHit = target;
+        const hitEnemies = new Set([target]); // track all hit enemies to prevent re-hitting
         // first chain crit reduction (-30%) unless Conductor's Oath + first hit crit
         let chainCritChance = (conductorsOath && isCritical) ? player.critChance : player.critChance * 0.70;
         let chainStep = 1; // used for crit reduction accumulation
 
         while (remaining > 0 && enemies.length > 0) {
-            const next = this.findRandomEnemyInChainRange(lastHit);
+            const next = this.findRandomEnemyInChainRange(lastHit, hitEnemies);
 
             // Chain Reverb: no-target fallback — only the next 2 remaining chains can fall back to primary
             if (!next) {
@@ -321,6 +354,7 @@ class BasicWand extends Weapon {
             const chainDmg = chainIsCrit ? currentDamage * player.critDamage : currentDamage;
             this.dealDamageToEnemy(next, chainDmg, chainIsCrit);
             chainPath.push({ x: next.position.x + next.radius, y: next.position.y + next.radius });
+            hitEnemies.add(next);
 
             // Chain Reverb: chance to hit same chained target again (8% per rank)
             if (chainReverb > 0 && Math.random() < chainReverb * 0.08) {
@@ -346,8 +380,8 @@ class BasicWand extends Weapon {
         enemy.takeDamage(Math.max(0, damage), isCritical);
     }
 
-    findRandomEnemyInChainRange(lastHitEnemy) {
-        const valid = enemies.filter(e => e !== lastHitEnemy && this.isInChainRange(lastHitEnemy, e));
+    findRandomEnemyInChainRange(lastHitEnemy, hitEnemies = new Set([lastHitEnemy])) {
+        const valid = enemies.filter(e => !hitEnemies.has(e) && this.isInChainRange(lastHitEnemy, e));
         return valid.length ? valid[Math.floor(Math.random() * valid.length)] : null;
     }
 
@@ -373,11 +407,32 @@ class BasicShield extends Weapon {
 
     performAbility() {
         const originalRange = this.globalRange;
-        this.globalRange *= 1.5;
+        // Holy Radiance always expands range by 1.5x
+        let newRange = originalRange * 1.5;
+        // Aura Overflow: chance to expand range by an ADDITIONAL 25% on top of ability expansion
+        const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
+        const aoRanks = (dAlloc && dAlloc['aura_overflow']) || 0;
+        let auraOverflowActive = false;
+        if (aoRanks > 0 && Math.random() < aoRanks * 0.15) {
+            auraOverflowActive = true;
+            newRange *= 1.25;
+        }
+        this.globalRange = newRange;
         player.updateAuraVisual();
         setTimeout(() => {
-            this.globalRange = originalRange;
-            player.updateAuraVisual();
+            // Aura Overflow max rank: expanded range lingers 3 extra seconds with countdown
+            if (auraOverflowActive && aoRanks >= 3) {
+                showAuraOverflowLinger(3);
+                setTimeout(() => { showAuraOverflowLinger(2); }, 1000);
+                setTimeout(() => { showAuraOverflowLinger(1); }, 2000);
+                setTimeout(() => {
+                    this.globalRange = originalRange;
+                    player.updateAuraVisual();
+                }, 3000);
+            } else {
+                this.globalRange = originalRange;
+                player.updateAuraVisual();
+            }
         }, this.abilityDuration);
     }
 
@@ -424,6 +479,18 @@ function checkEternalTormentReset(weapon, eliteTarget, damageDealt) {
             setTimeout(() => { btn.style.boxShadow = ''; }, 600);
         }
     }
+}
+
+// Aura Overflow max rank: show "+N" countdown linger indicator on the player element
+function showAuraOverflowLinger(seconds) {
+    const playerEl = document.getElementById('player');
+    if (!playerEl) return;
+    playerEl.querySelectorAll('.aura-overflow-linger').forEach(el => el.remove());
+    const el = document.createElement('div');
+    el.className = 'ability-cooldown aura-overflow-linger';
+    el.textContent = '+' + seconds;
+    playerEl.appendChild(el);
+    setTimeout(() => el.remove(), 950);
 }
 
 function updateWeapon() {
@@ -697,7 +764,7 @@ class ChainWand extends BasicWand {
         this.name = 'Chain Wand';
         this.baseDamage = 16;
         this.baseCooldown = 30;
-        this.globalRange = 215;
+        this.globalRange = 220;
         this.chainRange = 150;
         this.chainCount = 4; // BasicWand 2 + extra 2
         this.chainDamageMultiplier = 0.85;
@@ -841,27 +908,144 @@ class BlessedShield extends BasicShield {
         this.baseDamage = 7;
         this.baseCooldown = 45;
         this.globalRange = 200;
-        this.abilityDuration = 10000;
+        this.abilityDuration = 10000;   // Holy Fire duration: 10s
+        this.abilityName = 'Holy Fire';
         this.damage = this.baseDamage;
+        this._judgementInterval = null;
+        this._holyFireActive = false;
         this.updateDamage();
     }
 
     getEvolutionStats() {
-        return [
+        const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
+        const oathJudgement = dAlloc && dAlloc['oath_of_judgement'] >= 1;
+        const judgementText = oathJudgement
+            ? 'Judgement deals 33% of your damage (66% vs bosses)'
+            : 'Judgement deals 25% of your damage';
+        const stats = [
             { text: 'Increased Damage', type: 'positive' },
-            { text: `Ability Cooldown: ${this.baseCooldown}s, duration ${this.abilityDuration / 1000}s`, type: 'neutral' },
-            { text: `Range: ${this.globalRange}`, type: this.globalRange < 200 ? 'negative' : this.globalRange <= 400 ? 'neutral' : 'positive' }
+            { text: `Ability Cooldown: ${this.baseCooldown}s`, type: 'neutral' },
+            { text: `Holy Fire duration 10s`, type: 'neutral' },
+            { text: judgementText, type: 'positive' },
+            { text: 'HP increased by 5', type: 'positive' },
         ];
+        if (oathJudgement) stats.push({ text: 'HP regen disabled', type: 'negative' });
+        stats.push({ text: `Range: ${this.globalRange}`, type: this.globalRange < 200 ? 'negative' : this.globalRange <= 400 ? 'neutral' : 'positive' });
+        return stats;
     }
 
     performAbility() {
+        // Clear any existing Holy Fire
+        this._clearHolyFire();
+
+        this._holyFireActive = true;
+
+        // Shift aura to reddish tint
+        const aura = document.getElementById('holy-shield-aura');
+        if (aura) aura.classList.add('holy-fire-active');
+
         const originalRange = this.globalRange;
-        this.globalRange *= 1.5;
+        // Holy Fire always expands range by 1.5x
+        let newRange = originalRange * 1.5;
+        // Aura Overflow: chance to expand range by an ADDITIONAL 25% on top of ability expansion
+        const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
+        const aoRanks = (dAlloc && dAlloc['aura_overflow']) || 0;
+        let auraOverflowActive = false;
+        let auraOverflowRange = newRange;
+        if (aoRanks > 0 && Math.random() < aoRanks * 0.15) {
+            auraOverflowActive = true;
+            auraOverflowRange = newRange * 1.25;
+            this.globalRange = auraOverflowRange;
+        } else {
+            this.globalRange = newRange;
+        }
         player.updateAuraVisual();
+
+        // Oath of Judgement: Judgement deals 33% dmg (66% vs bosses)
+        const oathJudgement = dAlloc && dAlloc['oath_of_judgement'] >= 1;
+
+        // Apply Judgement debuff tick every 0.2s for the duration
+        this._judgementInterval = setInterval(() => {
+            enemies.forEach(enemy => {
+                if (!this.isInRange(enemy)) return;
+                if (enemy.hasJudgement) {
+                    // Oath of Judgement changes multiplier: 33% normal, 66% vs boss
+                    let dmgMult;
+                    if (oathJudgement) {
+                        dmgMult = enemy instanceof Boss ? 0.66 : 0.33;
+                    } else {
+                        dmgMult = 0.25;
+                    }
+                    // this.damage already includes Martyr's Conviction multiplier via updateDamage()
+                    const baseDmg = this.damage * dmgMult;
+                    // Judgement can crit if Sanctified Oath is chosen
+                    const hasSanctified = player.classUpgradeChosen === 'Sanctified';
+                    let finalDmg = baseDmg;
+                    let isCrit = false;
+                    if (hasSanctified && Math.random() < player.critChance) {
+                        finalDmg = baseDmg * player.critDamage;
+                        isCrit = true;
+                    }
+                    enemy.takeDamage(finalDmg, false);
+                    this._showJudgementNumber(enemy, finalDmg, isCrit);
+                } else {
+                    // Apply Judgement stack (only 1 allowed)
+                    enemy.hasJudgement = true;
+                }
+            });
+        }, 200);
+
         setTimeout(() => {
-            this.globalRange = originalRange;
-            player.updateAuraVisual();
+            this._clearHolyFire();
+            // Aura Overflow max rank: expanded range lingers 3 extra seconds with countdown
+            if (auraOverflowActive && aoRanks >= 3) {
+                showAuraOverflowLinger(3);
+                setTimeout(() => { showAuraOverflowLinger(2); }, 1000);
+                setTimeout(() => { showAuraOverflowLinger(1); }, 2000);
+                setTimeout(() => {
+                    this.globalRange = originalRange;
+                    player.updateAuraVisual();
+                }, 3000);
+            } else {
+                this.globalRange = originalRange;
+                player.updateAuraVisual();
+            }
         }, this.abilityDuration);
+    }
+
+    _clearHolyFire() {
+        if (this._judgementInterval) {
+            clearInterval(this._judgementInterval);
+            this._judgementInterval = null;
+        }
+        this._holyFireActive = false;
+
+        // Remove Judgement from all enemies
+        enemies.forEach(e => { e.hasJudgement = false; });
+
+        // Restore aura colour
+        const aura = document.getElementById('holy-shield-aura');
+        if (aura) aura.classList.remove('holy-fire-active');
+    }
+
+    _showJudgementNumber(enemy, amount, isCrit) {
+        if (!enemy.element) return;
+        const el = document.createElement('div');
+        el.className = 'damage-indicator judgement-indicator';
+        el.textContent = Math.round(amount);
+        el.style.color    = isCrit ? '#ff6600' : '#ff3333';
+        el.style.fontSize = isCrit ? '22px' : '14px';
+        el.style.textShadow = '0 0 6px #ff0000, 0 0 12px #aa0000';
+
+        const offset = (enemy.damageIndicators ? enemy.damageIndicators.length : 0) * 20;
+        el.style.top   = `-${20 + offset}px`;
+        el.style.right = `${-25 + offset}px`;   // slightly offset left from normal numbers
+
+        enemy.element.appendChild(el);
+
+        setTimeout(() => { el.style.opacity = 1; el.style.top = `-${40 + offset}px`; }, 0);
+        setTimeout(() => { el.style.opacity = 0; el.style.top = `-${60 + offset}px`; }, 500);
+        setTimeout(() => { el.remove(); }, 1000);
     }
 }
 
@@ -870,7 +1054,7 @@ class SmiteShield extends BasicShield {
         super();
         this.name = 'Smite Shield';
         this.baseDamage = 4;
-        this.baseCooldown = 20;
+        this.baseCooldown = 25;
         this.globalRange = 130;
         this.abilityDuration = 2000;
         this.slowPercent = 25;
@@ -884,27 +1068,66 @@ class SmiteShield extends BasicShield {
     }
 
     getEvolutionStats() {
-        return [
-            { text: 'Rapid Attacks', type: 'positive' },
-            { text: `Slows enemies in Aura by: ${this.slowPercent}%`, type: 'positive' },
-            { text: `Ability Cooldown: ${this.baseCooldown}s, duration ${this.abilityDuration / 1000}s, freezes enemies on use`, type: 'neutral' },
-            { text: `Range: ${this.globalRange}`, type: this.globalRange < 200 ? 'negative' : this.globalRange <= 400 ? 'neutral' : 'positive' }
+        const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
+        const hasAegis    = dAlloc && dAlloc['oath_of_aegis'] >= 1;
+        const hasEternity = dAlloc && dAlloc['oath_of_eternity'] >= 1;
+        const sdRanks     = (dAlloc && dAlloc['sanctified_domain']) || 0;
+        const slowPct     = 25 + sdRanks * 5;
+        const slowLine    = sdRanks > 0
+            ? `Slows enemies by ${slowPct}%, -${sdRanks * 12}% enemy attack speed`
+            : `Slows enemies by ${slowPct}%`;
+        const stats = [
+            { text: 'Rapid Aura ticks', type: 'positive' },
+            { text: slowLine, type: 'positive' },
+            { text: `Ability Cooldown: ${this.baseCooldown}s`, type: 'neutral' },
+            { text: 'Ability freezes enemies for 2s', type: 'neutral' },
         ];
+        if (hasEternity) {
+            stats.push({ text: 'HP regen cap removed', type: 'positive' });
+        }
+        if (hasAegis) {
+            stats.push({ text: 'Enemies have 33% chance to miss (66% vs bosses)', type: 'positive' });
+        }
+        stats.push({ text: `Range: ${this.globalRange}`, type: this.globalRange < 200 ? 'negative' : this.globalRange <= 400 ? 'neutral' : 'positive' });
+        return stats;
     }
 
     performAttack() {
+        const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
+        const sdRanks = (dAlloc && dAlloc['sanctified_domain']) || 0;
         enemies.forEach(enemy => {
             if (this.isInRange(enemy)) {
                 const { damage, isCritical } = this.calculateDamage();
                 enemy.takeDamage(damage, isCritical);
-                enemy.applySpeedEffect(1 - (this.slowPercent / 100), 1000);
+                // Base slow from SmiteShield
+                let totalSlowPct = this.slowPercent;
+                // Sanctified Domain: extra -5% move speed per rank in aura range
+                if (sdRanks > 0) totalSlowPct += sdRanks * 5;
+                enemy.applySpeedEffect(1 - (totalSlowPct / 100), 1000);
+                // Sanctified Domain: -12% enemy attack speed per rank
+                if (sdRanks > 0) {
+                    enemy.sanctifiedDomainDebuff = sdRanks * 0.12;
+                }
+            } else {
+                // Clear debuff when out of range
+                if (enemy.sanctifiedDomainDebuff) enemy.sanctifiedDomainDebuff = 0;
             }
         });
     }
 
     performAbility() {
         const originalRange = this.globalRange;
-        this.globalRange *= 2.5;
+        // Smite Shield ability always expands range by 2.5x
+        let newRange = originalRange * 2.5;
+        // Aura Overflow: chance to expand range by an ADDITIONAL 25% on top of ability expansion
+        const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
+        const aoRanks = (dAlloc && dAlloc['aura_overflow']) || 0;
+        let auraOverflowActive = false;
+        if (aoRanks > 0 && Math.random() < aoRanks * 0.15) {
+            auraOverflowActive = true;
+            newRange *= 1.25;
+        }
+        this.globalRange = newRange;
         player.updateAuraVisual();
         enemies.forEach(enemy => {
             if (this.isInRange(enemy)) {
@@ -912,8 +1135,18 @@ class SmiteShield extends BasicShield {
             }
         });
         setTimeout(() => {
-            this.globalRange = originalRange;
-            player.updateAuraVisual();
+            if (auraOverflowActive && aoRanks >= 3) {
+                showAuraOverflowLinger(3);
+                setTimeout(() => { showAuraOverflowLinger(2); }, 1000);
+                setTimeout(() => { showAuraOverflowLinger(1); }, 2000);
+                setTimeout(() => {
+                    this.globalRange = originalRange;
+                    player.updateAuraVisual();
+                }, 3000);
+            } else {
+                this.globalRange = originalRange;
+                player.updateAuraVisual();
+            }
         }, this.abilityDuration);
     }
 }

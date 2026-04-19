@@ -86,6 +86,13 @@ class Player {
         if (this.weapon?.name === 'Umbral Staff' && alloc['umbral_collapse'] >= 1) {
             bonus += 1.0;
         }
+        if (this instanceof DivineKnight && typeof dkAlloc !== 'undefined') {
+            // Executioner's Faith: +25% boss damage per rank, doubled at max rank
+            const efRanks = dkAlloc['executioners_faith'] || 0;
+            bonus += efRanks >= 5 ? efRanks * 0.25 * 2 : efRanks * 0.25;
+            // Oath of Dominion: flat +150% boss damage — Blessed Shield only
+            if (dkAlloc['oath_of_dominion'] >= 1 && this.weapon instanceof BlessedShield) bonus += 1.5;
+        }
         return bonus;
     }
 
@@ -100,7 +107,13 @@ class Player {
 
     updateCooldownReduction() {
         const perm = (gameState.cooldownUpgrades || 0) * this.getSoulsUpgrade('Cooldown+').valuePerUpgrade;
-        this.totalCooldownReduction = Math.min(0.75, perm + this.baseCooldownReduction);
+        // Sacred Tempo: +3% CDR per rank, doubled at max rank (5)
+        let dkCDR = 0;
+        if (this instanceof DivineKnight && typeof dkAlloc !== 'undefined') {
+            const stRanks = dkAlloc['sacred_tempo'] || 0;
+            dkCDR = stRanks >= 5 ? stRanks * 0.03 * 2 : stRanks * 0.03;
+        }
+        this.totalCooldownReduction = Math.min(0.75, perm + this.baseCooldownReduction + dkCDR);
     }
 
     adjustCooldownReduction(amount) {
@@ -122,10 +135,32 @@ class Player {
     }
 
     updateHp(deltaTime) {
+        if (this instanceof DivineKnight && typeof dkAlloc !== 'undefined') {
+            const hasBlessedShield = this.weapon instanceof BlessedShield;
+            const hasSmiteShield   = this.weapon instanceof SmiteShield;
+            // Oath of Judgement: disables HP regen entirely (Blessed Shield only)
+            if (dkAlloc['oath_of_judgement'] >= 1 && hasBlessedShield) return;
+            // Oath of Eternity: no regen cap — values are tripled at time of pickup (Smite Shield only)
+            if (dkAlloc['oath_of_eternity'] >= 1 && hasSmiteShield) {
+                this.hp = Math.min(this.hp + this.hpRegen * deltaTime, this.maxHp);
+                return;
+            }
+            // Oath of Aegis: regen cap raised to 1.5 (Smite Shield only)
+            if (dkAlloc['oath_of_aegis'] >= 1 && hasSmiteShield) {
+                const regenCapped = Math.min(this.hpRegen, 1.5);
+                this.hp = Math.min(this.hp + regenCapped * deltaTime, this.maxHp);
+                return;
+            }
+        }
         this.heal(this.hpRegen * deltaTime);
     }
 
-    takeDamage(amount) {
+    takeDamage(amount, isFromBoss = false) {
+        // Oath of Aegis: 33% chance enemies miss (66% vs bosses)
+        if (this instanceof DivineKnight && typeof dkAlloc !== 'undefined' && dkAlloc['oath_of_aegis'] >= 1) {
+            const missChance = isFromBoss ? 0.66 : 0.33;
+            if (Math.random() < missChance) return;
+        }
         this.hp = Math.max(0, this.hp - amount);
         if (this.hp <= 0) gameOver();
     }
@@ -172,6 +207,14 @@ function initializePlayer(playerClass) {
         player.critDamage += talentBonus(sorcAlloc['lethal_current'], 0.10);
     }
 
+    // Apply Divine Knight talent node stat bonuses
+    if (player instanceof DivineKnight) {
+        // sacred_tempo: CDR (applied via updateCooldownReduction below)
+        // divine_wrath: crit damage
+        player.critDamage += talentBonus(dkAlloc['divine_wrath'], 0.10);
+        // oath_of_dominion: +15 HP granted when Blessed Shield is selected (see initializeWeapon)
+    }
+
     player.updateCooldownReduction();
     player.getAmuletDamageBonus();
     if (player.weapon) player.weapon.updateDamage();
@@ -202,7 +245,7 @@ function updatePlayer() {
             /* regular Enemy */           [1, 2000, 500];
 
         if ((!enemy.lastDamageTime || now - enemy.lastDamageTime >= cd) && !enemy.element.classList.contains('frozen')) {
-            player.takeDamage(dmg);
+            player.takeDamage(dmg, enemy instanceof Boss);
             enemy.lastDamageTime = now;
             const audio = document.getElementById('skeleattmu');
             if (audio) { audio.currentTime = 0; audio.volume = 0.3; audio.play().catch(() => {}); }

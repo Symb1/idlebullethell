@@ -4,7 +4,7 @@ const classDescriptions = {
         <p><em>Ability:</em> Void Blast automatically launches into elites and bosses for instant elimination.</p>
         <p><em>Weapon Evolutions: (Level 10)</em></p>
         <ul>
-            <li>Single target path: Guaranteed crits with Void Blast.</li>
+            <li>Single target path: <b>Guaranteed crits</b> with Void Blast.</li>
             <li>Splash variant: Removes crit with Void Blast, adds area effect at <b>50% power</b>.</li>
         </ul>
         <p><em>Class Evolutions: (Level 20)</em> Focus either on speed, crit, or cooldown mastery.</p>
@@ -24,10 +24,10 @@ const classDescriptions = {
     <p><em>Ability:</em> Holy Radiance temporarily expands the aura's reach.</p>
     <p><em>Weapon Evolutions: (Level 10)</em></p>
     <ul>
-        <li>Blessed Shield: Longer ability duration and increased damage.</li>
-        <li>Smite Shield: Faster attacks and a permanent slow on all enemies inside the aura, also briefly freezes the extended area.</li>
+        <li>Blessed Shield: Replaces Holy Radiance with Holy Fire, on use applying Judgement to all enemies within range. Judgement ticks every <b>0.2s</b> dealing <b>25%</b> of your damage.</li>
+        <li>Smite Shield: Rapid Aura ticks, slows enemies inside the aura by <b>25%</b>, while freezes the extended area for <b>2 sec</b> on use.</li>
     </ul>
-    <p><em>Class Evolutions: (Level 20)</em> Increase your attack speed, unlock critical hits globally via Sanctified Oath, or get massive health and damage at the cost of a heavy cooldown penalty.</p>
+    <p><em>Class Evolutions: (Level 20)</em> Increase your attack speed, unlock critical hits globally or get massive health and damage at the cost of a heavy cooldown recovery.</p>
 `,
 };
 
@@ -159,7 +159,7 @@ const SORC_NODES = [
     ascNote:'Requires 1 Ascension' },
   { id:'unbroken_current',   label:'Unbroken Current',      abbr:'UC', cx:225, cy:285, max:1, bvow:true, tgroup:'s1',
     req:'chain_reverb', reqPts:3, reqAscension:1, desc:()=>'',
-    per:'Chain Wand: No chain damage penalty and +2 extra chained enemies.',
+    per:'Chain Wand: No chain damage penalty and +1 extra chained enemies.',
     ascNote:'Requires 1 Ascension' },
 
   // Binding Vow singles under charged_dominance
@@ -200,6 +200,104 @@ const sorcAlloc   = Object.fromEntries(SORC_NODES.map(n => [n.id, 0]));
 let sorcTalentPoints = 0;
 
 // ============================================================
+//  TALENT TREE — Divine Knight Holy Mastery
+// ============================================================
+// Layout mirrors Acolyte (gold theme).  Weapon-restriction notes:
+//   Blessed Shield only  → bsOnly: true
+//   Smite Shield only    → ssOnly: true
+//   (no flag = all shields)
+
+const DK_NODES = [
+  // ── Row 1 (bottom) ──────────────────────────────────────────────
+  { id:'sacred_tempo',      label:'Sacred Tempo',        abbr:'ST', cx:300, cy:690, max:5,
+    req:null, reqPts:0,
+    desc: p => p >= 5 ? `Current bonus: +${p*3*2}% Cooldown Reduction` : `Current bonus: +${p*3}% Cooldown Reduction`,
+    per:'+3% Cooldown Reduction per rank', bonus:true },
+
+  // ── Row 1 branch (left) ─────────────────────────────────────────
+  { id:'consecrated_steel', label:'Consecrated Steel',   abbr:'CS', cx:205, cy:650, max:3,
+    req:'sacred_tempo', reqPts:3,
+    desc: p => `Current bonus: +${p.toFixed(0)} Base Damage`,
+    per:'+1 Base Damage to Divine Knight per rank' },
+
+  // ── Row 2 ────────────────────────────────────────────────────────
+  { id:'divine_wrath',      label:'Divine Wrath',         abbr:'DW', cx:300, cy:540, max:5,
+    req:'sacred_tempo', reqPts:2,
+    desc: p => p >= 5 ? `Current bonus: +${p*10*2}% Critical Damage` : `Current bonus: +${p*10}% Critical Damage`,
+    per:'+10% Critical Damage per rank', bonus:true },
+
+  // Row 1-left deep branch
+  { id:'aura_overflow',     label:'Aura Overflow',        abbr:'AO', cx:85,  cy:570, max:3,
+    req:'consecrated_steel', reqPts:3,
+    desc: p => `${p*15}% chance per use to expand aura range by an additional 25%`,
+    per:'+15% chance per rank to expand range by an additional 25% on Holy Radiance/Holy Fire use',
+    bonus:'Max rank: expanded range lingers 3 seconds after the ability ends' },
+
+  // ── Row 3 ────────────────────────────────────────────────────────
+  { id:'martyrs_conviction',label:"Martyr's Conviction",  abbr:'MC', cx:170, cy:420, max:5,
+    req:'divine_wrath', reqPts:2,
+    desc: p => `Adds +${p*3} Max HP. HP converts +${p*20}% to damage`,
+    per:'Blessed Shield: +3 HP per rank. HP converts +20% to damage per rank' },
+
+  { id:'executioners_faith',label:"Executioner's Faith",  abbr:'EF', cx:300, cy:210, max:5,
+    req:'divine_wrath', reqPts:2,
+    desc: p => p >= 5 ? `Current bonus: +${p*25*2}% Boss Damage` : `Current bonus: +${p*25}% Boss Damage`,
+    per:'+25% Boss Damage per rank', bonus:true },
+
+  // ── Row 4 ────────────────────────────────────────────────────────
+  { id:'sanctified_domain', label:'Sanctified Domain',   abbr:'SD', cx:430, cy:420, max:5,
+    req:'divine_wrath', reqPts:3, ssOnly:true,
+    desc: p => `Enemies in aura range: attack speed -${p*12}%, movement speed -${p*5}%`,
+    per:'Smite Shield: -12% enemy attack speed per rank, -5% enemy move speed reduction per rank in aura' },
+
+  // Binding Vow singles under martyrs_conviction
+  { id:'oath_of_judgement', label:'Oath of Judgement',   abbr:'OJ', cx:115, cy:285, max:1, bvow:true, tgroup:'dk1', bsOnly:true,
+    req:'martyrs_conviction', reqPts:3, reqAscension:1, desc:()=>'',
+    per:'<span style="color:#c084fc">Blessed Shield</span>: HP regen is disabled. Judgement deals 33% of your damage and 66% vs bosses.',
+    ascNote:'Requires 1 Ascension' },
+  { id:'oath_of_dominion',  label:'Oath of Dominion',    abbr:'OD', cx:225, cy:285, max:1, bvow:true, tgroup:'dk1', bsOnly:true,
+    req:'martyrs_conviction', reqPts:3, reqAscension:1, desc:()=>'',
+    per:'<span style="color:#c084fc">Blessed Shield</span>: +15 HP and +150% Boss Damage.',
+    ascNote:'Requires 1 Ascension' },
+
+  // Binding Vow singles under sanctified_domain
+  { id:'oath_of_eternity',  label:'Oath of Eternity',    abbr:'OE', cx:370, cy:285, max:1, bvow:true, tgroup:'dk2', ssOnly:true,
+    req:'sanctified_domain', reqPts:3, reqAscension:1, desc:()=>'',
+    per:'Smite Shield: Regen cap is removed. Regeneration upgrades tripled from soul fragments.',
+    ascNote:'Requires 1 Ascension' },
+  { id:'oath_of_aegis',     label:'Oath of Aegis',        abbr:'OA', cx:480, cy:285, max:1, bvow:true, tgroup:'dk2', ssOnly:true,
+    req:'sanctified_domain', reqPts:3, reqAscension:1, desc:()=>'',
+    per:'Smite Shield: HP regen cap increased to 1.5/s. Enemies have 33% chance to miss each hit (bosses 66%).',
+    ascNote:'Requires 1 Ascension' },
+
+  // ── Row 5 (top) — Excellence nodes ──────────────────────────────
+  { id:'sanctified_excellence', label:'Sanctified Excellence', abbr:'SE', cx:170, cy:50, max:5, bvow:true, tgroup:'dk3',
+    req:'executioners_faith', reqPts:3, reqAscension:2,
+    desc: p => p > 0 ? `Removes -${p*5}% dmg, -${p*3}% atk spd, -${p*3}% cooldown penalties on Sanctified Oath` : '',
+    per:'-5% damage penalty, -3% attack speed penalty, -3% cooldown penalty per rank (Sanctified Oath)',
+    ascNote:'Requires 2 Ascensions' },
+  { id:'vigilant_excellence',   label:'Vigilant Excellence',   abbr:'VE', cx:300, cy:50, max:5, bvow:true, tgroup:'dk3',
+    req:'executioners_faith', reqPts:3, reqAscension:2,
+    desc: p => p > 0 ? `Removes -${p*4}% damage penalty on Vigilant Crest` : '',
+    per:'-4% damage penalty per rank (Vigilant Crest)',
+    ascNote:'Requires 2 Ascensions' },
+  { id:'eternal_excellence',    label:'Eternal Excellence',    abbr:'EE', cx:430, cy:50, max:5, bvow:true, tgroup:'dk3',
+    req:'executioners_faith', reqPts:3, reqAscension:2,
+    desc: p => p > 0 ? `Removes -${p*20}% cooldown penalty on Eternal Bastion` : '',
+    per:'-20% cooldown penalty per rank (Eternal Bastion)',
+    ascNote:'Requires 2 Ascensions' },
+];
+
+const DK_GROUPS  = {
+  dk1:['oath_of_judgement','oath_of_dominion'],
+  dk2:['oath_of_eternity','oath_of_aegis'],
+  dk3:['sanctified_excellence','vigilant_excellence','eternal_excellence']
+};
+const dkNodeMap = Object.fromEntries(DK_NODES.map(n => [n.id, n]));
+const dkAlloc   = Object.fromEntries(DK_NODES.map(n => [n.id, 0]));
+let dkTalentPoints = 0;
+
+// ============================================================
 //  SHARED TALENT TREE LOGIC
 //  Each tree passes a "config" object so all the logic below
 //  can be reused without duplication.
@@ -213,7 +311,12 @@ function makeTreeHelpers(nodes, allocObj, groupsObj) {
   const unlocked    = n => !n.req || allocObj[n.req] >= n.reqPts;
   const ascUnlocked = n => !n.reqAscension || (typeof gameState !== 'undefined' && gameState.ascensionLevel >= n.reqAscension);
   const rivalFree   = n => !n.tgroup || !groupsObj[n.tgroup].filter(id => id !== n.id).some(id => allocObj[id] > 0);
-  const canInvest   = (n, pts) => unlocked(n) && ascUnlocked(n) && allocObj[n.id] < n.max && pts > 0 && rivalFree(n);
+  const weaponOk    = n => {
+    if (n.bsOnly && typeof player !== 'undefined' && player?.weapon) return player.weapon instanceof BlessedShield;
+    if (n.ssOnly && typeof player !== 'undefined' && player?.weapon) return player.weapon instanceof SmiteShield;
+    return true;
+  };
+  const canInvest   = (n, pts) => unlocked(n) && ascUnlocked(n) && allocObj[n.id] < n.max && pts > 0 && rivalFree(n) && weaponOk(n);
   const canRefund   = n => allocObj[n.id] > 0 && nodes.filter(d => d.req === n.id && allocObj[d.id] > 0).every(d => allocObj[n.id] - 1 >= d.reqPts);
 
   return { map, unlocked, ascUnlocked, canInvest, canRefund };
@@ -221,6 +324,7 @@ function makeTreeHelpers(nodes, allocObj, groupsObj) {
 
 const acoHelpers  = makeTreeHelpers(NODES,      alloc,     GROUPS);
 const sorcHelpers = makeTreeHelpers(SORC_NODES, sorcAlloc, SORC_GROUPS);
+const dkHelpers   = makeTreeHelpers(DK_NODES,   dkAlloc,   DK_GROUPS);
 
 // Expose the old globals still needed externally (saveGameState etc. may reference them)
 const unlocked    = acoHelpers.unlocked;
@@ -281,6 +385,26 @@ function sorcResetTalents() {
   saveGameState();
 }
 
+// --- invest / refund / reset (Divine Knight) ---
+
+function dkInvest(id) {
+  const n = dkHelpers.map[id];
+  if (dkHelpers.canInvest(n, dkTalentPoints)) { dkAlloc[id]++; dkTalentPoints--; renderDKTalents(); saveGameState(); }
+}
+function dkRefund(id) {
+  const n = dkHelpers.map[id];
+  if (dkHelpers.canRefund(n)) { dkAlloc[id]--; dkTalentPoints++; renderDKTalents(); saveGameState(); }
+  else if (dkAlloc[id] > 0) showBlockedMsg(document.getElementById('dk-node-' + id));
+}
+function dkResetTalents() {
+  let spent = 0;
+  DK_NODES.forEach(n => { spent += dkAlloc[n.id]; dkAlloc[n.id] = 0; });
+  dkTalentPoints += spent;
+  hideTT();
+  renderDKTalents();
+  saveGameState();
+}
+
 // --- shared tree builder ---
 
 function buildTalentTree(cfg) {
@@ -307,17 +431,18 @@ function buildTalentTree(cfg) {
     wrap.style.cssText = `left:${n.cx - half}px;top:${n.cy - half}px;position:absolute`;
 
     const isAco = prefix === '';
+    const isDK  = prefix === 'dk-';
     const node = document.createElement('div');
-    node.className = 'node' + (isAco ? '' : ' sorc-node') + (n.bvow ? ' bvow' + (isAco ? '' : ' sorc-bvow') : '');
+    node.className = 'node' + (isAco ? '' : isDK ? ' dk-node' : ' sorc-node') + (n.bvow ? ' bvow' + (isAco ? '' : isDK ? ' dk-bvow' : ' sorc-bvow') : '');
     node.id = `${prefix}node-${n.id}`;
-    node.innerHTML = `<span class="node-label">${n.abbr}</span><div class="fill"><div class="fill-inner${isAco ? '' : ' sorc-fill-inner'}" id="${prefix}fi-${n.id}"></div></div>`;
+    node.innerHTML = `<span class="node-label">${n.abbr}</span><div class="fill"><div class="fill-inner${isAco ? '' : isDK ? ' dk-fill-inner' : ' sorc-fill-inner'}" id="${prefix}fi-${n.id}"></div></div>`;
     node.addEventListener('click',       e => { e.preventDefault(); investFn(n.id); showTTFn(e, n); });
     node.addEventListener('contextmenu', e => { e.preventDefault(); refundFn(n.id); showTTFn(e, n); });
     node.addEventListener('mouseenter',  e => showTTFn(e, n));
     node.addEventListener('mouseleave',  hideTTFn);
 
     const counter = document.createElement('div');
-    counter.className = 'node-counter' + (isAco ? '' : ' sorc-counter');
+    counter.className = 'node-counter' + (isAco ? '' : isDK ? ' dk-counter' : ' sorc-counter');
     counter.id = `${prefix}ctr-${n.id}`;
 
     wrap.append(node, counter);
@@ -346,6 +471,42 @@ function buildSorcTree() {
   });
 }
 
+function buildDKTree() {
+  // Inject DK talent panel DOM if not present (mirrors Sorceress panel structure)
+  if (!document.getElementById('dk-backdrop')) {
+    const backdrop = document.createElement('div');
+    backdrop.id = 'dk-backdrop';
+    backdrop.innerHTML = `
+      <div id="dktw">
+        <div class="tw-head dk-tw-head">
+          <div>
+            <div class="tw-title">Divine Knight Talents</div>
+            <div class="tw-sub dk-tw-sub">Holy Mastery Tree</div>
+          </div>
+          <button class="tw-close" onclick="closeDKTalents()">✕</button>
+        </div>
+        <div class="tw-bar">
+          <div class="tw-pts">Unspent Points: <span id="dk-pts" class="dk-pts-val">0</span> &nbsp;·&nbsp; <span style="font-size:10px;color:var(--brown);">Hover a talent for details</span></div>
+          <button class="reset-btn" onclick="dkResetTalents()">↺ Reset All</button>
+        </div>
+        <div class="tw-body">
+          <div class="canvas" id="dk-canvas">
+            <svg id="dk-svg" class="conn-svg" viewBox="0 0 600 760" preserveAspectRatio="none"></svg>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+    backdrop.addEventListener('click', e => { if (e.target.id === 'dk-backdrop') closeDKTalents(); });
+  }
+  buildTalentTree({
+    canvasId: 'dk-canvas', barSelector: '#dktw .tw-bar',
+    nodes: DK_NODES, prefix: 'dk-',
+    investFn: dkInvest, refundFn: dkRefund,
+    showTTFn: showDKTT, hideTTFn: hideDKTT,
+    renderFn: renderDKTalents,
+  });
+}
+
 // --- shared render helpers ---
 
 function renderTalentNodes(nodes, allocObj, prefix, maxColor, getNodeEl) {
@@ -355,7 +516,7 @@ function renderTalentNodes(nodes, allocObj, prefix, maxColor, getNodeEl) {
     const fi   = document.getElementById(`${prefix}fi-${n.id}`);
     const ctr  = document.getElementById(`${prefix}ctr-${n.id}`);
     if (!node || !fi || !ctr) return;
-    const { unlocked: isUnlocked } = prefix === '' ? acoHelpers : sorcHelpers;
+    const { unlocked: isUnlocked } = prefix === '' ? acoHelpers : prefix === 'dk-' ? dkHelpers : sorcHelpers;
     node.classList.toggle('locked',  !isUnlocked(n));
     node.classList.toggle('maxed',   p === n.max);
     node.classList.toggle('partial', p > 0 && p < n.max);
@@ -387,6 +548,17 @@ function renderSorcTalents() {
   renderSorcConnectors();
 }
 
+function renderDKTalents() {
+  const ptsEl = document.getElementById('dk-pts');
+  if (ptsEl) ptsEl.textContent = dkTalentPoints;
+
+  const plusBtn = document.getElementById('divi-plus');
+  if (plusBtn) plusBtn.classList.toggle('dk-pulse', dkTalentPoints > 0 && !plusBtn.classList.contains('plus-btn-locked'));
+
+  renderTalentNodes(DK_NODES, dkAlloc, 'dk-', { bvow: '#ffe899', normal: 'var(--dk-max)' });
+  renderDKConnectors();
+}
+
 // --- shared connector renderer ---
 
 function renderConnectorsSVG(svgId, nodes, allocObj, groupsObj, activeColor) {
@@ -406,7 +578,7 @@ function renderConnectorsSVG(svgId, nodes, allocObj, groupsObj, activeColor) {
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     Object.entries({
       x1: parent.cx, y1: parent.cy, x2: n.cx, y2: n.cy,
-      stroke:             n.bvow ? '#ffffff' : (active ? activeColor : (activeColor === '#9370DB' ? '#4a3530' : '#2a3050')),
+      stroke:             n.bvow ? '#ffffff' : (active ? activeColor : (activeColor === '#9370DB' ? '#4a3530' : activeColor === '#D4AF37' ? '#3a2e0a' : '#2a3050')),
       'stroke-width':     n.bvow ? (broken ? '1.5' : '2') : '2.5',
       'stroke-dasharray': n.bvow ? (broken ? '3 14' : '7 5') : '10 6',
       opacity:            n.bvow ? (broken ? '0.18' : active ? '0.8' : '0.25') : (active ? '1' : '0.4'),
@@ -425,6 +597,7 @@ function renderConnectorsSVG(svgId, nodes, allocObj, groupsObj, activeColor) {
 
 function renderConnectors()     { renderConnectorsSVG('svg',      NODES,      alloc,     GROUPS,      '#9370DB'); }
 function renderSorcConnectors() { renderConnectorsSVG('sorc-svg', SORC_NODES, sorcAlloc, SORC_GROUPS, '#4169E1'); }
+function renderDKConnectors()   { renderConnectorsSVG('dk-svg',   DK_NODES,   dkAlloc,   DK_GROUPS,   '#D4AF37'); }
 
 // --- shared tooltip ---
 
@@ -475,14 +648,16 @@ function showTooltip(e, n, allocObj, nodeMapObj, isUnlocked, isAscUnlocked) {
 
 function showTT(e, n)     { showTooltip(e, n, alloc,     acoHelpers.map,  acoHelpers.unlocked,  acoHelpers.ascUnlocked); }
 function showSorcTT(e, n) { showTooltip(e, n, sorcAlloc, sorcHelpers.map, sorcHelpers.unlocked, sorcHelpers.ascUnlocked); }
+function showDKTT(e, n)   { showTooltip(e, n, dkAlloc,   dkHelpers.map,   dkHelpers.unlocked,   dkHelpers.ascUnlocked); }
 
 function hideTT() {
   const el = document.getElementById('tt');
   if (el) el.style.display = 'none';
   activeTTNode = null;
 }
-// Sorceress panel reuses the same tooltip element
+// Sorceress and DK panels reuse the same tooltip element
 const hideSorcTT = hideTT;
+const hideDKTT   = hideTT;
 
 function moveTT(e) {
   const tt = document.getElementById('tt');
@@ -513,16 +688,7 @@ function closeTalents() {
 
 let notImplMsgTimer = null;
 function openTalentsNotImplemented(btn) {
-  if (btn.classList.contains('plus-btn-locked')) return;
-  const el = document.getElementById('not-implemented-msg');
-  if (!el) return;
-  el.textContent = 'Not yet implemented.';
-  const r = btn.getBoundingClientRect();
-  el.style.left = (r.left + r.width / 2) + 'px';
-  el.style.top  = (r.top - 50) + 'px';
-  el.classList.add('show');
-  clearTimeout(notImplMsgTimer);
-  notImplMsgTimer = setTimeout(() => el.classList.remove('show'), 2000);
+  openDKTalents();
 }
 
 function openSorcTalents() {
@@ -540,6 +706,24 @@ function closeSorcTalents() {
   hideTT();
 }
 
+function openDKTalents() {
+  const btn = document.getElementById('divi-plus');
+  if (btn && btn.classList.contains('plus-btn-locked')) return;
+  // Build panel DOM + tree nodes if not done yet
+  if (!document.getElementById('dk-backdrop') || !document.getElementById('dk-canvas')?.querySelector('.nwrap')) {
+    buildDKTree();
+  }
+  document.getElementById('dk-backdrop').classList.add('open');
+  requestAnimationFrame(() => {
+    const panel = document.querySelector('#dktw .tw-body');
+    if (panel) panel.scrollTop = panel.scrollHeight;
+  });
+}
+function closeDKTalents() {
+  document.getElementById('dk-backdrop')?.classList.remove('open');
+  hideTT();
+}
+
 // --- DOMContentLoaded (merged) ---
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -553,8 +737,13 @@ document.addEventListener('DOMContentLoaded', () => {
     sorcBackdrop.addEventListener('click', e => { if (e.target.id === 'sorc-backdrop') closeSorcTalents(); });
   }
 
+  const dkBackdrop = document.getElementById('dk-backdrop');
+  if (dkBackdrop) {
+    dkBackdrop.addEventListener('click', e => { if (e.target.id === 'dk-backdrop') closeDKTalents(); });
+  }
+
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeTalents(); closeSorcTalents(); }
+    if (e.key === 'Escape') { closeTalents(); closeSorcTalents(); closeDKTalents(); }
   });
 });
 
@@ -565,7 +754,7 @@ document.addEventListener('DOMContentLoaded', () => {
 class Acolyte extends Player {
     constructor() {
         super('Acolyte');
-        this.attacksPerSecond *= 0.9;
+        this.attacksPerSecond *= 0.85;
         this.critChance += 0.02;
         this.critDamage += 0.75;
         this.amuletDamage = 4;
@@ -629,22 +818,19 @@ class DivineKnight extends Player {
     }
 
     showAura() {
+        // Hide the legacy DOM aura element — visual is now handled by the canvas effect
         const aura = document.getElementById('holy-shield-aura');
-        if (aura) {
-            aura.style.display = 'block';
-            this.updateAuraVisual();
-        }
+        if (aura) aura.style.display = 'none';
+        this.updateAuraVisual();
     }
 
     updateAuraVisual() {
-        const aura = document.getElementById('holy-shield-aura');
-        if (!aura || !this.weapon) return;
-        const size = this.weapon.globalRange * 1.93;
-        const gameAreaRect = document.getElementById('game-area').getBoundingClientRect();
-        aura.style.width  = `${size}px`;
-        aura.style.height = `${size}px`;
-        aura.style.left   = `${gameAreaRect.left + this.position.x - size / 2}px`;
-        aura.style.top    = `${gameAreaRect.top  + this.position.y - size / 2}px`;
+        if (!this.weapon) return;
+        const radius   = this.weapon.globalRange * 0.965; // match old visible boundary
+        const fireMode = document.getElementById('holy-shield-aura')?.classList.contains('holy-fire-active') ?? false;
+        if (typeof updateDivineAuraPulse === 'function') {
+            updateDivineAuraPulse(this.position.x, this.position.y, radius, fireMode);
+        }
     }
 
     getInitialHP() { return super.getInitialHP() + 5; }

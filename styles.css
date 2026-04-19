@@ -432,14 +432,17 @@ hr {
 /* ============================================================
    AURAS / OVERLAYS
    ============================================================ */
+/* .holy-shield-aura is kept in the DOM only so other code can toggle
+   .holy-fire-active on it — the actual aura visual is canvas-drawn by effects.js */
 .holy-shield-aura {
-    position: absolute;
-    scale: 0.94;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 215, 0, 0.3) 0%, rgba(212, 175, 55, 0.2) 40%, transparent 100%);
-    pointer-events: none;
-    z-index: 1;
-    box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+    display: none !important;
+}
+
+
+
+.judgement-indicator {
+    font-weight: bold;
+    letter-spacing: 0.5px;
 }
 
 .mind-freeze-overlay {
@@ -514,6 +517,37 @@ hr {
     box-shadow: 0 7px 0 #1a1a1a, 0 8px 10px rgba(0, 0, 0, 0.3);
     cursor: not-allowed;
     opacity: 1;
+}
+
+#next-wave-button {
+    position: absolute;
+    bottom: 10px;
+    right: 5px;
+    z-index: 10;
+    width: 40px;
+    height: 28px;
+    padding: 3px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-align: center;
+    background: linear-gradient(145deg, var(--gold-dark), var(--gold-darker));
+    color: var(--gold-cream);
+    border: 2px solid var(--gold);
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 4px 0 var(--gold-deep), 0 5px 8px rgba(0, 0, 0, 0.5);
+    transition: all 0.1s;
+    font-family: var(--font-display);
+}
+#next-wave-button:hover {
+    background: linear-gradient(145deg, #DAA520, var(--gold-dark));
+    box-shadow: 0 4px 0 var(--gold-deep), 0 0 12px var(--glow-gold);
+}
+#next-wave-button:active {
+    background: linear-gradient(145deg, var(--gold-darker), var(--gold-deep));
+    box-shadow: 0 1px 0 var(--gold-deep), 0 2px 4px rgba(0, 0, 0, 0.5);
+    transform: translateY(4px);
 }
 
 .ability-cooldown {
@@ -1659,50 +1693,84 @@ input:checked + .slider:before {
    BUTTONS: HARD RESET / ACHIEVEMENTS / DEBUG
    ============================================================ */
 
-/* Shared button base for class-selection screen buttons */
-#hard-reset-btn,
-#achievements-button {
+/* ─── Actions panel: contains Leaderboard, Achievements, Hard Reset ─── */
+#actions-panel {
     position: absolute;
-    padding: 12px 20px;
-    font-size: 16px;
-    border: 2px solid var(--gold);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    width: 150px;
-    height: 50px;
-    text-align: center;
-    border-radius: 5px;
-    font-family: var(--font-display);
+    bottom: -110px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: linear-gradient(145deg, var(--bg-dark), var(--bg-mid));
+    border: 3px solid var(--brown);
+    border-image: var(--border-ornate) 1;
+    border-radius: 8px;
+    box-shadow: 0 0 20px var(--glow-gold), inset 0 0 30px rgba(0,0,0,0.5);
+    z-index: 100;
+    white-space: nowrap;
+}
+
+/* Shared button base inside actions-panel — tab style */
+#hard-reset-btn,
+#achievements-button,
+#leaderboard-button {
+    position: static;
+    transform: none !important;
+    padding: 9px 18px;
+    font-size: 12px;
     font-weight: 600;
+    letter-spacing: 0.08em;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s, border-bottom-color 0.2s;
+    width: 130px;
+    height: 40px;
+    text-align: center;
+    border-radius: 0;
+    font-family: var(--font-display);
+    color: #8a7a65;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
 }
 
-#hard-reset-btn {
-    bottom: -70px;
-    left: 75%;
-    transform: translateX(20px);
-    background: linear-gradient(145deg, #8B0000, #A52A2A);
-    color: var(--gold-bright);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
-}
-#hard-reset-btn:hover {
-    background: linear-gradient(145deg, #A52A2A, #8B0000);
-    box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
-    transform: translateX(20px) translateY(-2px);
+#hard-reset-btn::before,
+#achievements-button::before,
+#leaderboard-button::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
 }
 
-#achievements-button {
-    bottom: -70px;
-    left: 62%;
-    transform: translateX(-170px);
-    background: linear-gradient(145deg, var(--brown-dark), var(--brown));
-    color: var(--gold-bright);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.6);
-}
-#achievements-button:hover {
-    background: linear-gradient(145deg, var(--brown), var(--brown-dark));
-    box-shadow: 0 8px 16px var(--shadow-black), 0 0 20px var(--glow-gold);
-    transform: translateX(-170px) translateY(-2px);
-}
+/* Hard Reset — red dot */
+#hard-reset-btn::before       { background: #c0392b; }
+#hard-reset-btn               { }
+#hard-reset-btn:hover         { color: #d4c5a9; background: rgba(255,255,255,0.04); }
+#hard-reset-btn.active,
+#hard-reset-btn:active        { color: #ff8070; border-bottom-color: #c0392b; background: linear-gradient(to bottom, rgba(192,57,43,0.07), transparent); }
+
+/* Achievements — gold dot */
+#achievements-button::before  { background: #c9a84c; }
+#achievements-button          { }
+#achievements-button:hover    { color: #d4c5a9; background: rgba(255,255,255,0.04); }
+#achievements-button:active   { color: #f0d080; border-bottom-color: #c9a84c; background: linear-gradient(to bottom, rgba(201,168,76,0.07), transparent); }
+
+/* Leaderboard — gold dot */
+#leaderboard-button::before   { background: #c9a84c; }
+#leaderboard-button           { }
+#leaderboard-button:hover     { color: #d4c5a9; background: rgba(255,255,255,0.04); }
+#leaderboard-button:active    { color: #f0d080; border-bottom-color: #c9a84c; background: linear-gradient(to bottom, rgba(201,168,76,0.07), transparent); }
+
 
 
 #debug-skip-wave {
@@ -2169,6 +2237,37 @@ input:checked + .slider:before {
 @keyframes sorc-talent-pulse{from{box-shadow:0 0 8px var(--sorceress-glow)}to{box-shadow:0 0 22px var(--sorceress-glow),0 0 40px rgba(65,105,225,.3)}}
 
 /* ============================================================
+   DIVINE KNIGHT TALENT TREE — Holy Mastery
+   ============================================================ */
+:root {
+  --dk-base:#D4AF37;--dk-bright:#FFD700;--dk-max:#FFE566;
+  --dk-glow:rgba(212,175,55,0.55);
+}
+#dktw, #dk-backdrop {
+  --dk-base:#D4AF37;--dk-bright:#FFD700;--dk-max:#FFE566;
+  --dk-glow:rgba(212,175,55,0.55);
+}
+#dk-backdrop{display:none;position:fixed;inset:0;background:rgba(18,14,4,.82);backdrop-filter:blur(4px);z-index:800;align-items:center;justify-content:center}
+#dk-backdrop.open{display:flex}
+#dktw{position:relative;width:660px;max-height:92vh;background:linear-gradient(145deg,#1a1408,#241c0a,#181004);border:3px solid #3a2e0a;border-radius:12px;box-shadow:0 0 60px rgba(212,175,55,.2),0 0 120px rgba(212,175,55,.08),inset 0 0 50px rgba(0,0,0,.7);overflow:hidden;animation:tw-open .28s cubic-bezier(.34,1.56,.64,1) forwards}
+.dk-tw-head{border-image:linear-gradient(90deg,transparent,#D4AF37,#fff,#D4AF37,transparent) 1 !important;background:linear-gradient(180deg,rgba(212,175,55,.1),transparent) !important}
+.dk-tw-sub{color:var(--dk-base) !important}
+#dktw .tw-pts span, .dk-pts-val{color:var(--dk-bright) !important;font-weight:700;font-size:16px}
+/* DK nodes */
+.dk-node:hover:not(.locked){border-color:var(--dk-base) !important;box-shadow:0 0 12px var(--dk-glow) !important;}
+.dk-node.partial{border-color:rgba(212,175,55,.65) !important;box-shadow:0 0 8px rgba(212,175,55,.3) !important}
+.dk-node.maxed{border-color:var(--dk-max) !important;box-shadow:0 0 20px rgba(255,229,102,.75),0 0 38px rgba(212,175,55,.45),inset 0 0 14px rgba(255,215,0,.18) !important}
+.dk-bvow{border:3px solid transparent !important;background:linear-gradient(145deg,#1a1408,#241c0a) padding-box,linear-gradient(135deg,#fff 50%,#D4AF37 50%) border-box !important}
+.dk-bvow.partial,.dk-bvow.maxed{background:linear-gradient(145deg,#1a1408,#241c0a) padding-box,linear-gradient(135deg,#fff 50%,#D4AF37 50%) border-box !important;border-color:transparent !important}
+.dk-bvow.partial{box-shadow:0 0 18px rgba(255,255,255,.55),0 0 22px rgba(212,175,55,.65),0 0 40px rgba(212,175,55,.35) !important}
+.dk-bvow.maxed{box-shadow:0 0 24px rgba(255,255,255,.7),0 0 30px rgba(212,175,55,.85),0 0 55px rgba(212,175,55,.45) !important}
+.dk-fill-inner{background:linear-gradient(180deg,rgba(180,140,20,.4),rgba(212,175,55,.7)) !important}
+.dk-node.maxed .dk-fill-inner{background:linear-gradient(180deg,rgba(160,120,10,.55),rgba(255,220,80,.8)) !important}
+.dk-counter{color:var(--dk-base) !important;text-shadow:0 0 6px rgba(212,175,55,.5) !important}
+.dk-pulse{animation:dk-talent-pulse 1.6s ease-in-out infinite alternate !important;border-color:var(--dk-base) !important}
+@keyframes dk-talent-pulse{from{box-shadow:0 0 8px var(--dk-glow)}to{box-shadow:0 0 22px var(--dk-glow),0 0 40px rgba(212,175,55,.3)}}
+
+/* ============================================================
    SOUL FRAGMENT / CLASS HEX / WEAPON EVOLUTION UI
    (moved from runtime injection in upgrades.js / weapons.js)
    ============================================================ */
@@ -2305,6 +2404,10 @@ input:checked + .slider:before {
 .sf-wrap.dk:hover   .wevo-shell          { filter: drop-shadow(0 12px 28px rgba(255,200,50,0.6));  }
 .sf-wrap:nth-child(1) .wevo-weapon       { animation-delay: 0s;    }
 .sf-wrap:nth-child(2) .wevo-weapon       { animation-delay: -1.1s; }
+.sf-wrap.dk .wevo-weapon {
+    width: 110px; height: 200px;
+}
+
 .wevo-name { font-family: 'Cinzel', 'Georgia', serif; font-size: 16px; font-weight: 700; letter-spacing: 0.08em; text-align: center; margin-top: 14px; margin-bottom: 10px; }
 .wevo-name.aco  { color: #b070e8; }
 .wevo-name.sorc { color: #5ab0f0; }
@@ -2324,9 +2427,240 @@ input:checked + .slider:before {
 
 /* ── Level-up / class-ascension screen titles ── */
 .sf-screen-title { font-family: 'Cinzel Decorative', 'Cinzel', 'Georgia', serif; font-size: 26px; color: #e8d5a0; text-shadow: 0 0 30px rgba(220,190,100,0.4), 0 2px 0 rgba(0,0,0,0.8); letter-spacing: 0.08em; margin-bottom: 4px; text-align: center; }
-.sf-screen-title.ascension { color: #d090ff; text-shadow: 0 0 30px rgba(160,80,255,0.45), 0 2px 0 rgba(0,0,0,0.8); }
+.sf-screen-title.ascension.acolyte      { color: #d090ff; text-shadow: 0 0 30px rgba(160,80,255,0.45), 0 2px 0 rgba(0,0,0,0.8); }
+.sf-screen-title.ascension.sorceress    { color: #80c0ff; text-shadow: 0 0 30px rgba(65,105,225,0.55), 0 2px 0 rgba(0,0,0,0.8); }
+.sf-screen-title.ascension.divine-knight{ color: #f0d060; text-shadow: 0 0 30px rgba(224,168,32,0.55), 0 2px 0 rgba(0,0,0,0.8); }
 .sf-screen-sub  { font-family: 'IM Fell English', 'Georgia', serif; font-style: italic; font-size: 13px; color: #6a5c42; margin-bottom: 24px; letter-spacing: 0.05em; text-align: center; }
 .sf-name        { font-family: 'Cinzel', 'Georgia', serif; font-size: 15px; font-weight: 600; letter-spacing: 0.06em; line-height: 1.3; margin-bottom: 2px; }
 .sf-dmgtype     { font-family: 'IM Fell English', 'Georgia', serif; font-style: italic; font-size: 12px; color: #7a6848; line-height: 1.4; }
 .tag-additive        { color: #7eb8c4; }
 .tag-multiplicative  { color: #c4a87e; }
+/* ═══════════════════════════════════════════════════════════════
+   LEADERBOARD MODAL
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Modal shell ── */
+.lb-modal-content {
+    max-width: 660px;
+    width: 94vw;
+    max-height: 82vh;
+    overflow-y: auto;
+    padding: 28px 24px 32px;
+    background: #110e0b;
+    border: 1px solid #3a2e22;
+    border-radius: 6px;
+    position: relative;
+}
+.lb-modal-content::-webkit-scrollbar { width: 8px; }
+.lb-modal-content::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+}
+.lb-modal-content::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--gold-dark), var(--gold-deeper, #5a4010));
+    border-radius: 4px;
+    border: 1px solid var(--gold);
+}
+.lb-modal-content::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--gold), var(--gold-dark));
+}
+
+/* ── Header ornament ── */
+.lb-header-ornament {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 6px;
+}
+.lb-header-ornament::before {
+    content: '';
+    flex: 1;
+    max-width: 160px;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #7a5e28);
+}
+.lb-header-ornament::after {
+    content: '';
+    flex: 1;
+    max-width: 160px;
+    height: 1px;
+    background: linear-gradient(to left, transparent, #7a5e28);
+}
+.lb-diamond {
+    width: 8px;
+    height: 8px;
+    background: #c9a84c;
+    transform: rotate(45deg);
+    margin: 0 12px;
+}
+.lb-title {
+    text-align: center;
+    font-family: 'Cinzel Decorative', 'Cinzel', Georgia, serif !important;
+    font-size: clamp(18px, 3.5vw, 28px) !important;
+    font-weight: 700 !important;
+    color: #f0d080 !important;
+    letter-spacing: 0.06em;
+    text-shadow: 0 0 30px rgba(201,168,76,0.35);
+    margin-bottom: 18px !important;
+    /* Explicitly avoid inheriting global game font */
+    font-style: normal !important;
+}
+
+/* ── Tabs ── */
+.lb-tabs {
+    display: flex;
+    border-bottom: 2px solid #3a2e22;
+    margin-bottom: 0;
+}
+.lb-tab-btn {
+    padding: 11px 22px;
+    font-family: 'Cinzel', Georgia, serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #8a7a65;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    cursor: pointer;
+    transition: color .2s, background .2s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+.lb-tab-btn:hover { color: #d4c5a9; background: rgba(255,255,255,0.04); }
+.lb-tab-btn.lb-tab-active { border-bottom: 2px solid #c9a84c; color: #f0d080; background: linear-gradient(to bottom, rgba(201,168,76,0.07), transparent); }
+.lb-tab-acolyte.lb-tab-active   { color: #c9aaff; border-bottom-color: #9370db; }
+.lb-tab-sorceress.lb-tab-active { color: #7fa8ff; border-bottom-color: #4169e1; }
+.lb-tab-divine.lb-tab-active    { color: #fff0a0; border-bottom-color: #f0c030; }
+
+.lb-tab-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.lb-dot-acolyte  { background: #9370db; }
+.lb-dot-sorc     { background: #4169e1; }
+.lb-dot-divine   { background: #f0c030; }
+
+/* ── Panels ── */
+.lb-panel { display: none; border: 1px solid #3a2e22; border-top: none; }
+.lb-panel.lb-active { display: block; }
+
+.lb-accent-strip { height: 3px; }
+.lb-accent-acolyte { background: linear-gradient(to right, transparent, #9370db, transparent); }
+.lb-accent-sorc    { background: linear-gradient(to right, transparent, #4169e1, transparent); }
+.lb-accent-divine  { background: linear-gradient(to right, transparent, #f0c030, transparent); }
+
+/* ── Weapon sections ── */
+.lb-weapon-section { border-bottom: 1px solid #3a2e22; }
+.lb-weapon-section:last-child { border-bottom: none; }
+
+.lb-weapon-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 18px;
+    border-bottom: 1px solid #3a2e22;
+    background: linear-gradient(to bottom, #1a1410, #110e0b);
+}
+.lb-weapon-name {
+    font-family: 'Cinzel', Georgia, serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: #d4c5a9;
+}
+
+/* ── Column headers ── */
+.lb-col-headers {
+    display: grid;
+    grid-template-columns: 30px 1fr 46px 1fr 90px;
+    padding: 5px 14px;
+    border-bottom: 1px solid #3a2e22;
+    background: #0a0806;
+}
+.lb-col-hdr {
+    font-family: 'Cinzel', Georgia, serif;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: #5a4e40;
+    text-transform: uppercase;
+}
+.lb-center { text-align: center; }
+.lb-right  { text-align: right; }
+
+/* ── Entry rows ── */
+.lb-entry-row {
+    display: grid;
+    grid-template-columns: 30px 1fr 46px 1fr 90px;
+    padding: 7px 14px;
+    align-items: center;
+    border-bottom: 1px solid rgba(58,46,34,0.45);
+    transition: background .15s;
+}
+.lb-entry-row:last-child { border-bottom: none; }
+.lb-entry-row:nth-child(even) { background: rgba(255,255,255,0.018); }
+.lb-entry-row:hover { background: rgba(201,168,76,0.06); }
+
+.lb-rank        { font-family: 'Cinzel', Georgia, serif; font-size: 12px; font-weight: 700; color: #5a4e40; text-align: center; }
+.lb-gold        { color: #c9a84c; text-shadow: 0 0 8px rgba(201,168,76,0.5); }
+.lb-silver      { color: #a8b8c8; }
+.lb-bronze      { color: #c08050; }
+
+.lb-entry-name  { font-family: 'Cinzel', Georgia, serif; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; overflow: hidden; white-space: nowrap; }
+.lb-acolyte-col { color: #c9aaff; }
+.lb-sorc-col    { color: #7fa8ff; }
+.lb-divine-col  { color: #fff0a0; }
+
+.lb-evo-prefix  { font-family: 'Cinzel', Georgia, serif; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; }
+
+.lb-entry-lvl   { font-family: 'Cinzel', Georgia, serif; font-size: 13px; font-weight: 700; color: #c9a84c; text-align: center; }
+
+.lb-entry-stage { font-size: 12px; color: #d4c5a9; white-space: nowrap; }
+.lb-stage-num   { font-weight: 600; }
+.lb-wave-sep    { color: #5a4e40; margin: 0 2px; font-size: 10px; }
+.lb-wave-num    { color: #8a7a65; font-size: 11px; }
+
+.lb-entry-vows  { display: flex; justify-content: flex-end; }
+.lb-vow-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 2px;
+    font-family: 'Cinzel', Georgia, serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    border: 1px solid #6a5030;
+    background: rgba(201,168,76,0.10);
+    color: #c9a84c;
+}
+.lb-vow-none {
+    color: #5a4e40;
+    border-color: #3a2e22;
+    background: transparent;
+    font-style: italic;
+    font-family: Georgia, serif;
+    letter-spacing: 0;
+    font-size: 11px;
+    font-weight: 300;
+}
+
+.lb-empty {
+    padding: 28px;
+    text-align: center;
+    color: #5a4e40;
+    font-style: italic;
+    font-size: 13px;
+}
+
+@media (max-width: 540px) {
+    .lb-col-headers { grid-template-columns: 26px 1fr 36px 1fr; }
+    .lb-entry-row   { grid-template-columns: 26px 1fr 36px 1fr; }
+    .lb-entry-vows, .lb-vows-col { display: none; }
+    .lb-tab-btn { padding: 9px 12px; font-size: 10px; }
+}

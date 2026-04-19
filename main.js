@@ -82,6 +82,9 @@ function saveGameState() {
     // Save Sorceress talent alloc and points
     state.sorcTalentAlloc = Object.assign({}, sorcAlloc);
     state.sorcTalentPoints = sorcTalentPoints;
+    // Save Divine Knight talent alloc and points
+    state.dkTalentAlloc = Object.assign({}, dkAlloc);
+    state.dkTalentPoints = dkTalentPoints;
     localStorage.setItem('gameState', JSON.stringify(state));
 }
 
@@ -106,6 +109,9 @@ function loadGameState() {
         restoreAlloc(sorcAlloc, parsed.sorcTalentAlloc);
         if (parsed.sorcTalentPoints !== undefined) sorcTalentPoints = parsed.sorcTalentPoints;
 
+        restoreAlloc(dkAlloc, parsed.dkTalentAlloc);
+        if (parsed.dkTalentPoints !== undefined) dkTalentPoints = parsed.dkTalentPoints;
+
         if (!Array.isArray(gameState.talentPointsGranted)) gameState.talentPointsGranted = [];
 
         console.log('Game Loaded Successfully');
@@ -121,7 +127,10 @@ function hardReset() {
     talentPoints = 0;
     Object.keys(sorcAlloc).forEach(k => sorcAlloc[k] = 0);
     sorcTalentPoints = 0;
+    Object.keys(dkAlloc).forEach(k => dkAlloc[k] = 0);
+    dkTalentPoints = 0;
     localStorage.removeItem('gameState');
+    clearLeaderboard();
     location.reload();
 }
 
@@ -160,9 +169,12 @@ function ascend() {
     talentPoints = 0;
     sorcResetTalents();
     sorcTalentPoints = 0;
+    dkResetTalents();
+    dkTalentPoints = 0;
     gameState.talentPointsGranted = [];
     renderTalents();
     renderSorcTalents();
+    renderDKTalents();
 
     updateInventoryUI();
     saveGameState();
@@ -212,7 +224,9 @@ function showClassSelection() {
     });
 
     const hardResetButton = document.getElementById('hard-reset-btn');
-    hardResetButton.parentNode.insertBefore(ascendButton, hardResetButton);
+    const actionsPanel = document.getElementById('actions-panel');
+    const insertTarget = actionsPanel || hardResetButton;
+    insertTarget.parentNode.insertBefore(ascendButton, insertTarget);
 
     document.querySelectorAll('.class-option').forEach(option => {
         const className = option.getAttribute('data-class');
@@ -263,6 +277,7 @@ function showClassSelection() {
     updateSoulsUI();
     updateInventoryUI();
     if (!document.getElementById('achievements-button')) createAchievementsButton();
+    if (!document.getElementById('leaderboard-button')) createLeaderboardButton();
     createAchievementsMenu();
     checkAchievements();
 
@@ -277,6 +292,8 @@ function startGame(playerClass) {
         playerClass, gameRunning: true,
         currentWave: 1 + (gameState.startingWaveUpgrades || 0),
         currentStage: 1,
+        highestKillWave: 0,
+        waveProgress: {},
     });
 
     ['class-selection', 'souls-menu', 'qol-menu', 'inventory-menu'].forEach(id =>
@@ -327,11 +344,23 @@ function createGameArea() {
     abilityButton.addEventListener('click', () => player?.weapon?.useAbility());
     gameArea.appendChild(abilityButton);
 
+    // Next Wave button — only visible after ascension 1
+    const nextWaveBtn = document.createElement('button');
+    nextWaveBtn.id = 'next-wave-button';
+    nextWaveBtn.textContent = '>>>';
+    nextWaveBtn.style.display = gameState.ascensionLevel >= 1 ? 'block' : 'none';
+    nextWaveBtn.addEventListener('click', () => nextWave());
+    gameArea.appendChild(nextWaveBtn);
+    updateNextWaveButton();
+
     createPlayerElement();
     updateStageBg();
 }
 
 function startWave() {
+    nextWaveEnemyDebt = 0;
+    nextWaveUses = 0;
+    updateNextWaveButton();
     updateStageBg();
     cancelAnimationFrame(animationFrameId);
     clearTimeout(animationFrameId);
@@ -380,23 +409,24 @@ function processNextLevelUp() {
     const lvl = player.level;
     player.expToNextLevel = Math.round(player.expToNextLevel * (lvl < 10 ? 1.35 : lvl < 20 ? 1.15 : 1.025));
 
-    if (lvl === 10) showWeaponEvolutionScreen();
-    else showLevelUpScreen();
+    showLevelUpScreen();
 }
 
 // Check and grant talent points at wave milestones (wave 10 and 20 per stage)
 function checkAndGrantTalentPoints(completedWave) {
     if (completedWave !== 10 && completedWave !== 20) return;
     if (!Array.isArray(gameState.talentPointsGranted)) gameState.talentPointsGranted = [];
-    const className = player instanceof Sorceress ? 'Sorceress' : (player?.class || 'Acolyte');
+    const className = player instanceof Sorceress ? 'Sorceress' : player instanceof DivineKnight ? 'Divine Knight' : (player?.class || 'Acolyte');
     const key = `${className}_${gameState.currentStage}_${completedWave}`;
     if (!gameState.talentPointsGranted.includes(key)) {
         // Grant only to the current player's class talent pool
         if (player instanceof Sorceress) {
             sorcTalentPoints++;
             renderSorcTalents();
+        } else if (player instanceof DivineKnight) {
+            dkTalentPoints++;
+            renderDKTalents();
         } else {
-            // Acolyte (and any future non-Sorc classes) use the acolyte pool
             talentPoints++;
             renderTalents();
         }
@@ -417,7 +447,16 @@ function gameLoop(timestamp) {
     const deltaTime = Math.min((timestamp - lastTimestamp) / 1000, 0.5);
     lastTimestamp = timestamp;
 
+    const enemiesBeforeUpdate = enemies.length;
     updateEnemies(deltaTime);
+    if (nextWaveEnemyDebt > 0) {
+        const killed = enemiesBeforeUpdate - enemies.length;
+        if (killed > 0) {
+            nextWaveEnemyDebt = Math.max(0, nextWaveEnemyDebt - killed);
+            if (nextWaveEnemyDebt <= 0) nextWaveUses = 0; // earn back all 3 uses
+            updateNextWaveButton();
+        }
+    }
     updatePlayer();
     updateWeapon();
     player.updateHp(deltaTime);
@@ -484,6 +523,45 @@ function skipWave() {
     updateUI();
 }
 
+function updateNextWaveButton() {
+    const btn = document.getElementById('next-wave-button');
+    if (!btn) return;
+    const locked = nextWaveUses >= 3 && nextWaveEnemyDebt > 0;
+    btn.disabled = locked;
+    btn.style.opacity = locked ? '0.4' : '1';
+    btn.style.cursor  = locked ? 'not-allowed' : 'pointer';
+    btn.title = '';
+}
+
+// Advance to next wave WITHOUT removing previous enemies.
+// Old enemies stay alive and keep moving toward the player.
+// NOTE: Talent points at waves 10/20 are NOT granted here — only earned by
+// naturally clearing a wave (via gameLoop → allEnemiesDefeated).
+function nextWave() {
+    if (!gameState.gameRunning || gameState.isPaused) return;
+    if (nextWaveUses >= 3 && nextWaveEnemyDebt > 0) return;
+
+    const enemiesBefore = enemies.length;
+
+    gameState.currentWave++;
+    if (gameState.currentWave > 20) {
+        gameState.currentStage++;
+        gameState.currentWave = 1;
+        checkClassUnlock();
+    }
+
+    // Spawn new wave enemies on top of existing ones (don't clear enemies array)
+    spawnEnemiesAdditive();
+
+    // Track how many new enemies were added by this skip
+    nextWaveEnemyDebt += enemies.length - enemiesBefore;
+    nextWaveUses++;
+
+    updateNextWaveButton();
+    updateStageBg();
+    updateUI();
+}
+
 function checkClassUnlock() {
     const unlocks = { 3: 'Sorceress', 5: 'Divine Knight' };
     const cls = unlocks[gameState.currentStage];
@@ -496,6 +574,24 @@ function checkClassUnlock() {
 function gameOver() {
     gameState.gameRunning = false;
     cancelAnimationFrame(animationFrameId);
+
+    // Record run before resetting stage/wave
+    if (player && player.weapon) {
+        recordLeaderboardEntry(
+            gameState.currentStage,
+            gameState.highestKillWave || 1,
+            player.level,
+            player.weapon.name,
+            player.classUpgradeChosen || '',
+            player.class,
+            getActiveVowAbbrs(player.class)
+        );
+    }
+
+    // Clear class upgrade so display name resets immediately (no stale prefix)
+    if (player) { player.classUpgradeChosen = null; }
+    gameState.classUpgradeChosen = null;
+
     gameState.currentWave = 1;
     gameState.currentStage = 1;
     stopBackgroundMusic();
@@ -538,6 +634,8 @@ function debugLevelUp() {
 
 let animationFrameId = null;
 let lastTimestamp = Date.now();
+let nextWaveUses = 0;        // >>> clicks since last reset (max 3)
+let nextWaveEnemyDebt = 0;   // enemies from skipped waves still alive
 
 document.addEventListener('DOMContentLoaded', () => {
     loadGameState();
@@ -545,13 +643,18 @@ document.addEventListener('DOMContentLoaded', () => {
     showClassSelection();
     buildTree();
     buildSorcTree();
+    buildDKTree();
     document.getElementById('debug-level-up').addEventListener('click', debugLevelUp);
+
+    // Wire DK talent button
+    const diviPlusBtn = document.getElementById('divi-plus');
+    if (diviPlusBtn) diviPlusBtn.addEventListener('click', () => openDKTalents());
     // TEMP DEBUG: Add talent point button for testing
     const debugTalentBtn = document.createElement('button');
     debugTalentBtn.id = 'debug-talent-btn';
     debugTalentBtn.textContent = '+1 Talent';
     debugTalentBtn.style.cssText = 'position:fixed;bottom:10px;left:10px;z-index:9999;padding:4px 10px;background:#2a1a3e;border:1px solid #9370DB;color:#c8aaff;font-size:11px;cursor:pointer;border-radius:4px;';
-    debugTalentBtn.addEventListener('click', () => { talentPoints++; sorcTalentPoints++; renderTalents(); renderSorcTalents(); saveGameState(); });
+    debugTalentBtn.addEventListener('click', () => { talentPoints++; sorcTalentPoints++; dkTalentPoints++; renderTalents(); renderSorcTalents(); renderDKTalents(); saveGameState(); });
     document.body.appendChild(debugTalentBtn);
     const autoCastToggle = document.getElementById('auto-cast-toggle');
     if (autoCastToggle) {
