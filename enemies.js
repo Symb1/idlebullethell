@@ -223,6 +223,30 @@ class Enemy {
         player.gainSouls(Math.floor(this.maxHp * 0.1));
         player.gainExp(10 * this.getExpMultiplier());
         this.element.classList.add('dying');
+        // Decrement skip-wave debt here (synchronous with the kill, not delayed like the setTimeout removal)
+        if (nextWaveEnemyDebt > 0) {
+            nextWaveEnemyDebt--;
+            if (nextWaveEnemyDebt <= 0) {
+                nextWaveEnemyDebt = 0;
+                nextWaveUses = 0;
+                updateNextWaveButton();
+            }
+        }
+        // Grant each pending milestone point as soon as ALL enemies from THAT wave are
+        // killed — checked on every kill, outside the debt guard, because wave 10
+        // enemies themselves don't contribute to nextWaveEnemyDebt.
+        if (pendingMilestoneWaves.length > 0) {
+            pendingMilestoneWaves = pendingMilestoneWaves.filter(entry => {
+                const w = entry.wave !== undefined ? entry.wave : entry;
+                const s = entry.stage;
+                const wp = gameState.waveProgress[w];
+                if (wp && wp.killed >= wp.spawned) {
+                    checkAndGrantTalentPoints(w, s);
+                    return false;
+                }
+                return true;
+            });
+        }
         setTimeout(() => {
             this.element.remove();
             enemies = enemies.filter(e => e !== this);
@@ -269,34 +293,44 @@ class EliteEnemy extends Enemy {
     }
 
     useWeakness() {
-    const originalDamage = player.weapon.damage;
-    player.weapon.damage *= 0.75;
-    const playerEl = document.getElementById('player');
-    playerEl.classList.add('weakened');
-    const timer = setTimeout(() => this.endWeakness(originalDamage, playerEl), 10000);
-    this.activeEffects.push({ name: 'Weakness', timer, playerElement: playerEl, originalDamage });
+        const originalDamage = player.weapon.damage;
+        player.weapon.damage *= 0.75;
+        const playerEl = document.getElementById('player');
+        playerEl.classList.add('weakened');
+        const effectId = Symbol('Weakness');
+        const effect = { id: effectId, name: 'Weakness', playerElement: playerEl, originalDamage };
+        const timer = setTimeout(() => this.endWeakness(effect), 10000);
+        effect.timer = timer;
+        this.activeEffects.push(effect);
+        if (typeof updatePlayerStats === 'function') updatePlayerStats();
     }
 
-    endWeakness(originalDamage, playerEl) {
-        player.weapon.damage = originalDamage;
-        playerEl.classList.remove('weakened');
-        this.activeEffects = this.activeEffects.filter(e => e.name !== 'Weakness');
+    endWeakness(effect) {
+        player.weapon.damage = effect.originalDamage;
+        effect.playerElement.classList.remove('weakened');
+        this.activeEffects = this.activeEffects.filter(e => e.id !== effect.id);
+        if (typeof updatePlayerStats === 'function') updatePlayerStats();
     }
 
     useMindFreeze() {
-    const originalSpeed = player.attacksPerSecond;
-    player.attacksPerSecond *= 0.75;
-    const overlay = document.createElement('div');
-    overlay.className = 'mind-freeze-overlay';
-    document.getElementById('game-area').appendChild(overlay);
-    const timer = setTimeout(() => this.endMindFreeze(originalSpeed, overlay), 10000);
-    this.activeEffects.push({ name: 'MindFreeze', timer, overlay, originalSpeed });
+        const originalSpeed = player.attacksPerSecond;
+        player.attacksPerSecond *= 0.75;
+        const overlay = document.createElement('div');
+        overlay.className = 'mind-freeze-overlay';
+        document.getElementById('game-area').appendChild(overlay);
+        const effectId = Symbol('MindFreeze');
+        const effect = { id: effectId, name: 'MindFreeze', overlay, originalSpeed };
+        const timer = setTimeout(() => this.endMindFreeze(effect), 10000);
+        effect.timer = timer;
+        this.activeEffects.push(effect);
+        if (typeof updatePlayerStats === 'function') updatePlayerStats();
     }
 
-    endMindFreeze(originalSpeed, overlay) {
-        player.attacksPerSecond = originalSpeed;
-        overlay.remove();
-        this.activeEffects = this.activeEffects.filter(e => e.name !== 'MindFreeze');
+    endMindFreeze(effect) {
+        player.attacksPerSecond = effect.originalSpeed;
+        effect.overlay.remove();
+        this.activeEffects = this.activeEffects.filter(e => e.id !== effect.id);
+        if (typeof updatePlayerStats === 'function') updatePlayerStats();
     }
 
     useRally() {
@@ -316,9 +350,9 @@ class EliteEnemy extends Enemy {
         player.gainSouls(Math.floor(this.maxHp * 0.15));
 
         this.activeEffects.forEach(effect => {
-                clearTimeout(effect.timer);
-    if (effect.name === 'MindFreeze') this.endMindFreeze(effect.originalSpeed, effect.overlay);
-    if (effect.name === 'Weakness')   this.endWeakness(effect.originalDamage, effect.playerElement);
+            clearTimeout(effect.timer);
+            if (effect.name === 'MindFreeze') this.endMindFreeze(effect);
+            if (effect.name === 'Weakness')   this.endWeakness(effect);
         });
         this.activeEffects = [];
 

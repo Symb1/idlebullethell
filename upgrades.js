@@ -668,6 +668,7 @@ function selectUpgrade(upgrade, index) {
 
 function hideLevelUpScreen() {
     document.getElementById('level-up')?.remove();
+    levelUpScreenOpen = false;
 }
 
 // --- Soul Upgrades Cost ---

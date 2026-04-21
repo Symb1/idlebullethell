@@ -38,7 +38,7 @@ class Player {
     gainExp(amount) {
         const mult = 1 + ((gameState.expUpgrades || 0) * this.getSoulsUpgrade('Exp+').valuePerUpgrade);
         this.exp += amount * mult;
-        if (this.exp >= this.expToNextLevel) processNextLevelUp();
+        if (this.exp >= this.expToNextLevel) scheduleLevelUp();
     }
 
     gainSouls(amount) {

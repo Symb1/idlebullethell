@@ -138,8 +138,8 @@ const SORC_NODES = [
   // ── Row 3 ────────────────────────────────────────────────────────
   { id:'chain_reverb',       label:'Chain Reverb',          abbr:'CR', cx:170, cy:420, max:5,
     req:'static_acceleration', reqPts:2,
-    desc: p => `Each chain has a <b>${p*8}%</b> chance to hit the same target again.<br>If no enemies to chain to, it has a <b>${p*8}%</b> chance to return to the first target.`,
-    per:'Double hit chance on chains is increased by 8% per rank.<br>Fallback chance is increased by 8% per rank.' },
+    desc: p => `Each chain has a <b>${p*8}%</b> chance to hit the same target again.<br>If no enemies to chain to, <b>${p*8}%</b> chance to fall back to the first target, max <b>2</b> chains.`,
+    per:'Double hit chance on chains is increased by 8% per rank.<br>Fallback return chance is increased by 8% per rank, max 2 chains.' },
 
   { id:'charged_dominance',  label:'Charged Dominance',     abbr:'CD', cx:430, cy:420, max:5,
     req:'static_acceleration', reqPts:2,
@@ -159,17 +159,17 @@ const SORC_NODES = [
     ascNote:'Requires 1 Ascension' },
   { id:'unbroken_current',   label:'Unbroken Current',      abbr:'UC', cx:225, cy:285, max:1, bvow:true, tgroup:'s1',
     req:'chain_reverb', reqPts:3, reqAscension:1, desc:()=>'',
-    per:'Chain Wand: No chain damage penalty and +1 extra chained enemies.',
+    per:'Chain Wand: No chain damage penalty, return chains from fallback have no cap',
     ascNote:'Requires 1 Ascension' },
 
   // Binding Vow singles under charged_dominance
   { id:'shock_infusion',     label:'Shock Infusion',        abbr:'SI', cx:370, cy:285, max:1, bvow:true, tgroup:'s2',
     req:'charged_dominance', reqPts:3, reqAscension:1, desc:()=>'',
-    per:'Spark Wand: Flash Freeze now automatically applies 12 stacks of Shock to every enemy.',
+    per: () => { const w = new SparkWand(); return `Spark Wand: Flash Freeze now automatically applies ${w.shockInfusionStacks} stacks of Shock to every enemy.`; },
     ascNote:'Requires 1 Ascension' },
   { id:'overcharge',         label:'Overcharge',            abbr:'OC', cx:480, cy:285, max:1, bvow:true, tgroup:'s2',
     req:'charged_dominance', reqPts:3, reqAscension:1, desc:()=>'',
-    per:'Spark Wand: Shock damage bonus increased to 15% per stack.',
+    per: () => { const w = new SparkWand(); return `Spark Wand: Shock damage bonus increased to ${w.shockStackBonusOvercharge * 100}% per stack.`; },
     ascNote:'Requires 1 Ascension' },
 
   // ── Row 5 (top) — Excellence nodes ──────────────────────────────
@@ -615,7 +615,7 @@ function showTooltip(e, n, allocObj, nodeMapObj, isUnlocked, isAscUnlocked) {
   descEl.innerHTML     = desc;
   descEl.style.display = desc ? 'block' : 'none';
 
-  document.getElementById('tt-per').innerHTML = n.per;
+  document.getElementById('tt-per').innerHTML = typeof n.per === 'function' ? n.per() : n.per;
 
   const bonusEl  = document.getElementById('tt-bonus');
   const bonusTxt = document.getElementById('tt-bonus-txt');

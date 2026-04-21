@@ -808,6 +808,9 @@ class SparkWand extends BasicWand {
         this.freezeDuration = 2;
         this.damage = this.baseDamage;
         this.abilityName = 'Flash Freeze';
+        this.shockInfusionStacks = 6;
+        this.shockStackBonus = 0.10;
+        this.shockStackBonusOvercharge = 0.20;
         this.updateDamage();
     }
 
@@ -835,9 +838,9 @@ class SparkWand extends BasicWand {
 
     getShockDamageMultiplier(enemy) {
         const stacks = enemy.shockStacks || 0;
-        // Overcharge: 15% per stack instead of 10%
+        // Overcharge: shockStackBonusOvercharge per stack instead of shockStackBonus
         const overcharge = typeof sorcAlloc !== 'undefined' && sorcAlloc['overcharge'] >= 1;
-        return 1 + stacks * (overcharge ? 0.15 : 0.10);
+        return 1 + stacks * (overcharge ? this.shockStackBonusOvercharge : this.shockStackBonus);
     }
 
     performAttack() {
@@ -862,11 +865,13 @@ class SparkWand extends BasicWand {
 
     performAbility() {
         const shockInfusion = typeof sorcAlloc !== 'undefined' && sorcAlloc['shock_infusion'] >= 1;
+        console.log(`[Flash Freeze] shockInfusionStacks: ${this.shockInfusionStacks} | shockStackBonus: ${this.shockStackBonus} | shockStackBonusOvercharge: ${this.shockStackBonusOvercharge}`);
         enemies.forEach(enemy => {
             this.stunEnemy(enemy);
-            // Shock Infusion: automatically apply 12 stacks of Shock on Flash Freeze
+            // Shock Infusion: automatically apply shockInfusionStacks stacks of Shock on Flash Freeze
             if (shockInfusion) {
-                enemy.shockStacks = (enemy.shockStacks || 0) + 12;
+                enemy.shockStacks = (enemy.shockStacks || 0) + this.shockInfusionStacks;
+                console.log(`[Shock Infusion] Applied ${this.shockInfusionStacks} stacks to enemy. Total stacks: ${enemy.shockStacks}`);
             }
         });
 
@@ -880,7 +885,8 @@ class SparkWand extends BasicWand {
                     const dur = echoMax ? this.freezeDuration * 2 : this.freezeDuration;
                     this._stunEnemyDuration(enemy, dur);
                     if (shockInfusion) {
-                        enemy.shockStacks = (enemy.shockStacks || 0) + 12;
+                        enemy.shockStacks = (enemy.shockStacks || 0) + this.shockInfusionStacks;
+                        console.log(`[Shock Infusion - Tempest Echo recast] Applied ${this.shockInfusionStacks} stacks to enemy. Total stacks: ${enemy.shockStacks}`);
                     }
                 });
             }, 1000);

@@ -215,7 +215,7 @@ function showClassSelection() {
     if (maxed) {
         ascendButton.textContent = 'Maxed Out';
     } else if (!canAscend) {
-        ascendButton.innerHTML = `Ascend<br><span class="unlock-text">Unlock Stage ${nextStage}</span>`;
+        ascendButton.innerHTML = `Ascend<span class="unlock-text">Unlock Stage ${nextStage}</span>`;
     } else {
         ascendButton.textContent = 'Ascend';
     }
@@ -223,10 +223,18 @@ function showClassSelection() {
         if (canAscend) showAscensionOverlay();
     });
 
-    const hardResetButton = document.getElementById('hard-reset-btn');
-    const actionsPanel = document.getElementById('actions-panel');
-    const insertTarget = actionsPanel || hardResetButton;
-    insertTarget.parentNode.insertBefore(ascendButton, insertTarget);
+    const selectionContent = document.getElementById('selection-content');
+    if (selectionContent) {
+        selectionContent.appendChild(ascendButton);
+    } else {
+        const actionsPanel = document.getElementById('actions-panel');
+        if (actionsPanel) {
+            actionsPanel.insertBefore(ascendButton, actionsPanel.firstChild);
+        } else {
+            const hardResetButton = document.getElementById('hard-reset-btn');
+            hardResetButton?.parentNode?.insertBefore(ascendButton, hardResetButton);
+        }
+    }
 
     document.querySelectorAll('.class-option').forEach(option => {
         const className = option.getAttribute('data-class');
@@ -294,6 +302,8 @@ function startGame(playerClass) {
         currentStage: 1,
         highestKillWave: 0,
         waveProgress: {},
+        lastFullyClearedStage: 0,
+        lastFullyClearedWave: 0,
     });
 
     ['class-selection', 'souls-menu', 'qol-menu', 'inventory-menu'].forEach(id =>
@@ -360,6 +370,7 @@ function createGameArea() {
 function startWave() {
     nextWaveEnemyDebt = 0;
     nextWaveUses = 0;
+    pendingMilestoneWaves = [];
     updateNextWaveButton();
     updateStageBg();
     cancelAnimationFrame(animationFrameId);
@@ -388,12 +399,37 @@ function grantSkippedWaveExperience() {
     player.exp += totalExp * multiplier;
 
     console.log(`Granted ${(totalExp * multiplier).toFixed(0)} XP for ${skipped} skipped waves`);
-    processNextLevelUp();
+    scheduleLevelUp();
+}
+
+// Tracks how many level-up screens are still owed to the player.
+// Prevents concurrent gainExp calls from racing and dropping screens.
+let pendingLevelUps = 0;
+let levelUpScreenOpen = false;
+
+// Called by gainExp (and grantSkippedWaveExperience) whenever EXP crosses a
+// threshold. Tallies all owed level-ups immediately, then shows screens one
+// at a time — each screen calls processNextLevelUp when the player picks a
+// card, naturally chaining until the debt is zero.
+function scheduleLevelUp() {
+    // Count every level-up the current EXP total owes, without showing anything yet.
+    while (player && player.exp >= player.expToNextLevel) {
+        player.level++;
+        player.exp -= player.expToNextLevel;
+        const lvl = player.level;
+        player.expToNextLevel = Math.round(player.expToNextLevel * (lvl < 10 ? 1.35 : lvl < 20 ? 1.15 : 1.025));
+        pendingLevelUps++;
+    }
+    // Only open a new screen if one isn't already open.
+    if (!levelUpScreenOpen) processNextLevelUp();
 }
 
 function processNextLevelUp() {
-    if (!player || player.exp < player.expToNextLevel) {
+    if (!player || pendingLevelUps <= 0) {
+        pendingLevelUps = 0;
+        levelUpScreenOpen = false;
         gameState.isPaused = false;
+        onGameResumed();
         cancelAnimationFrame(animationFrameId);
         lastTimestamp = performance.now();
         if (document.hidden) {
@@ -404,20 +440,21 @@ function processNextLevelUp() {
         return;
     }
 
-    player.level++;
-    player.exp -= player.expToNextLevel;
-    const lvl = player.level;
-    player.expToNextLevel = Math.round(player.expToNextLevel * (lvl < 10 ? 1.35 : lvl < 20 ? 1.15 : 1.025));
-
+    pendingLevelUps--;
+    levelUpScreenOpen = true;
+    onGamePaused();
     showLevelUpScreen();
+    // levelUpScreenOpen is cleared by hideLevelUpScreen (called inside selectUpgrade)
+    // so the next processNextLevelUp call from selectUpgrade can open a fresh screen.
 }
 
 // Check and grant talent points at wave milestones (wave 10 and 20 per stage)
-function checkAndGrantTalentPoints(completedWave) {
+function checkAndGrantTalentPoints(completedWave, stageOverride) {
     if (completedWave !== 10 && completedWave !== 20) return;
     if (!Array.isArray(gameState.talentPointsGranted)) gameState.talentPointsGranted = [];
     const className = player instanceof Sorceress ? 'Sorceress' : player instanceof DivineKnight ? 'Divine Knight' : (player?.class || 'Acolyte');
-    const key = `${className}_${gameState.currentStage}_${completedWave}`;
+    const stage = stageOverride !== undefined ? stageOverride : gameState.currentStage;
+    const key = `${className}_${stage}_${completedWave}`;
     if (!gameState.talentPointsGranted.includes(key)) {
         // Grant only to the current player's class talent pool
         if (player instanceof Sorceress) {
@@ -447,16 +484,7 @@ function gameLoop(timestamp) {
     const deltaTime = Math.min((timestamp - lastTimestamp) / 1000, 0.5);
     lastTimestamp = timestamp;
 
-    const enemiesBeforeUpdate = enemies.length;
     updateEnemies(deltaTime);
-    if (nextWaveEnemyDebt > 0) {
-        const killed = enemiesBeforeUpdate - enemies.length;
-        if (killed > 0) {
-            nextWaveEnemyDebt = Math.max(0, nextWaveEnemyDebt - killed);
-            if (nextWaveEnemyDebt <= 0) nextWaveUses = 0; // earn back all 3 uses
-            updateNextWaveButton();
-        }
-    }
     updatePlayer();
     updateWeapon();
     player.updateHp(deltaTime);
@@ -473,6 +501,9 @@ function gameLoop(timestamp) {
     if (allEnemiesDefeated()) {
         const completedWave = gameState.currentWave;
         checkAndGrantTalentPoints(completedWave);
+        // Record the last wave the player fully cleared (not the one they die on)
+        gameState.lastFullyClearedStage = gameState.currentStage;
+        gameState.lastFullyClearedWave  = completedWave;
         gameState.currentWave++;
         if (gameState.currentWave > 20) {
             gameState.currentStage++;
@@ -543,7 +574,14 @@ function nextWave() {
 
     const enemiesBefore = enemies.length;
 
+    const waveBeforeSkip = gameState.currentWave;
+    const stageBeforeSkip = gameState.currentStage;
     gameState.currentWave++;
+    // If we skipped past a milestone wave (10 or 20) without clearing it,
+    // store {wave, stage} so the key is correct even after a stage rollover.
+    if (waveBeforeSkip === 10 || waveBeforeSkip === 20) {
+        pendingMilestoneWaves.push({ wave: waveBeforeSkip, stage: stageBeforeSkip });
+    }
     if (gameState.currentWave > 20) {
         gameState.currentStage++;
         gameState.currentWave = 1;
@@ -575,17 +613,24 @@ function gameOver() {
     gameState.gameRunning = false;
     cancelAnimationFrame(animationFrameId);
 
-    // Record run before resetting stage/wave
+    // Record run using the last FULLY CLEARED wave, not the wave the player died on.
+    // This prevents the exploit of skipping stages with >>> or dying mid-wave and
+    // inflating the leaderboard score.
     if (player && player.weapon) {
-        recordLeaderboardEntry(
-            gameState.currentStage,
-            gameState.highestKillWave || 1,
-            player.level,
-            player.weapon.name,
-            player.classUpgradeChosen || '',
-            player.class,
-            getActiveVowAbbrs(player.class)
-        );
+        const lbStage = gameState.lastFullyClearedStage || 0;
+        const lbWave  = gameState.lastFullyClearedWave  || 0;
+        // Only record if the player actually cleared at least one wave
+        if (lbStage > 0 && lbWave > 0) {
+            recordLeaderboardEntry(
+                lbStage,
+                lbWave,
+                player.level,
+                player.weapon.name,
+                player.classUpgradeChosen || '',
+                player.class,
+                getActiveVowAbbrs(player.class)
+            );
+        }
     }
 
     // Clear class upgrade so display name resets immediately (no stale prefix)
@@ -601,7 +646,7 @@ function gameOver() {
     enemies.forEach(e => e.element?.remove());
     enemies = [];
 
-    ['ability-button', 'player-stats', 'stage-info'].forEach(id => {
+    ['ability-button', 'player-stats', 'stage-info', 'next-wave-button'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
@@ -636,6 +681,26 @@ let animationFrameId = null;
 let lastTimestamp = Date.now();
 let nextWaveUses = 0;        // >>> clicks since last reset (max 3)
 let nextWaveEnemyDebt = 0;   // enemies from skipped waves still alive
+let pendingMilestoneWaves = []; // milestone waves (10/20) skipped via >>>, grant talent when debt clears
+
+// Ability cooldown exploit fix: track how long the game was paused so we can
+// offset lastAbilityUseTime and prevent the CD from ticking during level-up screens.
+let _pauseStartTime = 0;
+
+function onGamePaused() {
+    _pauseStartTime = Date.now();
+}
+
+function onGameResumed() {
+    if (!_pauseStartTime) return;
+    const pausedMs = Date.now() - _pauseStartTime;
+    _pauseStartTime = 0;
+    // Push the ability's last-use timestamp forward by however long we were paused,
+    // so the remaining cooldown is exactly the same as when we paused.
+    if (player?.weapon && pausedMs > 0) {
+        player.weapon.lastAbilityUseTime += pausedMs;
+    }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     loadGameState();

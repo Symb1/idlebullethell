@@ -70,6 +70,11 @@ function updatePlayerStats() {
     const critDmgPct = player.critDamage * 100 - 100;
     const critDmgStyle = critDmgPct < 0 ? 'color:#DC143C' : '';
 
+    const isWeakened = document.getElementById('player')?.classList.contains('weakened');
+    const isMindFrozen = enemies?.some(e => e instanceof EliteEnemy && e.activeEffects?.some(ef => ef.name === 'MindFreeze'));
+    const damageStyle = isWeakened ? 'color:#DC143C' : '';
+    const attackSpeedStyle = isMindFrozen ? 'color:#DC143C' : '';
+
     const classColor = player.classColor || '#FFD700';
 
     const stat = (name, value, style = '') =>
@@ -85,9 +90,9 @@ function updatePlayerStats() {
         <div class="stat-row weapon-stat"><span class="stat-name">Weapon:</span> <span class="stat-value">${w.name}</span></div>
         ${stat('Damage', w.chainCount !== undefined && w.chainCount > 0
             ? `${w.damage.toFixed(1)} +${w.chainCount} chains`
-            : w.damage.toFixed(1))}
+            : w.damage.toFixed(1), damageStyle)}
         ${stat('Range', rangeText)}
-        ${stat('Attacks/Sec', (w.getAttackSpeed ? w.getAttackSpeed() : player.attacksPerSecond).toFixed(2))}
+        ${stat('Attacks/Sec', (w.getAttackSpeed ? w.getAttackSpeed() : player.attacksPerSecond).toFixed(2), attackSpeedStyle)}
         ${stat('CD Reduction', cdrText, cdrStyle)}
         ${stat('Crit Chance', critText, critStyle)}
         ${stat('Crit Damage', `${critDmgPct.toFixed(1)}%`, critDmgStyle)}
@@ -440,8 +445,9 @@ function updateInventoryUI() {
 
     if (!gameState.amuletEquipped) {
         amuletSlot.innerHTML = '<div class="empty-slot"></div>';
-        amuletName.textContent = 'Amulet slot';
-        amuletName.style.color = 'white';
+        amuletName.textContent = 'Amulet Slot';
+        amuletName.removeAttribute('style');
+        amuletName.className = '';
         amuletSlot.setAttribute('data-tooltip', 'Boss drops the Amulet');
 		amuletSlot.classList.remove('equipped');
         return;
@@ -471,7 +477,8 @@ function updateInventoryUI() {
     const ascClamped = Math.min(gameState.ascensionLevel, 3);
     amuletSlot.classList.add('equipped');
     amuletSlot.dataset.asc = ascClamped;
-    amuletName.style.color = nameColors[ascClamped];
+    amuletName.removeAttribute('style');
+    amuletName.className = `amulet-name-asc-${ascClamped}`;
 }
 
 const achievements = {
