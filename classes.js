@@ -442,7 +442,8 @@ function buildDKTree() {
           </div>
         </div>
       </div>`;
-    document.body.appendChild(backdrop);
+    const root = document.getElementById('game-scale-root') || document.body;
+    root.appendChild(backdrop);
     backdrop.addEventListener('click', e => { if (e.target.id === 'dk-backdrop') closeDKTalents(); });
   }
   buildTalentTree({
