@@ -1,3 +1,4 @@
+//Full documentation in docIR
 function initializeUI() {
 
     document.getElementById('ability-button')?.addEventListener('click', () => {
@@ -108,8 +109,6 @@ function updatePlayerStats() {
     el.innerHTML = html;
 }
 
-
-
 function updateAbilityButton() {
     const btn = document.getElementById('ability-button');
     if (!btn || !player?.weapon) return;
@@ -157,7 +156,7 @@ function showAscensionOverlay() {
             <p>${unlockText}</p>
             <p>${qolUnlockText}</p>
             <p>Talent points and talent tree are reset.</p>
-            ${gameState.ascensionLevel === 0 ? '<p>Adds a Skip Wave button — skip up to 3 consecutive waves at once</p>' : ''}
+            ${gameState.ascensionLevel === 0 ? '<p>Adds a Skip Wave button, spawns up to 3 consecutive waves at once</p>' : ''}
             <button onclick="ascend()">Confirm Ascension</button>
         </div>
     `;
@@ -288,12 +287,11 @@ function createQoLMenu() {
 
     qolMenu.innerHTML = html;
 
-    // Wire up toggles
     const wire = (id, stateKey, onChange) => {
         const el = document.getElementById(id);
         if (!el) return;
         el.checked = gameState[stateKey] || false;
-        onChange?.(el.checked);  // sync initial UI state
+        onChange?.(el.checked);  
         el.addEventListener('change', () => {
             gameState[stateKey] = el.checked;
             saveGameState();
@@ -332,7 +330,6 @@ function toggleMenuPanel(id) {
     el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
-
 function createClassSelectChoices(containerId, getOptions, stateChoices, selectIdSuffix) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -368,7 +365,6 @@ function createWeaponEvolutionChoices() {
     );
 }
 
-
 function createClassUpgradeChoices() {
     createClassSelectChoices(
         'auto-class-options',
@@ -377,7 +373,6 @@ function createClassUpgradeChoices() {
         'class-choice'
     );
 }
-
 
 function createPriorityList() {
     const autoCardPriority = document.getElementById('auto-card-priority');
@@ -531,7 +526,7 @@ function ensureActionsPanel() {
     if (!panel) {
         panel = document.createElement('div');
         panel.id = 'actions-panel';
-        // Move hard-reset-btn inside the panel
+        
         const hardReset = document.getElementById('hard-reset-btn');
         if (hardReset) {
             hardReset.parentNode.insertBefore(panel, hardReset);
@@ -563,21 +558,19 @@ function flashScreen(color) {
     flash();
     setTimeout(flash, 200);
 }
-// ─── LEADERBOARD ───────────────────────────────────────────────────────────────
 
 const LB_KEY = 'rpgLeaderboard';
 const LB_MAX = 3;
 
-// Weapon key → display name mapping
 const LB_WEAPON_KEYS = {
-    // Evolved weapons
+    
     'Vortex Staff':   'vortex',
     'Umbral Staff':   'umbral',
     'Chain Wand':     'chain',
     'Spark Wand':     'spark',
     'Blessed Shield': 'blessed',
     'Smite Shield':   'smite',
-    // Base weapons (pre-evolution) — grouped under their class base key
+    
     'Basic Staff':    'basic_staff',
     'Basic Wand':     'basic_wand',
     'Basic Shield':   'basic_shield',
@@ -605,9 +598,6 @@ function clearLeaderboard() {
     localStorage.removeItem(LB_KEY);
 }
 
-/**
- * Returns array of active binding vow abbreviations for the current player class.
- */
 function getActiveVowAbbrs(playerClass) {
     const vowNodes = playerClass === 'Acolyte'       ? NODES.filter(n => n.bvow)
                    : playerClass === 'Sorceress'     ? SORC_NODES.filter(n => n.bvow)
@@ -620,19 +610,9 @@ function getActiveVowAbbrs(playerClass) {
     return vowNodes.filter(n => (allocObj[n.id] || 0) >= 1).map(n => n.abbr);
 }
 
-/**
- * Record a run entry. Call this at game-over time before resetting stage/wave.
- * @param {number}   stage        - stage the player died on
- * @param {number}   wave         - wave the player died on
- * @param {number}   level        - player level
- * @param {string}   weaponName   - exact weapon .name string
- * @param {string}   classUpgrade - player.classUpgradeChosen (shard prefix), may be null
- * @param {string}   playerClass  - 'Acolyte' | 'Sorceress' | 'Divine Knight'
- * @param {string[]} vows         - active binding vow abbreviations
- */
 function recordLeaderboardEntry(stage, wave, level, weaponName, classUpgrade, playerClass, vows = []) {
     const weapKey = LB_WEAPON_KEYS[weaponName];
-    if (!weapKey) return; // unknown weapon, skip
+    if (!weapKey) return; 
 
     const lb  = loadLeaderboard();
     const key = `${playerClass}_${weapKey}`;
@@ -641,15 +621,12 @@ function recordLeaderboardEntry(stage, wave, level, weaponName, classUpgrade, pl
 
     const entry = { stage, wave, level, evo: classUpgrade || '', vows };
 
-    // Insert in sorted order (higher stage first, then higher wave)
     lb[key].push(entry);
     lb[key].sort((a, b) => b.stage !== a.stage ? b.stage - a.stage : b.wave - a.wave);
     lb[key] = lb[key].slice(0, LB_MAX);
 
     saveLeaderboard(lb);
 }
-
-// ── Rendering helpers ──────────────────────────────────────────────────────────
 
 function lbRankLabel(i) {
     if (i === 0) return '<span class="lb-rank lb-gold">①</span>';
@@ -665,12 +642,12 @@ function lbRenderList(containerId, entries, colorClass) {
         el.innerHTML = '<div class="lb-empty">No runs recorded yet</div>';
         return;
     }
-    // Derive the base class name from the color class
+    
     const baseClass = colorClass === 'lb-acolyte-col' ? 'Acolyte'
                     : colorClass === 'lb-sorc-col'    ? 'Sorceress'
                     : 'Divine Knight';
     el.innerHTML = entries.slice(0, LB_MAX).map((e, i) => {
-        // Full display name: "Temporal Acolyte" or just "Acolyte"
+        
         const displayName = e.evo ? `${e.evo} ${baseClass}` : baseClass;
         const vows = (e.vows && e.vows.length)
             ? e.vows.map(v => `<span class="lb-vow-tag">${v}</span>`).join('')
@@ -714,7 +691,7 @@ function renderLeaderboardModal() {
         const lists = [];
         for (const { lbKey, displayName, listId, colorClass } of sections) {
             const entries = lb[lbKey] || [];
-            // Always show evolved weapon sections; only show basic if it has entries
+            
             const isBasic = lbKey.includes('basic');
             if (isBasic && !entries.length) continue;
             html += lbBuildWeaponSection(lbKey, displayName, listId, colorClass);

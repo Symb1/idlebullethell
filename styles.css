@@ -1,8 +1,6 @@
-/* ============================================================
-   DESIGN TOKENS
-   ============================================================ */
+/** Full documentation in docIR **/
 :root {
-    /* Brand colors */
+    
     --gold:        #D4AF37;
     --gold-bright: #FFD700;
     --gold-pale:   #FFE4B5;
@@ -29,44 +27,47 @@
     --red-bright:  #DC143C;
     --red-dark:    #8B0000;
 
-    /* Shadows / glows */
     --glow-gold:    rgba(212, 175, 55, 0.4);
     --glow-gold-hi: rgba(212, 175, 55, 0.6);
     --shadow-black: rgba(0, 0, 0, 0.7);
 
-    /* Fonts */
     --font-display: 'Cinzel', 'Trajan Pro', 'Georgia', serif;
     --font-body:    'Georgia', serif;
 
-    /* Borders */
     --border-ornate: linear-gradient(45deg, #D4AF37, #8B7355, #D4AF37);
     --border-h:      linear-gradient(90deg, transparent, #D4AF37, transparent);
     --border-v:      linear-gradient(180deg, #D4AF37, #8B7355);
 
-    /* Panel box-shadow */
     --panel-shadow:
         0 0 30px var(--glow-gold),
         inset 0 0 40px rgba(0, 0, 0, 0.5);
 }
 
-/* ============================================================
-   RESET / BASE
-   ============================================================ */
+:root { --game-scale: 1; }
+
+#game-scale-root {
+    transform-origin: top left;
+    transform: scale(var(--game-scale));
+    width: calc(100vw / var(--game-scale));
+    height: calc(100vh / var(--game-scale));
+    overflow: hidden;
+}
+
 body {
     margin: 0;
     padding: 0;
     font-family: var(--font-display);
     background: transparent;
+    overflow: hidden;
 }
 
-/* Background image is declared in index.html as #page-bg for consistency */
 #page-bg {
     position: fixed;
     inset: 0;
     z-index: -1;
     background: url('img/mainbcg2.png') center center / cover no-repeat;
     filter: blur(3px);
-    transform: scale(1.02); /* prevent blur edge bleed */
+    transform: scale(1.02); 
 }
 
 hr {
@@ -77,9 +78,6 @@ hr {
     opacity: 0;
 }
 
-/* ============================================================
-   LAYOUT
-   ============================================================ */
 #game-container {
     position: relative;
     display: flex;
@@ -115,15 +113,19 @@ hr {
         0 8px 16px var(--shadow-black);
 }
 
+#game-wrap {
+    position: relative;
+    width: 800px;
+    height: 600px;
+    flex-shrink: 0;
+}
+
 #ui {
     position: absolute;
     top: 10px;
     left: 10px;
 }
 
-/* ============================================================
-   MODAL / OVERLAY BASE
-   ============================================================ */
 .modal {
     display: none;
     position: fixed;
@@ -165,9 +167,6 @@ hr {
     font-family: var(--font-body);
 }
 
-/* ============================================================
-   SHARED PANEL STYLE  (used by #souls-menu, #qol-menu, etc.)
-   ============================================================ */
 .panel {
     background: linear-gradient(145deg, var(--bg-dark), var(--bg-mid));
     border: 3px solid var(--brown);
@@ -193,19 +192,11 @@ hr {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* ============================================================
-   ORNATE HEADING DIVIDER  (shared border-image line)
-   ============================================================ */
 .ornate-divider {
     border-top: 2px solid var(--brown);
     border-image: var(--border-h) 1;
 }
 
-/* ============================================================
-   ENEMY SPRITES
-   ============================================================ */
-
-/* --- Shared enemy base --- */
 .enemy {
     position: absolute;
     width: 70px;
@@ -222,12 +213,10 @@ hr {
     filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.7));
 }
 
-/* Facing / flip helpers */
 .enemy.facing-left                               { transform: scaleX(-1); }
 .enemy.facing-left .enemy-hp,
 .enemy.facing-left .damage-indicator            { transform: scaleX(-1); }
 
-/* --- Skeleton states --- */
 .enemy.attacking {
     background-image: url('img/skeleatt.png');
     background-size: 960px 64px;
@@ -248,7 +237,6 @@ hr {
     animation: spriteLoop1248 1s steps(13) forwards;
 }
 
-/* --- Elite states --- */
 .enemy.elite {
     width: 96px;
     height: 64px;
@@ -274,7 +262,6 @@ hr {
     animation: spriteLoop1248 1.3s steps(13) forwards;
 }
 
-/* --- Boss states --- */
 .enemy.boss {
     width: 81px;
     height: 71px;
@@ -282,7 +269,7 @@ hr {
     background-size: 324px 71px;
     animation: spriteLoop324 0.8s steps(4) infinite;
     filter: drop-shadow(0 0 12px rgba(139, 0, 0, 0.8));
-    transform: scaleX(-1);   /* boss faces left by default */
+    transform: scaleX(-1);   
 }
 .enemy.boss.facing-left                         { transform: scaleX(1); }
 .enemy.boss.facing-left .enemy-hp,
@@ -306,7 +293,6 @@ hr {
     animation: spriteLoop567 0.6s steps(7) forwards;
 }
 
-/* --- Enemy status effects --- */
 .enemy.stunned {
     filter: brightness(40%) sepia(80%) hue-rotate(180deg) drop-shadow(0 0 8px rgba(100, 149, 237, 0.6));
 }
@@ -326,9 +312,6 @@ hr {
     animation-play-state: paused !important;
 }
 
-/* ============================================================
-   SPRITE KEYFRAMES  (consolidated – all share the same shape)
-   ============================================================ */
 @keyframes spriteLoop324  { 0% { background-position: 0 0; } 100% { background-position: -324px  0; } }
 @keyframes spriteLoop480  { 0% { background-position: 0 0; } 100% { background-position: -480px  0; } }
 @keyframes spriteLoop567  { 0% { background-position: 0 0; } 100% { background-position: -567px  0; } }
@@ -336,9 +319,6 @@ hr {
 @keyframes spriteLoop960  { 0% { background-position: 0 0; } 100% { background-position: -960px  0; } }
 @keyframes spriteLoop1248 { 0% { background-position: 0 0; } 100% { background-position: -1248px 0; } }
 
-/* ============================================================
-   ENEMY UI: HP / DAMAGE NUMBERS
-   ============================================================ */
 .enemy-hp {
     position: absolute;
     top: -20px;
@@ -370,9 +350,6 @@ hr {
     font-family: var(--font-display);
 }
 
-/* ============================================================
-   HIT SPRITE
-   ============================================================ */
 .hit-sprite {
     position: absolute;
     width: 66px;
@@ -389,9 +366,6 @@ hr {
 
 @keyframes spriteLoop726 { 0% { background-position: 0 0; } 100% { background-position: -726px 0; } }
 
-/* ============================================================
-   PLAYER
-   ============================================================ */
 #player {
     position: absolute;
     width: 36px;
@@ -409,7 +383,6 @@ hr {
 #player.facing-left              { transform: translate(-50%, -50%) scaleX(-1); }
 #player.weakened                 { scale: 65%; }
 
-/* Class-specific sizes */
 #player.acolyte,
 #player.acolyte.attacking        { width: 128px; height: 128px; }
 #player.divine-knight,
@@ -429,16 +402,9 @@ hr {
 
 .class-option[data-class="Acolyte"] img { transform: scale(2.7); }
 
-/* ============================================================
-   AURAS / OVERLAYS
-   ============================================================ */
-/* .holy-shield-aura is kept in the DOM only so other code can toggle
-   .holy-fire-active on it — the actual aura visual is canvas-drawn by effects.js */
 .holy-shield-aura {
     display: none !important;
 }
-
-
 
 .judgement-indicator {
     font-weight: bold;
@@ -475,9 +441,6 @@ hr {
     50%      { transform: scale(1.2); opacity: 0.6; box-shadow: 0 0 30px rgba(139, 0, 0, 0.7); }
 }
 
-/* ============================================================
-   ABILITY BUTTON
-   ============================================================ */
 #ability-button {
     position: absolute;
     bottom: 10px;
@@ -565,9 +528,6 @@ hr {
     font-weight: 700;
 }
 
-/* ============================================================
-   STAGE INFO
-   ============================================================ */
 #stage-info {
     position: absolute;
     top: 1px;
@@ -586,12 +546,6 @@ hr {
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
     text-shadow: 1px 1px 2px #000;
 }
-
-/* ============================================================
-   LEVEL-UP PANEL  (position/sizing handled by .sf-overlay injected at runtime)
-   ============================================================ */
-
-/* golden border pseudo removed — overlay is now scoped to game-area */
 
 .level-up-title {
     font-size: 52px;
@@ -612,9 +566,6 @@ hr {
     height: 100%;
 }
 
-/* ============================================================
-   UPGRADE CARDS
-   ============================================================ */
 .upgrade-card {
     width: 160px;
     height: 280px;
@@ -629,6 +580,7 @@ hr {
     box-shadow: 0 6px 16px var(--shadow-black), inset 0 1px 0 rgba(212, 175, 55, 0.2);
     position: relative;
 }
+
 .upgrade-card::before {
     content: '';
     position: absolute;
@@ -643,6 +595,7 @@ hr {
     opacity: 0;
     transition: opacity 0.4s ease;
 }
+
 .upgrade-card:hover {
     transform: scale(1.15) translateY(-5px);
     z-index: 10;
@@ -659,7 +612,6 @@ hr {
     filter: grayscale(70%);
 }
 
-/* Rarity variants */
 .normal   { background: linear-gradient(145deg, #3a3a3a 0%, #4a4a4a 100%); border-color: #6a6a6a; }
 .magic    { background: linear-gradient(145deg, #1a3a5a 0%, #2a4a6a 100%); border-color: #4a7aaa; }
 .epic     { background: linear-gradient(145deg, #3a1a4a 0%, #4a2a5a 100%); border-color: #7a4a9a; }
@@ -693,13 +645,11 @@ hr {
 .legendary .upgrade-name  { color: var(--gold-bright); text-shadow: 0 0 8px rgba(255, 215, 0, 0.6); }
 .legendary .upgrade-value { color: var(--gold-cream); }
 
-/* Class-specific upgrade colors */
 .upgrade-card.class-upgrade.acolyte-upgrade      { background: linear-gradient(145deg, #2a1a3a, #3d2a4d); border-color: #9370DB; }
 .upgrade-card.class-upgrade.sorceress-upgrade    { background: linear-gradient(145deg, #1a2a4a, #2a3a6d); border-color: #4169E1; }
 .upgrade-card.class-upgrade.divine-knight-upgrade{ background: linear-gradient(145deg, #3a2a1a, #4d3a2a); border-color: var(--gold-bright); }
 .upgrade-card.class-upgrade .upgrade-description { text-align: left; font-size: 12px; }
 
-/* Upgrade card typography */
 .upgrade-rarity-label {
     font-size: 13px;
     text-align: center;
@@ -709,6 +659,7 @@ hr {
     letter-spacing: 1px;
     text-transform: uppercase;
 }
+
 .upgrade-rarity {
     font-size: 18px;
     font-weight: bold;
@@ -717,6 +668,7 @@ hr {
     font-family: var(--font-display);
     text-shadow: 0 0 8px rgba(212, 175, 55, 0.6);
 }
+
 .upgrade-name {
     font-size: 19px;
     text-align: center;
@@ -731,6 +683,7 @@ hr {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
+
 .upgrade-value {
     font-size: 26px;
     text-align: center;
@@ -740,6 +693,7 @@ hr {
     font-weight: 700;
     text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
 }
+
 .upgrade-description {
     font-size: 13px;
     text-align: center;
@@ -748,6 +702,7 @@ hr {
     font-family: var(--font-body);
     line-height: 1.4;
 }
+
 .upgrade-flavor {
     font-style: italic;
     color: var(--gold);
@@ -758,20 +713,14 @@ hr {
     line-height: 1.4;
 }
 
-/* Stat lines */
 .stat-positive { color: #6B8E23; font-size: 13px; margin: 4px 0; padding-left: 8px; }
 .stat-negative { color: #8B2A2A; font-size: 13px; margin: 4px 0; padding-left: 8px; }
 .stat-neutral  { color: var(--gold); font-size: 13px; margin: 4px 0; padding-left: 8px; }
 
-/* Suppress blank ::before on stat lines */
 .evolution-description p::before,
 .evolution-description .stat-positive::before,
 .evolution-description .stat-negative::before,
 .evolution-description .stat-neutral::before { content: ''; }
-
-/* ============================================================
-   WEAPON EVOLUTION PANEL  (position/sizing handled by .sf-overlay injected at runtime)
-   ============================================================ */
 
 .evolution-title {
     font-size: 44px;
@@ -792,7 +741,6 @@ hr {
     gap: 50px;
 }
 
-/* Evolution cards */
 .evolution-card {
     width: 240px;
     height: 340px;
@@ -808,6 +756,7 @@ hr {
     position: relative;
     overflow: hidden;
 }
+
 .evolution-card::before {
     content: '';
     position: absolute;
@@ -816,6 +765,7 @@ hr {
     background: linear-gradient(to bottom, rgba(212, 175, 55, 0.15), transparent);
     border-radius: 10px 10px 0 0;
 }
+
 .evolution-card::after {
     content: '';
     position: absolute;
@@ -826,11 +776,13 @@ hr {
     opacity: 0;
     transition: opacity 0.5s ease;
 }
+
 .evolution-card:hover {
     transform: translateY(-10px) scale(1.05);
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.9), 0 0 40px var(--glow-gold-hi);
     border-color: var(--gold);
 }
+
 .evolution-card:hover::after { opacity: 0.5; }
 
 .evolution-card.disabled {
@@ -859,6 +811,7 @@ hr {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
+
 .evolution-name::after {
     content: '';
     display: block;
@@ -886,12 +839,14 @@ hr {
     max-height: 200px;
     font-family: var(--font-body);
 }
+
 .evolution-description p {
     margin: 0 0 7px;
     padding-left: 14px;
     position: relative;
     line-height: 1.5;
 }
+
 .evolution-description p:last-child { margin-bottom: 0; }
 .evolution-description p::before {
     content: '❖';
@@ -900,6 +855,7 @@ hr {
     color: var(--gold);
     font-size: 12px;
 }
+
 .evolution-description strong {
     color: var(--gold-bright);
     font-weight: bold;
@@ -907,9 +863,6 @@ hr {
     text-shadow: 0 0 5px rgba(255, 215, 0, 0.4);
 }
 
-/* ============================================================
-   CLASS SELECTION
-   ============================================================ */
 #class-selection {
     display: flex;
     justify-content: center;
@@ -973,6 +926,7 @@ hr {
     background: transparent;
     box-shadow: none;
 }
+
 .class-option:hover img { filter: drop-shadow(0 0 15px rgba(212, 175, 55, 0.8)); }
 .class-option img {
     width: 80px;
@@ -981,6 +935,7 @@ hr {
     transition: all 0.4s ease;
     filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.8));
 }
+
 .class-option span {
     color: var(--gold-pale);
     font-size: 22px;
@@ -989,6 +944,7 @@ hr {
     text-shadow: 2px 2px 4px #000;
     letter-spacing: 1px;
 }
+
 .class-option.locked {
     opacity: 0.4;
     pointer-events: none;
@@ -1004,9 +960,9 @@ hr {
     font-family: var(--font-body);
     font-style: italic;
 }
+
 .class-option.locked .class-tooltip { display: none; }
 
-/* Class tooltip */
 .class-tooltip {
     position: fixed;
     top: 50%;
@@ -1030,7 +986,7 @@ hr {
     box-shadow: 0 0 30px rgba(212, 175, 55, 0.5), inset 0 0 20px rgba(0, 0, 0, 0.6);
     pointer-events: none;
 }
-/* Arrow */
+
 .class-tooltip::before,
 .class-tooltip::after {
     content: '';
@@ -1041,16 +997,19 @@ hr {
     border-style: solid;
     z-index: 9999;
 }
+
 .class-tooltip::before {
     border-width: 10px 10px 10px 0;
     border-color: transparent var(--brown) transparent transparent;
     filter: drop-shadow(-2px 0 3px rgba(0, 0, 0, 0.5));
 }
+
 .class-tooltip::after {
     border-width: 8px 8px 8px 0;
     border-color: transparent rgba(20, 10, 10, 0.98) transparent transparent;
     margin-right: -1px;
 }
+
 .class-option:hover .class-tooltip { opacity: 1; visibility: visible; z-index: 9999; }
 
 .class-tooltip-title {
@@ -1066,6 +1025,7 @@ hr {
     border-image: var(--border-h) 1;
     padding-bottom: 8px;
 }
+
 .class-tooltip p        { margin: 8px 0; color: var(--text-primary); }
 .class-tooltip p:first-of-type { margin-top: 0; }
 .class-tooltip p:last-of-type  { margin-bottom: 0; }
@@ -1081,9 +1041,6 @@ hr {
     font-size: 10px;
 }
 
-/* ============================================================
-   SOULS MENU
-   ============================================================ */
 #souls-menu {
     display: none;
     width: 400px;
@@ -1132,6 +1089,7 @@ hr {
     box-sizing: border-box;
     transition: all 0.3s ease;
 }
+
 .souls-upgrade:hover { border-color: var(--gold); box-shadow: 0 0 15px rgba(212, 175, 55, 0.3); }
 .souls-upgrade h4 {
     margin: 0 0 5px;
@@ -1140,11 +1098,13 @@ hr {
     font-family: var(--font-display);
     text-shadow: 1px 1px 2px #000;
 }
+
 .souls-upgrade hr {
     margin: 5px 0;
     border: 0;
     border-top: 1px solid rgba(212, 175, 55, 0.5);
 }
+
 .souls-upgrade p { margin: 5px 0; font-size: 12px; color: var(--text-primary); }
 .souls-upgrade button {
     margin-top: 5px;
@@ -1159,6 +1119,7 @@ hr {
     transition: all 0.3s ease;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
+
 .souls-upgrade button:hover { background: linear-gradient(145deg, var(--gold-dark), var(--gold-darker)); box-shadow: 0 0 12px rgba(212, 175, 55, 0.5); }
 .souls-upgrade button:disabled {
     background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
@@ -1168,9 +1129,6 @@ hr {
     box-shadow: none;
 }
 
-/* ============================================================
-   QOL MENU
-   ============================================================ */
 #qol-menu {
     position: absolute;
     left: 10px;
@@ -1188,6 +1146,7 @@ hr {
     box-shadow: var(--panel-shadow);
     font-family: var(--font-body);
 }
+
 #qol-menu h3 {
     margin-top: 0;
     margin-bottom: 18px;
@@ -1203,7 +1162,6 @@ hr {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* Toggle switch */
 .toggle-container {
     display: flex;
     align-items: center;
@@ -1211,6 +1169,7 @@ hr {
     margin-bottom: 12px;
     font-size: 14px;
 }
+
 .switch {
     position: relative;
     display: inline-block;
@@ -1218,6 +1177,7 @@ hr {
     height: 34px;
     margin-left: 10px;
 }
+
 .switch input { opacity: 0; width: 0; height: 0; }
 .slider {
     position: absolute;
@@ -1229,6 +1189,7 @@ hr {
     border-radius: 34px;
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
 }
+
 .slider:before {
     position: absolute;
     content: "";
@@ -1241,11 +1202,13 @@ hr {
     border-radius: 50%;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
+
 input:checked + .slider {
     background: linear-gradient(145deg, var(--gold-darker), var(--gold-dark));
     border-color: var(--gold);
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5), 0 0 10px var(--glow-gold);
 }
+
 input:checked + .slider:before {
     transform: translateX(24px);
     background: linear-gradient(145deg, var(--gold-bright), var(--gold-cream));
@@ -1262,13 +1225,13 @@ input:checked + .slider:before {
     transition: all 0.3s ease;
     filter: drop-shadow(0 0 3px rgba(212, 175, 55, 0.5));
 }
+
 .cog-button:hover {
     color: var(--gold-bright);
     transform: rotate(90deg);
     filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.8));
 }
 
-/* Auto-priority list */
 #auto-card-priority {
     background: linear-gradient(145deg, var(--bg-card), var(--bg-card-mid));
     border: 2px solid var(--brown);
@@ -1277,6 +1240,7 @@ input:checked + .slider:before {
     margin-top: 12px;
     box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
 }
+
 #priority-list { list-style-type: none; padding: 0; }
 #priority-list li {
     display: flex;
@@ -1286,6 +1250,7 @@ input:checked + .slider:before {
     color: var(--text-primary);
     border-bottom: 1px solid rgba(139, 115, 85, 0.3);
 }
+
 #priority-list li:last-child { border-bottom: none; }
 .priority-buttons { display: flex; gap: 6px; }
 .priority-up, .priority-down {
@@ -1303,12 +1268,12 @@ input:checked + .slider:before {
     transition: all 0.2s ease;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
 }
+
 .priority-up:hover, .priority-down:hover {
     background: linear-gradient(145deg, var(--gold-dark), var(--gold-darker));
     box-shadow: 0 0 8px rgba(212, 175, 55, 0.5);
 }
 
-/* Auto-evo / auto-class selects */
 #auto-weapon-evolution-options select,
 #auto-class-options select {
     width: 100%;
@@ -1330,17 +1295,20 @@ input:checked + .slider:before {
     background-repeat: no-repeat, no-repeat;
     background-position: 0 0, right 10px center;
 }
+
 #auto-weapon-evolution-options select:hover,
 #auto-class-options select:hover {
     border-color: var(--gold);
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), 0 0 12px var(--glow-gold);
 }
+
 #auto-weapon-evolution-options select:focus,
 #auto-class-options select:focus {
     outline: none;
     border-color: var(--gold-bright);
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), 0 0 15px rgba(255, 215, 0, 0.5);
 }
+
 #auto-weapon-evolution-options select option,
 #auto-class-options select option { background: #2a1810; color: var(--gold-bright); padding: 8px; }
 #auto-weapon-evolution-options h5,
@@ -1352,6 +1320,7 @@ input:checked + .slider:before {
     text-shadow: 1px 1px 2px #000;
     letter-spacing: 1px;
 }
+
 #auto-weapon-evolution-options > div,
 #auto-class-options > div {
     margin-bottom: 15px;
@@ -1361,9 +1330,6 @@ input:checked + .slider:before {
     border: 1px solid rgba(139, 115, 85, 0.3);
 }
 
-/* ============================================================
-   INVENTORY MENU
-   ============================================================ */
 #inventory-menu {
     background: linear-gradient(145deg, var(--bg-dark), var(--bg-mid));
     border: 3px solid var(--brown);
@@ -1372,7 +1338,7 @@ input:checked + .slider:before {
     color: var(--text-primary);
     padding: 20px;
     position: absolute;
-    bottom: 30px;
+    bottom: 15px;
     left: 10px;
     width: 220px;
     font-family: var(--font-body);
@@ -1419,7 +1385,6 @@ input:checked + .slider:before {
     transition: filter 0.3s ease;
 }
 
-/* ── Ascension 0: blue ── */
 .amulet-slot.equipped[data-asc="0"] {
     animation: amuletPulseBlue 2.5s ease-in-out infinite;
 }
@@ -1427,7 +1392,6 @@ input:checked + .slider:before {
     filter: drop-shadow(0 0 8px rgba(0, 191, 255, 0.9));
 }
 
-/* ── Ascension 1: yellow ── */
 .amulet-slot.equipped[data-asc="1"] {
     animation: amuletPulseYellow 2.5s ease-in-out infinite;
 }
@@ -1435,7 +1399,6 @@ input:checked + .slider:before {
     filter: drop-shadow(0 0 9px rgba(255, 215, 0, 0.9));
 }
 
-/* ── Ascension 2: purple ── */
 .amulet-slot.equipped[data-asc="2"] {
     animation: amuletPulsePurple 2.5s ease-in-out infinite;
 }
@@ -1443,7 +1406,6 @@ input:checked + .slider:before {
     filter: drop-shadow(0 0 10px rgba(191, 0, 255, 0.9));
 }
 
-/* ── Ascension 3: red ── */
 .amulet-slot.equipped[data-asc="3"] {
     animation: amuletPulseRed 2.5s ease-in-out infinite;
 }
@@ -1511,13 +1473,11 @@ input:checked + .slider:before {
     transition: color 0.2s;
 }
 
-/* Amulet name — ascension color variants (set via JS class) */
 .amulet-name-asc-0 { color: #00bfff !important; }
 .amulet-name-asc-1 { color: #FFD700 !important; }
 .amulet-name-asc-2 { color: #bf00ff !important; }
 .amulet-name-asc-3 { color: #ff2020 !important; }
 
-/* Amulet tooltip */
 .amulet-slot[data-tooltip]:hover::after {
     content: attr(data-tooltip);
     position: absolute;
@@ -1560,14 +1520,10 @@ input:checked + .slider:before {
 .amulet-slot[data-tooltip]:hover::after,
 .amulet-slot[data-tooltip]:hover::before { opacity: 1; visibility: visible; }
 
-/* ============================================================
-   PLAYER STATS PANEL
-   ============================================================ */
 #player-stats {
-    position: fixed;
-    top: 49.7%;
-    left: calc(50% - 400px - 270px);
-    transform: translateY(-300px);
+    position: absolute;
+    top: 0;
+    left: -265px;
     width: 230px;
     background: linear-gradient(145deg, var(--bg-dark), var(--bg-mid));
     border: 3px solid var(--brown);
@@ -1601,9 +1557,6 @@ input:checked + .slider:before {
     border-image: var(--border-h) 1;
 }
 
-/* ============================================================
-   ASCEND BUTTON  — pinned to bottom of #selection-content
-   ============================================================ */
 #ascend-button {
     position: absolute;
     bottom: 20px;
@@ -1631,10 +1584,9 @@ input:checked + .slider:before {
     gap: 5px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.5), inset 0 0 20px rgba(0,0,0,0.3);
 }
-/* No dot pseudo-element */
+
 #ascend-button::before { display: none; }
 
-/* Unavailable state — muted, bordered */
 #ascend-button.unavailable {
     color: #6a5c47;
     border-color: #4a3a2a;
@@ -1649,7 +1601,6 @@ input:checked + .slider:before {
     box-shadow: 0 3px 8px rgba(0,0,0,0.4), inset 0 0 15px rgba(0,0,0,0.4);
 }
 
-/* Available state — gold border + glow */
 #ascend-button.available {
     color: #f0d080;
     border-color: var(--gold);
@@ -1681,9 +1632,6 @@ input:checked + .slider:before {
     text-shadow: 0 1px 3px rgba(0,0,0,0.8);
 }
 
-/* ============================================================
-   ASCENSION OVERLAY
-   ============================================================ */
 #ascension-overlay {
     position: fixed;
     inset: 0;
@@ -1751,11 +1699,6 @@ input:checked + .slider:before {
     box-shadow: 0 8px 16px var(--shadow-black), 0 0 25px rgba(212, 175, 55, 0.7);
 }
 
-/* ============================================================
-   BUTTONS: HARD RESET / ACHIEVEMENTS / DEBUG
-   ============================================================ */
-
-/* ─── Actions panel: contains Leaderboard, Achievements, Hard Reset ─── */
 #actions-panel {
     position: absolute;
     bottom: -110px;
@@ -1776,7 +1719,6 @@ input:checked + .slider:before {
     white-space: nowrap;
 }
 
-/* Shared button base inside actions-panel — tab style */
 #hard-reset-btn,
 #achievements-button,
 #leaderboard-button {
@@ -1814,22 +1756,17 @@ input:checked + .slider:before {
     flex-shrink: 0;
 }
 
-/* Hard Reset — red dot */
 #hard-reset-btn::before       { background: #c0392b; }
 #hard-reset-btn:hover         { color: #ff8070; background: linear-gradient(to bottom, rgba(192,57,43,0.07), transparent); border-bottom-color: #c0392b; }
 #hard-reset-btn:active        { color: #ff8070; background: linear-gradient(to bottom, rgba(192,57,43,0.13), transparent); border-bottom-color: #c0392b; }
 
-/* Achievements — gold dot */
 #achievements-button::before  { background: #c9a84c; }
 #achievements-button:hover    { color: #f0d080; background: linear-gradient(to bottom, rgba(201,168,76,0.07), transparent); border-bottom-color: #c9a84c; }
 #achievements-button:active   { color: #f0d080; background: linear-gradient(to bottom, rgba(201,168,76,0.13), transparent); border-bottom-color: #c9a84c; }
 
-/* Leaderboard — gold dot */
 #leaderboard-button::before   { background: #c9a84c; }
 #leaderboard-button:hover     { color: #f0d080; background: linear-gradient(to bottom, rgba(201,168,76,0.07), transparent); border-bottom-color: #c9a84c; }
 #leaderboard-button:active    { color: #f0d080; background: linear-gradient(to bottom, rgba(201,168,76,0.13), transparent); border-bottom-color: #c9a84c; }
-
-
 
 #debug-skip-wave {
     background: linear-gradient(145deg, var(--red-dark), var(--red-bright));
@@ -1857,9 +1794,6 @@ input:checked + .slider:before {
 }
 #debug-level-up:hover { background: linear-gradient(145deg, #2a5a8a, #1a4a6a); box-shadow: 0 0 12px rgba(74, 122, 170, 0.6); }
 
-/* ============================================================
-   CLOSE BUTTON
-   ============================================================ */
 .close-btn {
     position: absolute;
     top: 15px;
@@ -1878,9 +1812,6 @@ input:checked + .slider:before {
     text-shadow: 0 0 10px rgba(212, 175, 55, 0.8), 2px 2px 6px #000;
 }
 
-/* ============================================================
-   ACHIEVEMENTS
-   ============================================================ */
 #achievements-list {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -1949,9 +1880,6 @@ input:checked + .slider:before {
     text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
 }
 
-/* ============================================================
-   NOTIFICATIONS: BOSS SPAWN / AMULET FOUND
-   ============================================================ */
 .boss-spawned-text,
 .amulet-found-text,
 .you-died-text {
@@ -2016,9 +1944,6 @@ input:checked + .slider:before {
 .amulet-found-text::before { left: -50px;  animation: amuletSparkleLeft  3.5s ease-out forwards; }
 .amulet-found-text::after  { right: -50px; animation: amuletSparkleRight 3.5s ease-out forwards; }
 
-/* ============================================================
-   SCROLLBAR STYLING
-   ============================================================ */
 #souls-menu::-webkit-scrollbar,
 #qol-menu::-webkit-scrollbar,
 .evolution-description::-webkit-scrollbar { width: 8px; }
@@ -2043,14 +1968,8 @@ input:checked + .slider:before {
     box-shadow: 0 0 6px rgba(212, 175, 55, 0.5);
 }
 
-/* ============================================================
-   AUTO-SELECT GLOW
-   ============================================================ */
 .auto-select-glow2 { animation: ornateGlow 1.8s ease-in-out infinite alternate; }
 
-/* ============================================================
-   KEYFRAMES  (UI / atmosphere)
-   ============================================================ */
 @keyframes fadeIn {
     from { opacity: 0; transform: scale(0.9); }
     to   { opacity: 1; transform: scale(1); }
@@ -2128,23 +2047,18 @@ input:checked + .slider:before {
     15%      { opacity: 1; transform: translateX(-20px) rotate(-180deg); }
     85%      { opacity: 1; transform: translateX(-20px) rotate(-540deg); }
 }
-/* Sorceress attack flash */
+
 #player.sorc-attacking {
     filter: drop-shadow(0 0 10px #88ccff) drop-shadow(0 0 22px #4499ff) brightness(1.35);
     transition: filter 0.05s ease-out;
 }
-/* ============================================================
-   TALENT TREE — all styles scoped to avoid conflicts
-   ============================================================ */
 
-/* Talent tree uses Cinzel & Uncial Antiqua — already imported by game or loaded lazily */
-/* Talent-tree custom properties scoped to avoid leaking */
 #tw, #tt, #backdrop {
   --acolyte-base:#9370DB;--acolyte-bright:#bf8fff;--acolyte-max:#d4aaff;
   --acolyte-glow:rgba(147,112,219,0.55);
   --font-binding:'Uncial Antiqua','Cinzel',serif;
 }
-/* Also expose acolyte vars globally for node pulse button outside #tw */
+
 :root {
   --acolyte-base:#9370DB;--acolyte-bright:#bf8fff;--acolyte-max:#d4aaff;
   --acolyte-glow:rgba(147,112,219,0.55);
@@ -2220,9 +2134,7 @@ input:checked + .slider:before {
 .class-card{display:flex;flex-direction:column;align-items:center;gap:0;position:relative;padding:0 25px}
 .class-card .class-option{margin-left:0;min-height:145px}
 .class-card .plus-wrap{margin-top:4px}
-/* ============================================================
-   TALENT POINT NOTIFICATION
-   ============================================================ */
+
 .talent-point-notify {
     position: absolute;
     left: 50%;
@@ -2263,9 +2175,6 @@ input:checked + .slider:before {
     100% { opacity: 0; transform: translateX(-50%) translateY(-18px); }
 }
 
-/* ============================================================
-   SORCERESS TALENT TREE — Storm Mastery
-   ============================================================ */
 :root {
   --sorceress-base:#4169E1;--sorceress-bright:#7090ff;--sorceress-max:#a0bcff;
   --sorceress-glow:rgba(65,105,225,0.55);
@@ -2280,7 +2189,7 @@ input:checked + .slider:before {
 .sorc-tw-head{border-image:linear-gradient(90deg,transparent,#4169E1,var(--gold),#4169E1,transparent) 1 !important;background:linear-gradient(180deg,rgba(65,105,225,.1),transparent) !important}
 .sorc-tw-sub{color:var(--sorceress-base) !important}
 #stw .tw-pts span, .sorc-pts-val{color:var(--sorceress-bright) !important;font-weight:700;font-size:16px}
-/* Sorceress nodes */
+
 .sorc-node:hover:not(.locked){border-color:var(--sorceress-base) !important;box-shadow:0 0 12px var(--sorceress-glow) !important;}
 .sorc-node.partial{border-color:rgba(65,105,225,.65) !important;box-shadow:0 0 8px rgba(65,105,225,.3) !important}
 .sorc-node.maxed{border-color:var(--sorceress-max) !important;box-shadow:0 0 20px rgba(160,188,255,.75),0 0 38px rgba(65,105,225,.45),inset 0 0 14px rgba(112,144,255,.18) !important}
@@ -2294,9 +2203,6 @@ input:checked + .slider:before {
 .sorc-pulse{animation:sorc-talent-pulse 1.6s ease-in-out infinite alternate !important;border-color:var(--sorceress-base) !important}
 @keyframes sorc-talent-pulse{from{box-shadow:0 0 8px var(--sorceress-glow)}to{box-shadow:0 0 22px var(--sorceress-glow),0 0 40px rgba(65,105,225,.3)}}
 
-/* ============================================================
-   DIVINE KNIGHT TALENT TREE — Holy Mastery
-   ============================================================ */
 :root {
   --dk-base:#D4AF37;--dk-bright:#FFD700;--dk-max:#FFE566;
   --dk-glow:rgba(212,175,55,0.55);
@@ -2311,7 +2217,7 @@ input:checked + .slider:before {
 .dk-tw-head{border-image:linear-gradient(90deg,transparent,#D4AF37,#fff,#D4AF37,transparent) 1 !important;background:linear-gradient(180deg,rgba(212,175,55,.1),transparent) !important}
 .dk-tw-sub{color:var(--dk-base) !important}
 #dktw .tw-pts span, .dk-pts-val{color:var(--dk-bright) !important;font-weight:700;font-size:16px}
-/* DK nodes */
+
 .dk-node:hover:not(.locked){border-color:var(--dk-base) !important;box-shadow:0 0 12px var(--dk-glow) !important;}
 .dk-node.partial{border-color:rgba(212,175,55,.65) !important;box-shadow:0 0 8px rgba(212,175,55,.3) !important}
 .dk-node.maxed{border-color:var(--dk-max) !important;box-shadow:0 0 20px rgba(255,229,102,.75),0 0 38px rgba(212,175,55,.45),inset 0 0 14px rgba(255,215,0,.18) !important}
@@ -2325,12 +2231,6 @@ input:checked + .slider:before {
 .dk-pulse{animation:dk-talent-pulse 1.6s ease-in-out infinite alternate !important;border-color:var(--dk-base) !important}
 @keyframes dk-talent-pulse{from{box-shadow:0 0 8px var(--dk-glow)}to{box-shadow:0 0 22px var(--dk-glow),0 0 40px rgba(212,175,55,.3)}}
 
-/* ============================================================
-   SOUL FRAGMENT / CLASS HEX / WEAPON EVOLUTION UI
-   (moved from runtime injection in upgrades.js / weapons.js)
-   ============================================================ */
-
-/* Keyframes */
 @keyframes sfShardFly {
     0%   { opacity: 1; transform: translate(0,0) rotate(0deg) scale(1); }
     85%  { opacity: 1; }
@@ -2375,7 +2275,6 @@ input:checked + .slider:before {
     100% { transform: translate(-50%,-50%) translateY(0px);  }
 }
 
-/* ── Shared overlay ── */
 .sf-overlay {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -2386,7 +2285,6 @@ input:checked + .slider:before {
 }
 .sf-row { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
 
-/* ── Fragment cards ── */
 .sf-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; cursor: pointer; }
 .sf-shell { position: relative; filter: drop-shadow(0 6px 18px rgba(0,0,0,0.7)); transition: transform 0.18s ease, filter 0.18s ease; }
 .sf-wrap:hover .sf-shell                 { transform: translateY(-6px) scale(1.04); }
@@ -2402,7 +2300,6 @@ input:checked + .slider:before {
 .sf-wrap.sf-disabled                     { cursor: not-allowed; opacity: 0.5; pointer-events: none; }
 .sf-wrap.sf-auto-glow .sf-shell         { animation: sfAutoGlow 0.7s ease-in-out infinite alternate; }
 
-/* ── Hex cards (class upgrade) ── */
 .sf-hex-shell { position: relative; filter: drop-shadow(0 8px 28px rgba(0,0,0,0.8)); transition: transform 0.2s ease, filter 0.2s ease; }
 .sf-wrap:hover .sf-hex-shell            { transform: translateY(-7px) scale(1.05); }
 .sf-wrap:hover .purple-hex              { filter: drop-shadow(0 12px 36px rgba(147,80,255,0.75));  }
@@ -2410,7 +2307,6 @@ input:checked + .slider:before {
 .sf-wrap:hover .gold-hex                { filter: drop-shadow(0 12px 36px rgba(255,195,50,0.75));  }
 .sf-wrap.sf-auto-glow .sf-hex-shell    { animation: sfAutoGlow 0.7s ease-in-out infinite alternate; }
 
-/* ── Plaque ── */
 .sf-plaque {
     position: relative; width: 188px;
     background: linear-gradient(180deg, #1c1508 0%, #140f04 40%, #120d03 60%, #1a1307 100%);
@@ -2439,7 +2335,6 @@ input:checked + .slider:before {
 .sf-stat.sn .sf-bullet, .sf-stat.sn .sf-stat-text { color: #d47a7a; }
 .sf-stat.green .sf-bullet, .sf-stat.green .sf-stat-text { color: #9cd47a; }
 
-/* ── Weapon evo cards ── */
 .wevo-shell {
     position: relative; width: 160px; height: 210px; overflow: hidden; border-radius: 6px;
     filter: drop-shadow(0 8px 24px rgba(0,0,0,0.8));
@@ -2473,17 +2368,14 @@ input:checked + .slider:before {
 .sf-wrap.wevo-disabled                   { cursor: not-allowed; opacity: 0.5; pointer-events: none; }
 .sf-wrap.sf-auto-glow .wevo-shell        { animation: sfAutoGlow 0.7s ease-in-out infinite alternate; }
 
-/* ── Weapon evo screen title ── */
 .sf-wevo-title { font-family: 'Cinzel Decorative', 'Cinzel', 'Georgia', serif; font-size: 24px; color: #e8d5a0; text-shadow: 0 0 30px rgba(220,190,100,0.4), 0 2px 0 rgba(0,0,0,0.8); letter-spacing: 0.08em; margin-bottom: 4px; text-align: center; }
 .sf-wevo-sub   { font-family: 'IM Fell English', 'Georgia', serif; font-style: italic; font-size: 13px; color: #6a5c42; margin-bottom: 24px; letter-spacing: 0.05em; text-align: center; }
 
-/* ── Animations on SVG elements ── */
 .sf-leg-glow    { animation: sfLegGlow    2.2s ease-in-out infinite; }
 .sf-leg-ref     { animation: sfReflection 2.2s linear       infinite; }
 .sf-hex-glow-anim { animation: sfHexGlow    2.4s ease-in-out infinite; }
 .sf-hex-reflect { animation: sfHexReflect 2.8s linear       infinite; }
 
-/* ── Level-up / class-ascension screen titles ── */
 .sf-screen-title { font-family: 'Cinzel Decorative', 'Cinzel', 'Georgia', serif; font-size: 26px; color: #e8d5a0; text-shadow: 0 0 30px rgba(220,190,100,0.4), 0 2px 0 rgba(0,0,0,0.8); letter-spacing: 0.08em; margin-bottom: 4px; text-align: center; }
 .sf-screen-title.ascension.acolyte      { color: #d090ff; text-shadow: 0 0 30px rgba(160,80,255,0.45), 0 2px 0 rgba(0,0,0,0.8); }
 .sf-screen-title.ascension.sorceress    { color: #80c0ff; text-shadow: 0 0 30px rgba(65,105,225,0.55), 0 2px 0 rgba(0,0,0,0.8); }
@@ -2493,11 +2385,7 @@ input:checked + .slider:before {
 .sf-dmgtype     { font-family: 'IM Fell English', 'Georgia', serif; font-style: italic; font-size: 12px; color: #7a6848; line-height: 1.4; }
 .tag-additive        { color: #7eb8c4; }
 .tag-multiplicative  { color: #c4a87e; }
-/* ═══════════════════════════════════════════════════════════════
-   LEADERBOARD MODAL
-   ═══════════════════════════════════════════════════════════════ */
 
-/* ── Modal shell ── */
 .lb-modal-content {
     max-width: 660px;
     width: 94vw;
@@ -2523,7 +2411,6 @@ input:checked + .slider:before {
     background: linear-gradient(180deg, var(--gold), var(--gold-dark));
 }
 
-/* ── Header ornament ── */
 .lb-header-ornament {
     display: flex;
     align-items: center;
@@ -2560,11 +2447,10 @@ input:checked + .slider:before {
     letter-spacing: 0.06em;
     text-shadow: 0 0 30px rgba(201,168,76,0.35);
     margin-bottom: 18px !important;
-    /* Explicitly avoid inheriting global game font */
+    
     font-style: normal !important;
 }
 
-/* ── Tabs ── */
 .lb-tabs {
     display: flex;
     border-bottom: 2px solid #3a2e22;
@@ -2603,7 +2489,6 @@ input:checked + .slider:before {
 .lb-dot-sorc     { background: #4169e1; }
 .lb-dot-divine   { background: #f0c030; }
 
-/* ── Panels ── */
 .lb-panel { display: none; border: 1px solid #3a2e22; border-top: none; }
 .lb-panel.lb-active { display: block; }
 
@@ -2612,7 +2497,6 @@ input:checked + .slider:before {
 .lb-accent-sorc    { background: linear-gradient(to right, transparent, #4169e1, transparent); }
 .lb-accent-divine  { background: linear-gradient(to right, transparent, #f0c030, transparent); }
 
-/* ── Weapon sections ── */
 .lb-weapon-section { border-bottom: 1px solid #3a2e22; }
 .lb-weapon-section:last-child { border-bottom: none; }
 
@@ -2631,7 +2515,6 @@ input:checked + .slider:before {
     color: #d4c5a9;
 }
 
-/* ── Column headers ── */
 .lb-col-headers {
     display: grid;
     grid-template-columns: 30px 1fr 46px 1fr 90px;
@@ -2650,7 +2533,6 @@ input:checked + .slider:before {
 .lb-center { text-align: center; }
 .lb-right  { text-align: right; }
 
-/* ── Entry rows ── */
 .lb-entry-row {
     display: grid;
     grid-template-columns: 30px 1fr 46px 1fr 90px;

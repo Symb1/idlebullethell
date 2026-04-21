@@ -3,22 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RPG Game</title>
+    <title>Idle Bullet Hell</title>
+    <link rel="icon" type="image/png" href="img/favicon.png">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<div id="game-scale-root">
 <div id="page-bg"></div>
 <div id="game-container">
+    <div id="game-wrap">
     <div id="game-area" style="display: none;">
 
 	    <div id="stage-info"></div>
         <button id="ability-button" style="display: none;">Use Ability</button>
     </div>
     <div id="holy-shield-aura" class="holy-shield-aura" style="display: none;"></div>
+
+    <div id="player-stats"></div>
+    </div>
+
     <div id="ui">
-        <div id="player-stats"></div>
-        <button id="debug-skip-wave">(Debug)</button>
-        <button id="debug-level-up">(Debug2)</button>
+        <button id="debug-skip-wave" style="display:none;">(Debug)</button>
+        <button id="debug-level-up" style="display:none;">(Debug2)</button>
     </div>
     <div id="souls-menu"></div>
     <div id="qol-menu"></div>
@@ -66,7 +72,6 @@
     </div>
 </div>
 
-<!-- Talent Tree Backdrop -->
 <div id="backdrop">
   <div id="tw">
     <div class="tw-head">
@@ -88,7 +93,6 @@
   </div>
 </div>
 
-<!-- Talent Tooltip -->
 <div id="tt">
   <div class="tt-name" id="tt-name"></div>
   <div class="tt-bv" id="tt-bv" style="display:none">Binding Vow</div>
@@ -104,7 +108,6 @@
   <div class="tt-lock" id="tt-lock" style="display:none"></div>
 </div>
 
-<!-- Sorceress Talent Tree Backdrop -->
 <div id="sorc-backdrop">
   <div id="stw">
     <div class="tw-head sorc-tw-head">
@@ -145,7 +148,6 @@
 <audio id="weaponLvlUpSnd" src="sound/weaponLvlUp.mp3" preload="auto"></audio>
 <audio id="bckgloopmu" src="sound/bckgloop.mp3" preload="auto" loop></audio>
 
-<!-- Leaderboard Modal -->
 <div id="leaderboard-menu" class="overlay" style="display:none;">
     <div class="overlay-content lb-modal-content">
         <span class="close-btn" id="lb-close-btn">&times;</span>
@@ -187,6 +189,23 @@
 <script src="upgrades.js"></script>
 <script src="ui.js"></script>
 <script src="main.js"></script>
-	
+
+<script>
+(function () {
+    var DESIGN_W = 1600;
+    var DESIGN_H = 900;
+    var root = document.getElementById('game-scale-root');
+    function applyScale() {
+        var scale = Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H, 1);
+        document.documentElement.style.setProperty('--game-scale', scale);
+        root.style.width  = (window.innerWidth  / scale) + 'px';
+        root.style.height = (window.innerHeight / scale) + 'px';
+    }
+    applyScale();
+    window.addEventListener('resize', applyScale);
+})();
+</script>
+
+</div>
 </body>
 </html>

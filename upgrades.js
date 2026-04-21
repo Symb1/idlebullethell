@@ -1,5 +1,4 @@
-// --- Helpers ---
-
+//Full documentation in docIR
 function getRarityValue(rarity, legendary, epic, magic, normal) {
     return (rarity === 'Legendary' || rarity === 'Epic') ? legendary : (rarity === 'Magic' ? magic : normal);
 }
@@ -10,8 +9,6 @@ function applySecondary(rarity, secondaryUpgrade, secondaryRarity) {
         secondaryUpgrade.effect(secondaryRarity);
     }
 }
-
-// --- Upgrades ---
 
 const upgrades = [
     {
@@ -60,10 +57,10 @@ const upgrades = [
             const mult = this._hasEternity() ? 3 : 1;
             const val  = this._val(rarity) * mult;
             if (this._hasEternity()) {
-                // No cap
+                
                 player.hpRegen = player.hpRegen + val;
             } else if (this._hasAegis()) {
-                // Cap raised to 1.5
+                
                 player.hpRegen = Math.min(1.5, player.hpRegen + val);
             } else {
                 player.hpRegen = Math.min(1, player.hpRegen + val);
@@ -75,15 +72,15 @@ const upgrades = [
             return `+${(this._val(rarity) * mult).toFixed(2)}/s`;
         },
         condition: () => {
-            // Oath of Judgement (Blessed Shield) disables regen entirely — hide card
+            
             if (player instanceof DivineKnight
                 && typeof dkAlloc !== 'undefined' && dkAlloc['oath_of_judgement'] >= 1
                 && player.weapon instanceof BlessedShield) return false;
-            // Oath of Eternity: no cap, always show
+            
             if (player instanceof DivineKnight
                 && typeof dkAlloc !== 'undefined' && dkAlloc['oath_of_eternity'] >= 1
                 && player.weapon instanceof SmiteShield) return true;
-            // Oath of Aegis: cap is 1.5
+            
             if (player instanceof DivineKnight
                 && typeof dkAlloc !== 'undefined' && dkAlloc['oath_of_aegis'] >= 1
                 && player.weapon instanceof SmiteShield) return player.hpRegen < 1.5;
@@ -138,8 +135,6 @@ const upgrades = [
     },
 ];
 
-// --- Rarity Roll ---
-
 function getRarity() {
     const rarityUpgrade = soulsUpgrades.find(u => u.name === 'Rarity+');
     const rarityBonus = (gameState.rarityUpgrades || 0) * rarityUpgrade.valuePerUpgrade;
@@ -149,8 +144,6 @@ function getRarity() {
     if (roll < 0.41 + rarityBonus * 2)    return 'Magic';
     return 'Normal';
 }
-
-// --- Random Upgrades ---
 
 function getRandomUpgrades(count) {
     if (player.level === 10) {
@@ -180,8 +173,6 @@ function getRandomUpgrades(count) {
         return result;
     });
 }
-
-// --- Class Upgrades ---
 
 function classEffect(player, gameState, stats) {
     if (stats.attackSpeedIncrease)  player.attacksPerSecond += stats.attackSpeedIncrease;
@@ -216,7 +207,7 @@ const classUpgrades = {
             attackSpeedIncrease: 0.45, critChanceDecrease: 0.05, cooldownIncrease: 0.3,
             effect() {
                 const reRanks = (typeof alloc !== 'undefined' ? alloc['ravenous_excellence'] : 0) || 0;
-                // Each rank reduces crit chance penalty by 1% and cooldown penalty by 6%; ranks 6-10 add bonus
+                
                 const critNegated   = Math.min(reRanks, 5) * 0.01;
                 const cdNegated     = Math.min(reRanks, 5) * 0.06;
                 const bonusCrit     = Math.max(0, reRanks - 5) * 0.01;
@@ -248,7 +239,7 @@ const classUpgrades = {
             damageLoss: 0.25, cooldownReduction: 0.5,
             effect() {
                 const teRanks = (typeof alloc !== 'undefined' ? alloc['temporal_excellence'] : 0) || 0;
-                // Each rank negates 5% of 25% damage penalty; ranks 6-10 grant bonus damage
+                
                 const penaltyNegated = Math.min(teRanks, 5) * 0.05;
                 const bonusDamage    = Math.max(0, teRanks - 5) * 0.05;
                 const effectiveLoss  = Math.max(0, this.damageLoss - penaltyNegated) - bonusDamage;
@@ -274,7 +265,7 @@ const classUpgrades = {
             critDamageIncrease: 0.5, critChanceIncrease: 0.10, attackSpeedDecrease: 0.3,
             effect() {
                 const aeRanks = (typeof alloc !== 'undefined' ? alloc['abyssal_excellence'] : 0) || 0;
-                // Each rank negates 6% of 30% attack speed penalty; ranks 6-10 grant bonus speed
+                
                 const penaltyNegated = Math.min(aeRanks, 5) * 0.06;
                 const bonusSpeed     = Math.max(0, aeRanks - 5) * 0.06;
                 const effectiveLoss  = Math.max(0, this.attackSpeedDecrease - penaltyNegated) - bonusSpeed;
@@ -306,10 +297,10 @@ const classUpgrades = {
             effect() {
                 player.attacksPerSecond += this.attackSpeedIncrease;
                 const sheRanks = (typeof sorcAlloc !== 'undefined' ? sorcAlloc['stormheart_excellence'] : 0) || 0;
-                // Each rank negates 20% of the 100% boss damage penalty; ranks 6-10 grant bonus boss damage
+                
                 const penaltyNegated = Math.min(sheRanks, 5) * 0.20;
                 const bonusBossDmg   = Math.max(0, sheRanks - 5) * 0.20;
-                // effectivePenalty: how much to subtract from additionalBossDamage (positive = penalty, negative = bonus)
+                
                 const effectivePenalty = Math.max(0, 1.0 - penaltyNegated) - bonusBossDmg;
                 player.additionalBossDamage = (player.additionalBossDamage || 0) - effectivePenalty;
                 player.classUpgradeChosen = this.shardName;
@@ -335,7 +326,7 @@ const classUpgrades = {
             critChanceIncrease: 0.2, critDamageDecrease: 0.6,
             effect() {
                 const sweRanks = (typeof sorcAlloc !== 'undefined' ? sorcAlloc['spellweavers_excellence'] : 0) || 0;
-                // Each rank negates 12% of the 60% crit damage penalty; ranks 6-10 grant bonus crit damage
+                
                 const penaltyNegated = Math.min(sweRanks, 5) * 0.12;
                 const bonusCritDmg   = Math.max(0, sweRanks - 5) * 0.12;
                 const effectiveLoss  = Math.max(0, this.critDamageDecrease - penaltyNegated) - bonusCritDmg;
@@ -364,12 +355,12 @@ const classUpgrades = {
             attackSpeedDecrease: 0.40, chainCountBonus: 1,
             effect() {
                 const neRanks = (typeof sorcAlloc !== 'undefined' ? sorcAlloc['nexus_excellence'] : 0) || 0;
-                // Each rank negates 8% of the 40% attack speed penalty; ranks 6-10 grant bonus attack speed
+                
                 const penaltyNegated = Math.min(neRanks, 5) * 0.08;
                 const bonusSpeed     = Math.max(0, neRanks - 5) * 0.08;
                 const effectiveLoss  = Math.max(0, this.attackSpeedDecrease - penaltyNegated) - bonusSpeed;
                 player.attacksPerSecond -= effectiveLoss;
-                if (effectiveLoss < 0) player.attacksPerSecond += (-effectiveLoss); // bonus case already subtracted
+                if (effectiveLoss < 0) player.attacksPerSecond += (-effectiveLoss); 
                 if (player.weapon?.chainCount !== undefined) player.weapon.chainCount += this.chainCountBonus;
                 player.classUpgradeChosen = this.shardName;
                 gameState.classUpgradeChosen = this.shardName;
@@ -396,7 +387,7 @@ const classUpgrades = {
             attackSpeedIncrease: 1.00, damageLoss: 0.20,
             effect() {
                 const veRanks = (typeof dkAlloc !== 'undefined' ? dkAlloc['vigilant_excellence'] : 0) || 0;
-                // Each rank negates 4% of 20% damage penalty; at rank 5, no penalty
+                
                 const penaltyNegated = Math.min(veRanks, 5) * 0.04;
                 const bonusDmg = Math.max(0, veRanks - 5) * 0.04;
                 const effectiveLoss = Math.max(0, this.damageLoss - penaltyNegated) - bonusDmg;
@@ -425,7 +416,7 @@ const classUpgrades = {
             damageLoss: 0.25, attackSpeedDecrease: 0.15, cooldownIncrease: 0.15, enablesCritUpgrades: true,
             effect() {
                 const seRanks = (typeof dkAlloc !== 'undefined' ? dkAlloc['sanctified_excellence'] : 0) || 0;
-                // Each rank negates 5% dmg, 3% atk spd, 3% cd penalty; at rank 5, no penalty
+                
                 const dmgNegated  = Math.min(seRanks, 5) * 0.05;
                 const spdNegated  = Math.min(seRanks, 5) * 0.03;
                 const cdNegated   = Math.min(seRanks, 5) * 0.03;
@@ -474,7 +465,7 @@ const classUpgrades = {
             healthIncrease: 10, damageIncrease: 0.25, cooldownIncrease: 1.0,
             effect() {
                 const eeRanks = (typeof dkAlloc !== 'undefined' ? dkAlloc['eternal_excellence'] : 0) || 0;
-                // Each rank negates 20% of 100% cooldown penalty; at rank 5, no penalty
+                
                 const cdNegated = Math.min(eeRanks, 5) * 0.20;
                 const bonusCdRedux = Math.max(0, eeRanks - 5) * 0.20;
                 const effCdInc = Math.max(0, this.cooldownIncrease - cdNegated) - bonusCdRedux;
@@ -500,12 +491,6 @@ const classUpgrades = {
     ]
 };
 
-// --- Level Up Screen ---
-
-// ═══════════════════════════════════════════════════════════════════════
-//  SOUL FRAGMENT / CLASS HEX  –  shared helpers
-// ═══════════════════════════════════════════════════════════════════════
-
 function _sfClassPlaque(upgrade) {
     const pClass = player.class;
     const colorCls = pClass === 'Acolyte' ? 'sp' : pClass === 'Sorceress' ? 'sb' : 'sg';
@@ -523,19 +508,17 @@ function _sfClassPlaque(upgrade) {
     return lines.join('');
 }
 
-// ── showLevelUpScreen (entry point) ──────────────────────────────────────────
-
 function showLevelUpScreen() {
     gameState.isPaused = true;
 
     const levelUpAudio = document.getElementById('levelupmu');
     if (levelUpAudio) { levelUpAudio.currentTime = 0; levelUpAudio.volume = 0.2; levelUpAudio.play().catch(() => {}); }
 
-    // Get upgrades FIRST — level 10 triggers weapon evo and returns [], bail immediately
+    
     const availableUpgrades = getRandomUpgrades(3);
     if (!availableUpgrades.length) return;
 
-    // Remove any existing overlay
+    
     document.getElementById('level-up')?.remove();
 
     const overlay = document.createElement('div');
@@ -577,7 +560,7 @@ function showLevelUpScreen() {
               </div>`;
             if (!isAutoClass) {
                 wrap.addEventListener('click', () => {
-                    // Immediately lock ALL cards in the row to prevent double-picks
+                    
                     row.querySelectorAll('.sf-wrap').forEach(w => w.style.pointerEvents = 'none');
                     const sfSound = document.getElementById('soulfragmentcrack');
                     if (sfSound) { sfSound.currentTime = 0; sfSound.volume = 0.5; sfSound.play().catch(()=>{}); }
@@ -597,7 +580,7 @@ function showLevelUpScreen() {
             const rarity = upgrade.rarity || 'Normal';
             const {shellClass, width, height, svg} = _sfFragSVG(upgrade);
             const nameCls = {Normal:'name-normal',Magic:'name-magic',Epic:'name-epic',Legendary:'name-legendary'}[rarity] || 'name-normal';
-            // Build damage-type tag from upgrade.description
+            
             let dmgTypeHtml = '';
             if (rarity === 'Legendary') {
                 dmgTypeHtml = `<span style="color:#5a4820;font-size:10.5px;">Legendary · Dual Blessing</span>`;
@@ -624,7 +607,7 @@ function showLevelUpScreen() {
               </div>`;
             if (!isAutoCard) {
                 wrap.addEventListener('click', () => {
-                    // Immediately lock ALL cards in the row to prevent double-picks
+                    
                     row.querySelectorAll('.sf-wrap').forEach(w => w.style.pointerEvents = 'none');
                     const sfSound = document.getElementById('soulfragmentcrack');
                     if (sfSound) { sfSound.currentTime = 0; sfSound.volume = 0.5; sfSound.play().catch(()=>{}); }
@@ -642,7 +625,6 @@ function showLevelUpScreen() {
         }
     }
 }
-
 
 function _scheduleAutoSelect(container, upgrades, upgrade) {
     const idx = upgrades.indexOf(upgrade);
@@ -671,8 +653,6 @@ function hideLevelUpScreen() {
     levelUpScreenOpen = false;
 }
 
-// --- Soul Upgrades Cost ---
-
 function calculateSoulUpgradeCost(baseCost, currentLevel) {
     let cost = baseCost;
     for (let i = 1; i <= currentLevel; i++) {
@@ -680,8 +660,6 @@ function calculateSoulUpgradeCost(baseCost, currentLevel) {
     }
     return Math.floor(cost);
 }
-
-// --- Soul Upgrades ---
 
 const BASIC_UPGRADE_KEYS = new Set(['healthUpgrades','regenUpgrades','critChanceUpgrades','critDamageUpgrades','attackSpeedUpgrades','cooldownUpgrades']);
 
@@ -721,8 +699,8 @@ const soulsUpgrades = [
                 player.adjustCritChance(this.valuePerUpgrade);
         },
         canPurchase(gameState) {
-            // Purchase is allowed for all classes (including Divine Knight before critUpgradesEnabled).
-            // The effect() already guards stat application so Divine Knights only benefit once unlocked.
+            
+            
             if (player && !(player instanceof DivineKnight) && player.critChance >= 0.80) return false;
             return (gameState.critChanceUpgrades || 0) < _ascMaxPurchases(gameState, 'critChanceUpgrades');
         }
@@ -784,8 +762,6 @@ const soulsUpgrades = [
         isVisible(gameState) { return gameState.ascensionLevel >= 3; }
     }
 ];
-
-// --- Purchase Soul Upgrade ---
 
 const UPGRADE_KEY_MAP = {
     'Health+': 'healthUpgrades', 'Regen+': 'regenUpgrades',

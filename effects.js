@@ -1,7 +1,4 @@
-// ─────────────────────────────────────────────
-//  Shared SVG helpers
-// ─────────────────────────────────────────────
-
+//Full documentation in docIR
 function ensureLightningSvg() {
     var gameArea = document.getElementById('game-area');
     if (!gameArea) return null;
@@ -25,7 +22,6 @@ function ns(tag) {
     return document.createElementNS('http://www.w3.org/2000/svg', tag);
 }
 
-// Jagged lightning path between two points
 function zigzagPath(x1, y1, x2, y2, jitter) {
     jitter = jitter == null ? 18 : jitter;
     var dist  = Math.hypot(x2 - x1, y2 - y1);
@@ -41,7 +37,6 @@ function zigzagPath(x1, y1, x2, y2, jitter) {
     return d;
 }
 
-// Fade-out helper
 function fadeRemove(el, delayMs, durationMs) {
     setTimeout(function () {
         el.style.transition = 'opacity ' + durationMs + 'ms ease-out';
@@ -50,29 +45,23 @@ function fadeRemove(el, delayMs, durationMs) {
     }, delayMs);
 }
 
-// ─────────────────────────────────────────────
-//  drawLightningBolt  (single segment)
-//  isMain: true  → main strike (thicker)
-//  isMain: false → chain hop   (thinner)
-//  isCritical → no color change, just +30% thickness
-// ─────────────────────────────────────────────
 function drawLightningBolt(svg, x1, y1, x2, y2, isCritical, isMain) {
     if (isMain == null) isMain = true;
 
-    // Base widths: main is thicker than chain
+    
     var baseGlow = isMain ? 10 : 5;
     var baseMid  = isMain ? 3.5 : 1.8;
     var baseCore = isMain ? 1.5 : 0.8;
     var sparkR   = isMain ? 6   : 3.5;
 
-    // Crit: +30% thickness, no color change
+    
     var critMult = isCritical ? 1.3 : 1.0;
     var gw = (baseGlow * critMult).toFixed(1);
     var mw = (baseMid  * critMult).toFixed(1);
     var cw = (baseCore * critMult).toFixed(1);
     var sr = (sparkR   * critMult).toFixed(1);
 
-    // Same blue palette regardless of crit
+    
     var color     = '#88ccff';
     var glowColor = '#4499ff';
     var coreColor = '#ddeeff';
@@ -80,7 +69,7 @@ function drawLightningBolt(svg, x1, y1, x2, y2, isCritical, isMain) {
     var g = ns('g');
     g.style.opacity = '1';
 
-    // Glow layer
+    
     var glow = ns('path');
     glow.setAttribute('d', zigzagPath(x1, y1, x2, y2, isMain ? 22 : 12));
     glow.setAttribute('stroke', glowColor);
@@ -90,7 +79,7 @@ function drawLightningBolt(svg, x1, y1, x2, y2, isCritical, isMain) {
     glow.setAttribute('opacity', isMain ? '0.45' : '0.3');
     glow.setAttribute('filter', 'url(#sorc-blur)');
 
-    // Mid layer
+    
     var mid = ns('path');
     mid.setAttribute('d', zigzagPath(x1, y1, x2, y2, isMain ? 15 : 8));
     mid.setAttribute('stroke', color);
@@ -99,7 +88,7 @@ function drawLightningBolt(svg, x1, y1, x2, y2, isCritical, isMain) {
     mid.setAttribute('fill', 'none');
     mid.setAttribute('opacity', '0.9');
 
-    // Core
+    
     var core = ns('path');
     core.setAttribute('d', zigzagPath(x1, y1, x2, y2, isMain ? 8 : 4));
     core.setAttribute('stroke', coreColor);
@@ -107,7 +96,7 @@ function drawLightningBolt(svg, x1, y1, x2, y2, isCritical, isMain) {
     core.setAttribute('stroke-linecap', 'round');
     core.setAttribute('fill', 'none');
 
-    // Impact spark
+    
     var spark = ns('circle');
     spark.setAttribute('cx', x2.toFixed(1));
     spark.setAttribute('cy', y2.toFixed(1));
@@ -121,44 +110,34 @@ function drawLightningBolt(svg, x1, y1, x2, y2, isCritical, isMain) {
     g.appendChild(spark);
     svg.appendChild(g);
 
-    // Main strike lingers slightly longer than chain hops
+    
     var holdMs   = isMain ? 80  : 40;
     var fadeMs   = isMain ? 180 : 130;
     fadeRemove(g, holdMs, fadeMs);
 }
 
-// ─────────────────────────────────────────────
-//  drawLightningChain
-//  points[0] = player, points[1] = first target,
-//  points[2..] = chain targets
-// ─────────────────────────────────────────────
 function drawLightningChain(points, isCritical) {
     if (!points || points.length < 2) return;
     var svg = ensureLightningSvg();
     if (!svg) return;
     for (var i = 0; i < points.length - 1; i++) {
-        var isMain = (i === 0);   // first segment = main strike
+        var isMain = (i === 0);   
         drawLightningBolt(svg, points[i].x, points[i].y, points[i+1].x, points[i+1].y, isCritical, isMain);
     }
 }
 
-// ─────────────────────────────────────────────
-//  drawSkyLightning  –  ability "call lightning"
-//  Strikes from the top of the game area down to
-//  the target with a bright flash + afterglow.
-// ─────────────────────────────────────────────
 function drawSkyLightning(tx, ty) {
     var svg = ensureLightningSvg();
     if (!svg) return;
 
-    // Start slightly above the game area, near target X
+    
     var sx = tx + (Math.random() - 0.5) * 60;
     var sy = -20;
 
     var g = ns('g');
     g.style.opacity = '1';
 
-    // Wide outer arc glow (very diffuse)
+    
     var outerGlow = ns('path');
     outerGlow.setAttribute('d', zigzagPath(sx, sy, tx, ty, 35));
     outerGlow.setAttribute('stroke', '#aaddff');
@@ -168,7 +147,7 @@ function drawSkyLightning(tx, ty) {
     outerGlow.setAttribute('opacity', '0.25');
     outerGlow.setAttribute('filter', 'url(#sorc-glow)');
 
-    // Inner glow
+    
     var innerGlow = ns('path');
     innerGlow.setAttribute('d', zigzagPath(sx, sy, tx, ty, 24));
     innerGlow.setAttribute('stroke', '#66bbff');
@@ -178,7 +157,7 @@ function drawSkyLightning(tx, ty) {
     innerGlow.setAttribute('opacity', '0.55');
     innerGlow.setAttribute('filter', 'url(#sorc-blur)');
 
-    // Main bolt
+    
     var bolt = ns('path');
     bolt.setAttribute('d', zigzagPath(sx, sy, tx, ty, 16));
     bolt.setAttribute('stroke', '#99ddff');
@@ -187,7 +166,7 @@ function drawSkyLightning(tx, ty) {
     bolt.setAttribute('fill', 'none');
     bolt.setAttribute('opacity', '1');
 
-    // Bright core
+    
     var core = ns('path');
     core.setAttribute('d', zigzagPath(sx, sy, tx, ty, 7));
     core.setAttribute('stroke', '#ffffff');
@@ -195,7 +174,7 @@ function drawSkyLightning(tx, ty) {
     core.setAttribute('stroke-linecap', 'round');
     core.setAttribute('fill', 'none');
 
-    // Impact burst — expanding ring
+    
     var burst = ns('circle');
     burst.setAttribute('cx', tx.toFixed(1));
     burst.setAttribute('cy', ty.toFixed(1));
@@ -205,7 +184,7 @@ function drawSkyLightning(tx, ty) {
     burst.setAttribute('stroke-width', '3');
     burst.setAttribute('opacity', '1');
 
-    // Impact fill dot
+    
     var dot = ns('circle');
     dot.setAttribute('cx', tx.toFixed(1));
     dot.setAttribute('cy', ty.toFixed(1));
@@ -221,7 +200,7 @@ function drawSkyLightning(tx, ty) {
     g.appendChild(dot);
     svg.appendChild(g);
 
-    // Animate the burst ring expanding outward
+    
     var startTime = null;
     function animateBurst(ts) {
         if (!startTime) startTime = ts;
@@ -235,17 +214,10 @@ function drawSkyLightning(tx, ty) {
     }
     requestAnimationFrame(animateBurst);
 
-    // Hold briefly then fade
+    
     fadeRemove(g, 120, 250);
 }
 
-// ─────────────────────────────────────────────
-//  drawChainReverbCollapse  –  Chain Reverb fallback
-//  Plays when a chain with no valid next target
-//  collapses back onto the original enemy.
-//  Distinct white/light-blue imploding ring effect
-//  to distinguish it from normal chain hits.
-// ─────────────────────────────────────────────
 function drawChainReverbCollapse(tx, ty, isCritical) {
     var svg = ensureLightningSvg();
     if (!svg) return;
@@ -253,12 +225,12 @@ function drawChainReverbCollapse(tx, ty, isCritical) {
     var g = ns('g');
     var outerR  = isCritical ? 34 : 24;
     var numArcs = isCritical ? 6 : 4;
-    // White/light-blue palette
+    
     var col1 = isCritical ? '#aaddff' : '#88ccff';
     var col2 = '#ddf0ff';
     var col3 = '#ffffff';
 
-    // ── Outer imploding ring (starts large, shrinks to centre) ──
+    
     var ring = ns('circle');
     ring.setAttribute('cx', tx.toFixed(1));
     ring.setAttribute('cy', ty.toFixed(1));
@@ -270,7 +242,7 @@ function drawChainReverbCollapse(tx, ty, isCritical) {
     ring.setAttribute('filter', 'url(#sorc-blur)');
     g.appendChild(ring);
 
-    // ── Inward arc spokes converging on target ──
+    
     for (var i = 0; i < numArcs; i++) {
         var angle = (i / numArcs) * Math.PI * 2;
         var sx2   = tx + Math.cos(angle) * outerR;
@@ -285,7 +257,7 @@ function drawChainReverbCollapse(tx, ty, isCritical) {
         spoke.setAttribute('opacity', '0.85');
         g.appendChild(spoke);
 
-        // Bright core spoke
+        
         var spokeCore = ns('path');
         spokeCore.setAttribute('d', zigzagPath(sx2, sy2, tx, ty, 2));
         spokeCore.setAttribute('stroke', col2);
@@ -296,7 +268,7 @@ function drawChainReverbCollapse(tx, ty, isCritical) {
         g.appendChild(spokeCore);
     }
 
-    // ── Central impact flash ──
+    
     var flash = ns('circle');
     flash.setAttribute('cx', tx.toFixed(1));
     flash.setAttribute('cy', ty.toFixed(1));
@@ -316,11 +288,11 @@ function drawChainReverbCollapse(tx, ty, isCritical) {
 
     svg.appendChild(g);
 
-    // Animate: ring implodes inward while fading; hold briefly at centre then fade out
+    
     var startT   = null;
-    var impMs    = 180;   // ring shrink phase
-    var holdMs   = 60;    // hold at impact
-    var fadeMs   = 220;   // fade out
+    var impMs    = 180;   
+    var holdMs   = 60;    
+    var fadeMs   = 220;   
     var totalMs  = impMs + holdMs + fadeMs;
 
     function animateReverb(ts) {
@@ -328,7 +300,7 @@ function drawChainReverbCollapse(tx, ty, isCritical) {
         var elapsed = ts - startT;
 
         if (elapsed <= impMs) {
-            // Ring shrinks from outerR toward 0
+            
             var t = elapsed / impMs;
             var r = outerR * (1 - t);
             ring.setAttribute('r', Math.max(0, r).toFixed(1));
@@ -351,11 +323,6 @@ function drawChainReverbCollapse(tx, ty, isCritical) {
     requestAnimationFrame(animateReverb);
 }
 
-// ─────────────────────────────────────────────
-//  drawVoidBlast  –  Acolyte hit effect
-//  Dark purple swirl at impact point with
-//  outward spiking tendrils.
-// ─────────────────────────────────────────────
 function drawVoidBlast(cx, cy, isCritical) {
     var svg = ensureLightningSvg();
     if (!svg) return;
@@ -366,7 +333,7 @@ function drawVoidBlast(cx, cy, isCritical) {
     var maxLen      = isCritical ? 42 : 28;
     var colors      = ['#9b30ff', '#7a00cc', '#bf7fff', '#6600aa'];
 
-    // ── Swirl rings (2 of them, slightly offset) ──
+    
     for (var ring = 0; ring < 2; ring++) {
         var swirl = ns('path');
         var r0    = 4 + ring * 3;
@@ -392,7 +359,7 @@ function drawVoidBlast(cx, cy, isCritical) {
         g.appendChild(swirl);
     }
 
-    // ── Tendrils shooting outward ──
+    
     for (var t2 = 0; t2 < numTendrils; t2++) {
         var baseAngle = (t2 / numTendrils) * Math.PI * 2 + Math.random() * 0.4;
         var len       = maxLen * (0.5 + Math.random() * 0.5);
@@ -402,7 +369,7 @@ function drawVoidBlast(cx, cy, isCritical) {
         var ey  = cy + Math.sin(baseAngle) * len;
         var col = colors[Math.floor(Math.random() * colors.length)];
 
-        // Build a short jagged line from center out
+        
         var steps2 = Math.max(2, Math.floor(len / 10));
         var td = 'M ' + cx.toFixed(1) + ' ' + cy.toFixed(1);
         for (var s = 1; s < steps2; s++) {
@@ -413,7 +380,7 @@ function drawVoidBlast(cx, cy, isCritical) {
         }
         td += ' L ' + ex.toFixed(1) + ' ' + ey.toFixed(1);
 
-        // Glow copy
+        
         var tGlow = ns('path');
         tGlow.setAttribute('d', td);
         tGlow.setAttribute('stroke', '#9b30ff');
@@ -435,7 +402,7 @@ function drawVoidBlast(cx, cy, isCritical) {
         g.appendChild(tendril);
     }
 
-    // ── Central glow core ──
+    
     var core = ns('circle');
     core.setAttribute('cx', cx.toFixed(1));
     core.setAttribute('cy', cy.toFixed(1));
@@ -455,16 +422,16 @@ function drawVoidBlast(cx, cy, isCritical) {
     g.appendChild(dot);
     svg.appendChild(g);
 
-    // Animate: hold at full opacity briefly, then scale out and fade over ~1.4s
+    
     var startT = null;
-    var holdMs    = isCritical ? 300 : 200;   // stay bright before fading
-    var duration  = isCritical ? 1100 : 900;  // fade duration after hold
+    var holdMs    = isCritical ? 300 : 200;   
+    var duration  = isCritical ? 1100 : 900;  
     function animateVoid(ts) {
         if (!startT) startT = ts;
         var elapsed = ts - startT;
         var prog;
         if (elapsed < holdMs) {
-            prog = 0; // full opacity during hold
+            prog = 0; 
         } else {
             prog = Math.min((elapsed - holdMs) / duration, 1);
         }
@@ -478,23 +445,18 @@ function drawVoidBlast(cx, cy, isCritical) {
     requestAnimationFrame(animateVoid);
 }
 
-// ─────────────────────────────────────────────
-//  drawSparkAttackLightning  –  SparkWand attack
-//  Called once per attack; fires a sky-strike-
-//  style bolt from above down to every enemy.
-// ─────────────────────────────────────────────
 function drawSparkAttackLightning(tx, ty, isCritical) {
     var svg = ensureLightningSvg();
     if (!svg) return;
 
-    // Origin: directly above the target with slight horizontal scatter
+    
     var sx = tx + (Math.random() - 0.5) * 40;
     var sy = -20;
 
     var g = ns('g');
     g.style.opacity = '1';
 
-    // Outer diffuse glow
+    
     var outerGlow = ns('path');
     outerGlow.setAttribute('d', zigzagPath(sx, sy, tx, ty, 30));
     outerGlow.setAttribute('stroke', isCritical ? '#ccaaff' : '#aaddff');
@@ -504,7 +466,7 @@ function drawSparkAttackLightning(tx, ty, isCritical) {
     outerGlow.setAttribute('opacity', '0.20');
     outerGlow.setAttribute('filter', 'url(#sorc-glow)');
 
-    // Inner glow
+    
     var innerGlow = ns('path');
     innerGlow.setAttribute('d', zigzagPath(sx, sy, tx, ty, 20));
     innerGlow.setAttribute('stroke', isCritical ? '#bb88ff' : '#66bbff');
@@ -514,7 +476,7 @@ function drawSparkAttackLightning(tx, ty, isCritical) {
     innerGlow.setAttribute('opacity', '0.50');
     innerGlow.setAttribute('filter', 'url(#sorc-blur)');
 
-    // Main bolt
+    
     var bolt = ns('path');
     bolt.setAttribute('d', zigzagPath(sx, sy, tx, ty, 13));
     bolt.setAttribute('stroke', isCritical ? '#ddaaff' : '#99ddff');
@@ -523,7 +485,7 @@ function drawSparkAttackLightning(tx, ty, isCritical) {
     bolt.setAttribute('fill', 'none');
     bolt.setAttribute('opacity', '1');
 
-    // Bright core
+    
     var core = ns('path');
     core.setAttribute('d', zigzagPath(sx, sy, tx, ty, 5));
     core.setAttribute('stroke', '#ffffff');
@@ -531,7 +493,7 @@ function drawSparkAttackLightning(tx, ty, isCritical) {
     core.setAttribute('stroke-linecap', 'round');
     core.setAttribute('fill', 'none');
 
-    // Impact ring
+    
     var burst = ns('circle');
     burst.setAttribute('cx', tx.toFixed(1));
     burst.setAttribute('cy', ty.toFixed(1));
@@ -541,7 +503,7 @@ function drawSparkAttackLightning(tx, ty, isCritical) {
     burst.setAttribute('stroke-width', '2.5');
     burst.setAttribute('opacity', '1');
 
-    // Impact dot
+    
     var dot = ns('circle');
     dot.setAttribute('cx', tx.toFixed(1));
     dot.setAttribute('cy', ty.toFixed(1));
@@ -557,7 +519,7 @@ function drawSparkAttackLightning(tx, ty, isCritical) {
     g.appendChild(dot);
     svg.appendChild(g);
 
-    // Animate burst ring expanding
+    
     var startTime = null;
     function animateBurst(ts) {
         if (!startTime) startTime = ts;
@@ -571,13 +533,9 @@ function drawSparkAttackLightning(tx, ty, isCritical) {
     }
     requestAnimationFrame(animateBurst);
 
-    // Slightly shorter hold than the ability version — it fires every attack
+    
     fadeRemove(g, 80, 180);
 }
-// ─────────────────────────────────────────────
-//  SOUL FRAGMENT / CLASS HEX  –  visual helpers
-//  (moved from upgrades.js)
-// ─────────────────────────────────────────────
 
 function _sfRand(a, b) { return a + Math.random() * (b - a); }
 
@@ -632,7 +590,6 @@ const _SF_GLOW = {
     'gold-hex':        'rgba(255,200,50,0.9)',
 };
 
-// Shatter the card visually, then call onComplete after shards fly
 async function _sfShatter(shellEl, onComplete) {
     const rect = shellEl.getBoundingClientRect();
     const W = rect.width, H = rect.height;
@@ -648,7 +605,7 @@ async function _sfShatter(shellEl, onComplete) {
     let glowColor = 'rgba(255,255,255,0.8)';
     for (const [cls, g] of Object.entries(_SF_GLOW)) if (shellEl.classList.contains(cls)) { glowColor = g; break; }
 
-    // Voronoi seeds
+    
     const cols = 5, rows = 7, seeds = [];
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++)
         seeds.push({x:(c+0.5)/cols*W+_sfRand(-W*0.06,W*0.06), y:(r+0.5)/rows*H+_sfRand(-H*0.04,H*0.04)});
@@ -656,7 +613,7 @@ async function _sfShatter(shellEl, onComplete) {
                {x:_sfRand(0,W*0.15), y:_sfRand(0,H)}, {x:_sfRand(W*0.85,W), y:_sfRand(0,H)});
     const cells = _sfBuildVoronoi(W, H, seeds);
 
-    // Burst flash
+    
     const burst = document.createElement('div');
     burst.style.cssText = `position:fixed;pointer-events:none;z-index:9998;left:${cx}px;top:${cy}px;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:radial-gradient(circle,${glowColor} 0%,transparent 70%);animation:sfBurstExpand 0.4s ease-out forwards;`;
     document.body.appendChild(burst);
@@ -686,12 +643,10 @@ async function _sfShatter(shellEl, onComplete) {
         el.addEventListener('animationend', () => el.remove());
     });
 
-    // Trigger callback after most shards are flying (~650ms)
+    
     setTimeout(onComplete, 650);
 }
 
-// ── SVG text helper ───────────────────────────────────────────────────────────
-// Renders upgrade name as SVG text. For 3-word names, splits the 3rd word onto a new line.
 function _sfNameSVG(name, x, y, fs, fill) {
     const words = name.split(' ');
     if (words.length === 3) {
@@ -704,7 +659,6 @@ function _sfNameSVG(name, x, y, fs, fill) {
     return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" font-family="'Georgia',serif" font-style="italic" font-size="${fs}" fill="${fill}">${name}</text>`;
 }
 
-// ── Fragment card SVG builder ─────────────────────────────────────────────────
 function _sfFragSVG(upgrade) {
     const r = (upgrade.rarity || 'Normal').toLowerCase();
     const val  = upgrade.getValue ? upgrade.getValue(upgrade.rarity || 'Normal') : '';
@@ -764,7 +718,7 @@ function _sfFragSVG(upgrade) {
       </svg>`};
     }
 
-    // legendary
+    
     return {shellClass:'legendary-shell', width:148, height:220, svg:`
       <svg viewBox="0 0 148 220" xmlns="http://www.w3.org/2000/svg" style="width:148px;height:220px;overflow:visible;">
         <defs>
@@ -794,7 +748,6 @@ function _sfFragSVG(upgrade) {
       </svg>`};
 }
 
-// ── Class hex card SVG builder ────────────────────────────────────────────────
 function _sfClassHexSVG(upgrade) {
     const pClass = player.class;
     let gradA, gradB, edgeA, edgeB, glowA, textFill, hexClass, crackColor, crackLines;
@@ -860,22 +813,14 @@ function _sfClassHexSVG(upgrade) {
         ${line2 ? `<text x="80" y="${y2}" text-anchor="middle" font-family="'Cinzel','Georgia',serif" font-size="${fs}" font-weight="700" fill="${textFill}" opacity="0.97">${line2}</text>` : ''}
       </svg>`};
 }
-// ─────────────────────────────────────────────
-//  drawDivineAura  –  Divine Knight pulsing aura
-//
-//  Spawns gradient rings that radiate outward
-//  from the aura boundary with staggered timing,
-//  giving a "breathing holy energy" feel.
-//  Called every frame from updateAuraVisual().
-// ─────────────────────────────────────────────
 
 (function () {
     let _auraRafId  = null;
     let _auraActive = false;
 
-    // Two overlapping pulses staggered by half a cycle so the glow is
-    // always present — one blooming while the other fades.
-    const PULSE_DUR   = 3600;  // ms per expand cycle
+    
+    
+    const PULSE_DUR   = 3600;  
     const PULSE_COUNT = 2;
 
     function ensureAuraCanvas() {
@@ -921,22 +866,22 @@ function _sfClassHexSVG(upgrade) {
             const elapsed = ts - origin;
 
             for (let i = 0; i < PULSE_COUNT; i++) {
-                // t goes 0→1 over PULSE_DUR, each pulse offset by half a cycle
+                
                 const t = ((elapsed + i * (PULSE_DUR / PULSE_COUNT)) % PULSE_DUR) / PULSE_DUR;
 
-                // Radius grows from ~10% to 100% of aura radius
+                
                 const r = radius * (0.1 + t * 1);
 
-                // Opacity: smooth bell curve — fades in, peaks around t=0.3, fades out
+                
                 const op = Math.pow(Math.sin(t * Math.PI), 1.6) * 0.25;
                 if (op < 0.004 || r < 1) continue;
 
-                // Colour: gold for normal, orange-red for fire mode
+                
                 const inner = fireMode ? `255,90,20`  : `255,245,140`;
                 const mid   = fireMode ? `220,55,5`   : `255,235,80`;
                 const outer = fireMode ? `180,25,0`   : `255,220,50`;
 
-                // Pure radial fill — transparent at centre, peaks near outer edge, fades to nothing
+                
                 const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
                 grad.addColorStop(0,    `rgba(${inner},0)`);
                 grad.addColorStop(0.35, `rgba(${inner},${(op * 0.08).toFixed(3)})`);

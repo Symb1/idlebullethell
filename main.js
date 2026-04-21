@@ -1,3 +1,4 @@
+//Full documentation in docIR
 const gameState = {
     currentStage: 1, 
 	currentWave: 1, 
@@ -24,7 +25,7 @@ const gameState = {
     amuletDropped: false, 
 	amuletEquipped: false,
     unlockedAchievements: {},
-    talentPointsGranted: [], // array of "stage_wave" strings
+    talentPointsGranted: [], 
 };
 
 const MAX_ASCENSIONS = 3;
@@ -64,7 +65,6 @@ const DEFAULT_UPGRADE_PRIORITY = [
     'Cooldown Reduction', 'Critical Damage Increase', 'Critical Strike Chance', 'Boss Damage'
 ];
 
-// Keys that hold objects/arrays/booleans and must not be coerced to 0
 const NON_NUMERIC_SAVE_KEYS = new Set([
     'unlockedClasses', 'upgradePriority', 'autoWeaponEvolutionChoices',
     'autoClassChoices', 'unlockedAchievements', 'highestStagePerClass',
@@ -76,19 +76,18 @@ function saveGameState() {
     SAVE_KEYS.forEach(k => {
         state[k] = NON_NUMERIC_SAVE_KEYS.has(k) ? gameState[k] : (gameState[k] ?? 0);
     });
-    // Save talent alloc and points
+    
     state.talentAlloc = Object.assign({}, alloc);
     state.talentPoints = talentPoints;
-    // Save Sorceress talent alloc and points
+    
     state.sorcTalentAlloc = Object.assign({}, sorcAlloc);
     state.sorcTalentPoints = sorcTalentPoints;
-    // Save Divine Knight talent alloc and points
+    
     state.dkTalentAlloc = Object.assign({}, dkAlloc);
     state.dkTalentPoints = dkTalentPoints;
     localStorage.setItem('gameState', JSON.stringify(state));
 }
 
-// Copies saved keys back into a live alloc object, skipping any keys absent in the save.
 function restoreAlloc(liveAlloc, savedAlloc) {
     if (!savedAlloc) return;
     Object.keys(liveAlloc).forEach(key => {
@@ -122,7 +121,7 @@ function loadGameState() {
 
 function hardReset() {
     if (!confirm('Are you sure you want to reset all progress? This cannot be undone.')) return;
-    // Zero out talent alloc and points before reload
+    
     Object.keys(alloc).forEach(k => alloc[k] = 0);
     talentPoints = 0;
     Object.keys(sorcAlloc).forEach(k => sorcAlloc[k] = 0);
@@ -164,7 +163,6 @@ function ascend() {
         gameState[key] = 0;
     });
 
-    // Reset talent tree on ascension
     resetTalents();
     talentPoints = 0;
     sorcResetTalents();
@@ -246,7 +244,6 @@ function showClassSelection() {
         option.style.pointerEvents = unlocked ? 'auto' : 'none';
         if (unlockText) unlockText.style.display = unlocked ? 'none' : 'block';
 
-        // Update talent plus buttons for Sorceress and Divine Knight
         const btnId = className === 'Sorceress' ? 'sorc-plus' : className === 'Divine Knight' ? 'divi-plus' : null;
         if (btnId) {
             const btn = document.getElementById(btnId);
@@ -289,7 +286,6 @@ function showClassSelection() {
     createAchievementsMenu();
     checkAchievements();
 
-    // Update talent pulse button state
     renderTalents();
 }
 
@@ -354,7 +350,6 @@ function createGameArea() {
     abilityButton.addEventListener('click', () => player?.weapon?.useAbility());
     gameArea.appendChild(abilityButton);
 
-    // Next Wave button — only visible after ascension 1
     const nextWaveBtn = document.createElement('button');
     nextWaveBtn.id = 'next-wave-button';
     nextWaveBtn.textContent = '>>>';
@@ -390,8 +385,8 @@ function grantSkippedWaveExperience() {
 
     let totalExp = 0;
     for (let wave = 1; wave <= skipped; wave++) {
-        totalExp += (4 + wave) * 10; // regular enemies
-        if (wave % 5 === 0) totalExp += 30; // elite bonus
+        totalExp += (4 + wave) * 10; 
+        if (wave % 5 === 0) totalExp += 30; 
     }
 
     const expUpgrade = soulsUpgrades.find(u => u.name === 'Exp+');
@@ -402,17 +397,11 @@ function grantSkippedWaveExperience() {
     scheduleLevelUp();
 }
 
-// Tracks how many level-up screens are still owed to the player.
-// Prevents concurrent gainExp calls from racing and dropping screens.
 let pendingLevelUps = 0;
 let levelUpScreenOpen = false;
 
-// Called by gainExp (and grantSkippedWaveExperience) whenever EXP crosses a
-// threshold. Tallies all owed level-ups immediately, then shows screens one
-// at a time — each screen calls processNextLevelUp when the player picks a
-// card, naturally chaining until the debt is zero.
 function scheduleLevelUp() {
-    // Count every level-up the current EXP total owes, without showing anything yet.
+    
     while (player && player.exp >= player.expToNextLevel) {
         player.level++;
         player.exp -= player.expToNextLevel;
@@ -420,7 +409,7 @@ function scheduleLevelUp() {
         player.expToNextLevel = Math.round(player.expToNextLevel * (lvl < 10 ? 1.35 : lvl < 20 ? 1.15 : 1.025));
         pendingLevelUps++;
     }
-    // Only open a new screen if one isn't already open.
+    
     if (!levelUpScreenOpen) processNextLevelUp();
 }
 
@@ -444,11 +433,9 @@ function processNextLevelUp() {
     levelUpScreenOpen = true;
     onGamePaused();
     showLevelUpScreen();
-    // levelUpScreenOpen is cleared by hideLevelUpScreen (called inside selectUpgrade)
-    // so the next processNextLevelUp call from selectUpgrade can open a fresh screen.
+    
 }
 
-// Check and grant talent points at wave milestones (wave 10 and 20 per stage)
 function checkAndGrantTalentPoints(completedWave, stageOverride) {
     if (completedWave !== 10 && completedWave !== 20) return;
     if (!Array.isArray(gameState.talentPointsGranted)) gameState.talentPointsGranted = [];
@@ -456,7 +443,7 @@ function checkAndGrantTalentPoints(completedWave, stageOverride) {
     const stage = stageOverride !== undefined ? stageOverride : gameState.currentStage;
     const key = `${className}_${stage}_${completedWave}`;
     if (!gameState.talentPointsGranted.includes(key)) {
-        // Grant only to the current player's class talent pool
+        
         if (player instanceof Sorceress) {
             sorcTalentPoints++;
             renderSorcTalents();
@@ -469,7 +456,7 @@ function checkAndGrantTalentPoints(completedWave, stageOverride) {
         }
         gameState.talentPointsGranted.push(key);
         saveGameState();
-        // Brief notification
+        
         const notify = document.createElement('div');
         notify.className = 'talent-point-notify';
         notify.textContent = '+1 Talent Point!';
@@ -501,7 +488,7 @@ function gameLoop(timestamp) {
     if (allEnemiesDefeated()) {
         const completedWave = gameState.currentWave;
         checkAndGrantTalentPoints(completedWave);
-        // Record the last wave the player fully cleared (not the one they die on)
+        
         gameState.lastFullyClearedStage = gameState.currentStage;
         gameState.lastFullyClearedWave  = completedWave;
         gameState.currentWave++;
@@ -564,10 +551,6 @@ function updateNextWaveButton() {
     btn.title = '';
 }
 
-// Advance to next wave WITHOUT removing previous enemies.
-// Old enemies stay alive and keep moving toward the player.
-// NOTE: Talent points at waves 10/20 are NOT granted here — only earned by
-// naturally clearing a wave (via gameLoop → allEnemiesDefeated).
 function nextWave() {
     if (!gameState.gameRunning || gameState.isPaused) return;
     if (nextWaveUses >= 3 && nextWaveEnemyDebt > 0) return;
@@ -577,8 +560,7 @@ function nextWave() {
     const waveBeforeSkip = gameState.currentWave;
     const stageBeforeSkip = gameState.currentStage;
     gameState.currentWave++;
-    // If we skipped past a milestone wave (10 or 20) without clearing it,
-    // store {wave, stage} so the key is correct even after a stage rollover.
+    
     if (waveBeforeSkip === 10 || waveBeforeSkip === 20) {
         pendingMilestoneWaves.push({ wave: waveBeforeSkip, stage: stageBeforeSkip });
     }
@@ -588,10 +570,8 @@ function nextWave() {
         checkClassUnlock();
     }
 
-    // Spawn new wave enemies on top of existing ones (don't clear enemies array)
     spawnEnemiesAdditive();
 
-    // Track how many new enemies were added by this skip
     nextWaveEnemyDebt += enemies.length - enemiesBefore;
     nextWaveUses++;
 
@@ -613,13 +593,10 @@ function gameOver() {
     gameState.gameRunning = false;
     cancelAnimationFrame(animationFrameId);
 
-    // Record run using the last FULLY CLEARED wave, not the wave the player died on.
-    // This prevents the exploit of skipping stages with >>> or dying mid-wave and
-    // inflating the leaderboard score.
     if (player && player.weapon) {
         const lbStage = gameState.lastFullyClearedStage || 0;
         const lbWave  = gameState.lastFullyClearedWave  || 0;
-        // Only record if the player actually cleared at least one wave
+        
         if (lbStage > 0 && lbWave > 0) {
             recordLeaderboardEntry(
                 lbStage,
@@ -633,7 +610,6 @@ function gameOver() {
         }
     }
 
-    // Clear class upgrade so display name resets immediately (no stale prefix)
     if (player) { player.classUpgradeChosen = null; }
     gameState.classUpgradeChosen = null;
 
@@ -679,12 +655,10 @@ function debugLevelUp() {
 
 let animationFrameId = null;
 let lastTimestamp = Date.now();
-let nextWaveUses = 0;        // >>> clicks since last reset (max 3)
-let nextWaveEnemyDebt = 0;   // enemies from skipped waves still alive
-let pendingMilestoneWaves = []; // milestone waves (10/20) skipped via >>>, grant talent when debt clears
+let nextWaveUses = 0;        
+let nextWaveEnemyDebt = 0;   
+let pendingMilestoneWaves = []; 
 
-// Ability cooldown exploit fix: track how long the game was paused so we can
-// offset lastAbilityUseTime and prevent the CD from ticking during level-up screens.
 let _pauseStartTime = 0;
 
 function onGamePaused() {
@@ -695,8 +669,7 @@ function onGameResumed() {
     if (!_pauseStartTime) return;
     const pausedMs = Date.now() - _pauseStartTime;
     _pauseStartTime = 0;
-    // Push the ability's last-use timestamp forward by however long we were paused,
-    // so the remaining cooldown is exactly the same as when we paused.
+    
     if (player?.weapon && pausedMs > 0) {
         player.weapon.lastAbilityUseTime += pausedMs;
     }
@@ -711,14 +684,13 @@ document.addEventListener('DOMContentLoaded', () => {
     buildDKTree();
     document.getElementById('debug-level-up').addEventListener('click', debugLevelUp);
 
-    // Wire DK talent button
     const diviPlusBtn = document.getElementById('divi-plus');
     if (diviPlusBtn) diviPlusBtn.addEventListener('click', () => openDKTalents());
-    // TEMP DEBUG: Add talent point button for testing
+    
     const debugTalentBtn = document.createElement('button');
     debugTalentBtn.id = 'debug-talent-btn';
     debugTalentBtn.textContent = '+1 Talent';
-    debugTalentBtn.style.cssText = 'position:fixed;bottom:10px;left:10px;z-index:9999;padding:4px 10px;background:#2a1a3e;border:1px solid #9370DB;color:#c8aaff;font-size:11px;cursor:pointer;border-radius:4px;';
+    debugTalentBtn.style.cssText = 'display:none;position:fixed;bottom:10px;left:10px;z-index:9999;padding:4px 10px;background:#2a1a3e;border:1px solid #9370DB;color:#c8aaff;font-size:11px;cursor:pointer;border-radius:4px;';
     debugTalentBtn.addEventListener('click', () => { talentPoints++; sorcTalentPoints++; dkTalentPoints++; renderTalents(); renderSorcTalents(); renderDKTalents(); saveGameState(); });
     document.body.appendChild(debugTalentBtn);
     const autoCastToggle = document.getElementById('auto-cast-toggle');
@@ -733,14 +705,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
-        // Switch to setTimeout so the loop keeps running in the background
+        
         cancelAnimationFrame(animationFrameId);
         if (gameState.gameRunning && !gameState.isPaused) {
             lastTimestamp = performance.now();
             animationFrameId = setTimeout(backgroundLoop, 1000 / 60);
         }
     } else {
-        // Back in focus — cancel setTimeout and resume rAF
+        
         clearTimeout(animationFrameId);
         if (gameState.gameRunning && !gameState.isPaused) {
             lastTimestamp = performance.now();

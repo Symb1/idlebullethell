@@ -1,3 +1,4 @@
+//Full documentation in docIR
 let enemies = [];
 
 class Enemy {
@@ -40,15 +41,15 @@ class Enemy {
         const maxX = 800 - r * 2;
         const maxY = 600 - r * 2;
         const side = Math.floor(Math.random() * 4);
-        // Each side spawns flush to an edge but within the valid clamped range
-        const x = side === 0 ? Math.random() * maxX :   // top edge
-                  side === 1 ? maxX                 :   // right edge
-                  side === 2 ? Math.random() * maxX :   // bottom edge
-                               0;                       // left edge
-        const y = side === 0 ? 0                    :   // top edge
-                  side === 1 ? Math.random() * maxY :   // right edge
-                  side === 2 ? maxY                 :   // bottom edge
-                               Math.random() * maxY;    // left edge
+
+        const x = side === 0 ? Math.random() * maxX :
+                  side === 1 ? maxX                 :
+                  side === 2 ? Math.random() * maxX :
+                               0;
+        const y = side === 0 ? 0                    :
+                  side === 1 ? Math.random() * maxY :
+                  side === 2 ? maxY                 :
+                               Math.random() * maxY;
         return { x, y };
     }
 
@@ -110,13 +111,12 @@ class Enemy {
         let vx = (dx / distance) * speed * deltaTime;
         let vy = (dy / distance) * speed * deltaTime;
 
-        // Separation push against other enemies
         enemies.forEach(other => {
             if (other === this) return;
             const sx = this.position.x - other.position.x;
             const sy = this.position.y - other.position.y;
             const dist = Math.hypot(sx, sy);
-            // Guard: two enemies exactly overlapping would produce NaN — nudge to break the tie
+
             if (dist === 0) {
                 this.position.x += (Math.random() - 0.5) * 2;
                 this.position.y += (Math.random() - 0.5) * 2;
@@ -130,7 +130,7 @@ class Enemy {
                 this.position.y  += py;
                 other.position.x -= px;
                 other.position.y -= py;
-                // Clamp other so a push can never shove it outside the arena
+
                 other.position.x = Math.max(0, Math.min(other.position.x, 800 - other.radius * 2));
                 other.position.y = Math.max(0, Math.min(other.position.y, 600 - other.radius * 2));
                 vx += px * 0.1;
@@ -223,7 +223,7 @@ class Enemy {
         player.gainSouls(Math.floor(this.maxHp * 0.1));
         player.gainExp(10 * this.getExpMultiplier());
         this.element.classList.add('dying');
-        // Decrement skip-wave debt here (synchronous with the kill, not delayed like the setTimeout removal)
+
         if (nextWaveEnemyDebt > 0) {
             nextWaveEnemyDebt--;
             if (nextWaveEnemyDebt <= 0) {
@@ -232,9 +232,7 @@ class Enemy {
                 updateNextWaveButton();
             }
         }
-        // Grant each pending milestone point as soon as ALL enemies from THAT wave are
-        // killed — checked on every kill, outside the debt guard, because wave 10
-        // enemies themselves don't contribute to nextWaveEnemyDebt.
+
         if (pendingMilestoneWaves.length > 0) {
             pendingMilestoneWaves = pendingMilestoneWaves.filter(entry => {
                 const w = entry.wave !== undefined ? entry.wave : entry;
@@ -405,7 +403,6 @@ class Boss extends Enemy {
     }
 }
 
-// Returns true if the candidate position overlaps any already-placed enemy
 function hasOverlap(candidate, placedEnemies) {
     return placedEnemies.some(e => {
         return Math.hypot(candidate.position.x - e.position.x, candidate.position.y - e.position.y)
@@ -413,7 +410,6 @@ function hasOverlap(candidate, placedEnemies) {
     });
 }
 
-// Tries up to 100 times to find a non-overlapping spawn position
 function placeWithoutOverlap(enemy) {
     for (let i = 0; i < 100; i++) {
         if (!hasOverlap(enemy, enemies)) break;
@@ -443,7 +439,7 @@ function spawnEnemies() {
         showBossSpawnedText();
     }
 
-    const count = 4 + gameState.currentWave; // wave 1 → 5, wave 2 → 6, etc.
+    const count = 4 + gameState.currentWave;
     for (let i = 0; i < count; i++) {
         const enemy = new Enemy();
         placeWithoutOverlap(enemy);
@@ -458,8 +454,6 @@ function spawnEnemies() {
     recordWaveSpawn(gameState.currentWave, enemies.length);
 }
 
-// Like spawnEnemies but ADDS to the existing enemies array instead of clearing it.
-// Previous wave enemies remain alive and continue to chase the player.
 function spawnEnemiesAdditive() {
     if (gameState.currentStage >= 2 && gameState.currentWave === 1) {
         const boss = new Boss();

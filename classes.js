@@ -1,3 +1,4 @@
+//Full documentation in docIR
 const classDescriptions = {
     'Acolyte': `
         <p>Void caster with slower base attack speed but heavy single-target damage. Starts with lower critical chance but far higher critical damage.</p>
@@ -30,10 +31,6 @@ const classDescriptions = {
     <p><em>Class Evolutions: (Level 20)</em> Increase your attack speed, unlock critical hits globally or get massive health and damage at the cost of a heavy cooldown recovery.</p>
 `,
 };
-
-// ============================================================
-//  TALENT TREE — Acolyte Void Mastery
-// ============================================================
 
 const NODES = [
   { id:'void_rupture',    label:'Void Rupture',        abbr:'VR', cx:300, cy:690, max:5,
@@ -103,39 +100,29 @@ const nodeMap = Object.fromEntries(NODES.map(n => [n.id, n]));
 const alloc   = Object.fromEntries(NODES.map(n => [n.id, 0]));
 let talentPoints = 0;
 
-// ============================================================
-//  TALENT TREE — Sorceress Storm Mastery
-// ============================================================
-// Layout mirrors Acolyte but Abyssal Core / Eternal Torment
-// equivalents (arcane_voltage / tempest_echo) are on the RIGHT side.
-
 const SORC_NODES = [
-  // ── Row 1 (bottom) ──────────────────────────────────────────────
+
   { id:'storm_precision',    label:'Storm Precision',       abbr:'SP', cx:300, cy:690, max:5,
     req:null, reqPts:0,
     desc: p => p >= 5 ? `Current bonus: +${(p*1.5*2).toFixed(1)}% Critical Chance` : `Current bonus: +${(p*1.5).toFixed(1)}% Critical Chance`,
     per:'+1.5% Critical Chance per rank', bonus:true },
 
-  // Arcane Voltage — mirrored to RIGHT (Abyssal Core was left)
   { id:'arcane_voltage',     label:'Arcane Voltage',        abbr:'AV', cx:395, cy:650, max:3,
     req:'storm_precision', reqPts:3,
     desc: p => `Current bonus: +${p.toFixed(1)} Base Damage`,
     per:'+1 Base Damage to Sorceress per rank' },
 
-  // ── Row 2 ────────────────────────────────────────────────────────
   { id:'static_acceleration',label:'Static Acceleration',   abbr:'SA', cx:300, cy:540, max:5,
     req:'storm_precision', reqPts:2,
     desc: p => p >= 5 ? `Current bonus: +${p*4*2}% Attack Speed` : `Current bonus: +${p*4}% Attack Speed`,
     per:'+4% Attack Speed per rank', bonus:true },
 
-  // Tempest Echo — mirrored to RIGHT (Eternal Torment was left)
   { id:'tempest_echo',       label:'Tempest Echo',          abbr:'TE', cx:515, cy:570, max:3,
     req:'arcane_voltage', reqPts:3,
     desc: p => `Current bonus: ${p*10}% chance to recast ability after 1 sec`,
     per:'+10% chance per rank to recast Lightning Storm or Flash Freeze after 1s',
     bonus:'Lightning Storm does double damage on 2nd cast.<br>Flash Freeze duration is doubled on 2nd cast.' },
 
-  // ── Row 3 ────────────────────────────────────────────────────────
   { id:'chain_reverb',       label:'Chain Reverb',          abbr:'CR', cx:170, cy:420, max:5,
     req:'static_acceleration', reqPts:2,
     desc: p => `Each chain has a <b>${p*8}%</b> chance to hit the same target again.<br>If no enemies to chain to, <b>${p*8}%</b> chance to fall back to the first target, max <b>2</b> chains.`,
@@ -146,13 +133,11 @@ const SORC_NODES = [
     desc: p => `Current bonus: +${p*5}% Shock apply chance (+${p*15}% vs bosses)`,
     per:'+5% Shock chance per rank (+15% vs bosses per rank)' },
 
-  // ── Row 4 ────────────────────────────────────────────────────────
   { id:'lethal_current',     label:'Lethal Current',        abbr:'LC', cx:300, cy:210, max:5,
     req:'static_acceleration', reqPts:3,
     desc: p => p >= 5 ? `Current bonus: +${p*10*2}% Critical Damage` : `Current bonus: +${p*10}% Critical Damage`,
     per:'+10% Critical Damage per rank', bonus:true },
 
-  // Binding Vow singles under chain_reverb
   { id:'conductors_oath',    label:"Conductor's Oath",      abbr:'CO', cx:115, cy:285, max:1, bvow:true, tgroup:'s1',
     req:'chain_reverb', reqPts:3, reqAscension:1, desc:()=>'',
     per:"Chain Wand: No crit penalty on chained enemies, Chain Reverb rolls crit separately each proc",
@@ -162,7 +147,6 @@ const SORC_NODES = [
     per:'Chain Wand: No chain damage penalty, return chains from fallback have no cap',
     ascNote:'Requires 1 Ascension' },
 
-  // Binding Vow singles under charged_dominance
   { id:'shock_infusion',     label:'Shock Infusion',        abbr:'SI', cx:370, cy:285, max:1, bvow:true, tgroup:'s2',
     req:'charged_dominance', reqPts:3, reqAscension:1, desc:()=>'',
     per: () => { const w = new SparkWand(); return `Spark Wand: Flash Freeze now automatically applies ${w.shockInfusionStacks} stacks of Shock to every enemy.`; },
@@ -172,7 +156,6 @@ const SORC_NODES = [
     per: () => { const w = new SparkWand(); return `Spark Wand: Shock damage bonus increased to ${w.shockStackBonusOvercharge * 100}% per stack.`; },
     ascNote:'Requires 1 Ascension' },
 
-  // ── Row 5 (top) — Excellence nodes ──────────────────────────────
   { id:'spellweavers_excellence', label:"Spellweaver's Excellence", abbr:'SE', cx:170, cy:50, max:5, bvow:true, tgroup:'s3',
     req:'lethal_current', reqPts:3, reqAscension:2,
     desc: p => p > 0 ? `Current bonus: -${p*12}% Spellweaver's Sigil crit damage penalty` : '',
@@ -199,41 +182,29 @@ const sorcNodeMap = Object.fromEntries(SORC_NODES.map(n => [n.id, n]));
 const sorcAlloc   = Object.fromEntries(SORC_NODES.map(n => [n.id, 0]));
 let sorcTalentPoints = 0;
 
-// ============================================================
-//  TALENT TREE — Divine Knight Holy Mastery
-// ============================================================
-// Layout mirrors Acolyte (gold theme).  Weapon-restriction notes:
-//   Blessed Shield only  → bsOnly: true
-//   Smite Shield only    → ssOnly: true
-//   (no flag = all shields)
-
 const DK_NODES = [
-  // ── Row 1 (bottom) ──────────────────────────────────────────────
+
   { id:'sacred_tempo',      label:'Sacred Tempo',        abbr:'ST', cx:300, cy:690, max:5,
     req:null, reqPts:0,
     desc: p => p >= 5 ? `Current bonus: +${p*3*2}% Cooldown Reduction` : `Current bonus: +${p*3}% Cooldown Reduction`,
     per:'+3% Cooldown Reduction per rank', bonus:true },
 
-  // ── Row 1 branch (left) ─────────────────────────────────────────
   { id:'consecrated_steel', label:'Consecrated Steel',   abbr:'CS', cx:205, cy:650, max:3,
     req:'sacred_tempo', reqPts:3,
     desc: p => `Current bonus: +${p.toFixed(0)} Base Damage`,
     per:'+1 Base Damage to Divine Knight per rank' },
 
-  // ── Row 2 ────────────────────────────────────────────────────────
   { id:'divine_wrath',      label:'Divine Wrath',         abbr:'DW', cx:300, cy:540, max:5,
     req:'sacred_tempo', reqPts:2,
     desc: p => p >= 5 ? `Current bonus: +${p*10*2}% Critical Damage` : `Current bonus: +${p*10}% Critical Damage`,
     per:'+10% Critical Damage per rank', bonus:true },
 
-  // Row 1-left deep branch
   { id:'aura_overflow',     label:'Aura Overflow',        abbr:'AO', cx:85,  cy:570, max:3,
     req:'consecrated_steel', reqPts:3,
     desc: p => `${p*15}% chance per use to expand aura range by an additional 25%`,
     per:'+15% chance per rank to expand range by an additional 25% on Holy Radiance/Holy Fire use',
     bonus:'Max rank: expanded range lingers 3 seconds after the ability ends' },
 
-  // ── Row 3 ────────────────────────────────────────────────────────
   { id:'martyrs_conviction',label:"Martyr's Conviction",  abbr:'MC', cx:170, cy:420, max:5,
     req:'divine_wrath', reqPts:2,
     desc: p => `Adds +${p*3} Max HP. HP converts +${p*20}% to damage`,
@@ -244,13 +215,11 @@ const DK_NODES = [
     desc: p => p >= 5 ? `Current bonus: +${p*25*2}% Boss Damage` : `Current bonus: +${p*25}% Boss Damage`,
     per:'+25% Boss Damage per rank', bonus:true },
 
-  // ── Row 4 ────────────────────────────────────────────────────────
   { id:'sanctified_domain', label:'Sanctified Domain',   abbr:'SD', cx:430, cy:420, max:5,
     req:'divine_wrath', reqPts:3, ssOnly:true,
     desc: p => `Enemies in aura range: attack speed -${p*12}%, movement speed -${p*5}%`,
     per:'Smite Shield: -12% enemy attack speed per rank, -5% enemy move speed reduction per rank in aura' },
 
-  // Binding Vow singles under martyrs_conviction
   { id:'oath_of_judgement', label:'Oath of Judgement',   abbr:'OJ', cx:115, cy:285, max:1, bvow:true, tgroup:'dk1', bsOnly:true,
     req:'martyrs_conviction', reqPts:3, reqAscension:1, desc:()=>'',
     per:'<span style="color:#c084fc">Blessed Shield</span>: HP regen is disabled. Judgement deals 33% of your damage and 66% vs bosses.',
@@ -260,7 +229,6 @@ const DK_NODES = [
     per:'<span style="color:#c084fc">Blessed Shield</span>: +15 HP and +150% Boss Damage.',
     ascNote:'Requires 1 Ascension' },
 
-  // Binding Vow singles under sanctified_domain
   { id:'oath_of_eternity',  label:'Oath of Eternity',    abbr:'OE', cx:370, cy:285, max:1, bvow:true, tgroup:'dk2', ssOnly:true,
     req:'sanctified_domain', reqPts:3, reqAscension:1, desc:()=>'',
     per:'Smite Shield: Regen cap is removed. Regeneration upgrades tripled from soul fragments.',
@@ -270,7 +238,6 @@ const DK_NODES = [
     per:'Smite Shield: HP regen cap increased to 1.5/s. Enemies have 33% chance to miss each hit (bosses 66%).',
     ascNote:'Requires 1 Ascension' },
 
-  // ── Row 5 (top) — Excellence nodes ──────────────────────────────
   { id:'sanctified_excellence', label:'Sanctified Excellence', abbr:'SE', cx:170, cy:50, max:5, bvow:true, tgroup:'dk3',
     req:'executioners_faith', reqPts:3, reqAscension:2,
     desc: p => p > 0 ? `Removes -${p*5}% dmg, -${p*3}% atk spd, -${p*3}% cooldown penalties on Sanctified Oath` : '',
@@ -297,14 +264,6 @@ const dkNodeMap = Object.fromEntries(DK_NODES.map(n => [n.id, n]));
 const dkAlloc   = Object.fromEntries(DK_NODES.map(n => [n.id, 0]));
 let dkTalentPoints = 0;
 
-// ============================================================
-//  SHARED TALENT TREE LOGIC
-//  Each tree passes a "config" object so all the logic below
-//  can be reused without duplication.
-// ============================================================
-
-// --- predicate helpers (per-tree) ---
-
 function makeTreeHelpers(nodes, allocObj, groupsObj) {
   const map = Object.fromEntries(nodes.map(n => [n.id, n]));
 
@@ -326,11 +285,8 @@ const acoHelpers  = makeTreeHelpers(NODES,      alloc,     GROUPS);
 const sorcHelpers = makeTreeHelpers(SORC_NODES, sorcAlloc, SORC_GROUPS);
 const dkHelpers   = makeTreeHelpers(DK_NODES,   dkAlloc,   DK_GROUPS);
 
-// Expose the old globals still needed externally (saveGameState etc. may reference them)
 const unlocked    = acoHelpers.unlocked;
 const ascUnlocked = acoHelpers.ascUnlocked;
-
-// --- blocked message ---
 
 let refundMsgTimer = null;
 function showBlockedMsg(nodeEl) {
@@ -344,8 +300,6 @@ function showBlockedMsg(nodeEl) {
   clearTimeout(refundMsgTimer);
   refundMsgTimer = setTimeout(() => el.classList.remove('show'), 2800);
 }
-
-// --- invest / refund / reset (Acolyte) ---
 
 function invest(id) {
   const n = acoHelpers.map[id];
@@ -365,8 +319,6 @@ function resetTalents() {
   saveGameState();
 }
 
-// --- invest / refund / reset (Sorceress) ---
-
 function sorcInvest(id) {
   const n = sorcHelpers.map[id];
   if (sorcHelpers.canInvest(n, sorcTalentPoints)) { sorcAlloc[id]++; sorcTalentPoints--; renderSorcTalents(); saveGameState(); }
@@ -384,8 +336,6 @@ function sorcResetTalents() {
   renderSorcTalents();
   saveGameState();
 }
-
-// --- invest / refund / reset (Divine Knight) ---
 
 function dkInvest(id) {
   const n = dkHelpers.map[id];
@@ -405,8 +355,6 @@ function dkResetTalents() {
   saveGameState();
 }
 
-// --- shared tree builder ---
-
 function buildTalentTree(cfg) {
   const { canvasId, barSelector, nodes, prefix, investFn, refundFn, showTTFn, hideTTFn, renderFn } = cfg;
 
@@ -414,7 +362,6 @@ function buildTalentTree(cfg) {
   if (!canvas) return;
   [...canvas.querySelectorAll('.nwrap')].forEach(el => el.remove());
 
-  // Insert info text once
   const bar = document.querySelector(barSelector);
   if (bar && !bar.querySelector('.talent-info-text')) {
     const info = document.createElement('div');
@@ -472,7 +419,7 @@ function buildSorcTree() {
 }
 
 function buildDKTree() {
-  // Inject DK talent panel DOM if not present (mirrors Sorceress panel structure)
+
   if (!document.getElementById('dk-backdrop')) {
     const backdrop = document.createElement('div');
     backdrop.id = 'dk-backdrop';
@@ -506,8 +453,6 @@ function buildDKTree() {
     renderFn: renderDKTalents,
   });
 }
-
-// --- shared render helpers ---
 
 function renderTalentNodes(nodes, allocObj, prefix, maxColor, getNodeEl) {
   nodes.forEach(n => {
@@ -559,8 +504,6 @@ function renderDKTalents() {
   renderDKConnectors();
 }
 
-// --- shared connector renderer ---
-
 function renderConnectorsSVG(svgId, nodes, allocObj, groupsObj, activeColor) {
   const svg = document.getElementById(svgId);
   if (!svg) return;
@@ -599,9 +542,6 @@ function renderConnectors()     { renderConnectorsSVG('svg',      NODES,      al
 function renderSorcConnectors() { renderConnectorsSVG('sorc-svg', SORC_NODES, sorcAlloc, SORC_GROUPS, '#4169E1'); }
 function renderDKConnectors()   { renderConnectorsSVG('dk-svg',   DK_NODES,   dkAlloc,   DK_GROUPS,   '#D4AF37'); }
 
-// --- shared tooltip ---
-
-// Single active tooltip node — null means tooltip hidden
 let activeTTNode = null;
 
 function showTooltip(e, n, allocObj, nodeMapObj, isUnlocked, isAscUnlocked) {
@@ -655,7 +595,7 @@ function hideTT() {
   if (el) el.style.display = 'none';
   activeTTNode = null;
 }
-// Sorceress and DK panels reuse the same tooltip element
+
 const hideSorcTT = hideTT;
 const hideDKTT   = hideTT;
 
@@ -671,8 +611,6 @@ function moveTT(e) {
 }
 
 document.addEventListener('mousemove', e => { if (activeTTNode) moveTT(e); });
-
-// --- open / close panels ---
 
 function openTalents() {
   document.getElementById('backdrop').classList.add('open');
@@ -709,7 +647,7 @@ function closeSorcTalents() {
 function openDKTalents() {
   const btn = document.getElementById('divi-plus');
   if (btn && btn.classList.contains('plus-btn-locked')) return;
-  // Build panel DOM + tree nodes if not done yet
+
   if (!document.getElementById('dk-backdrop') || !document.getElementById('dk-canvas')?.querySelector('.nwrap')) {
     buildDKTree();
   }
@@ -723,8 +661,6 @@ function closeDKTalents() {
   document.getElementById('dk-backdrop')?.classList.remove('open');
   hideTT();
 }
-
-// --- DOMContentLoaded (merged) ---
 
 document.addEventListener('DOMContentLoaded', () => {
   const backdrop = document.getElementById('backdrop');
@@ -746,10 +682,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') { closeTalents(); closeSorcTalents(); closeDKTalents(); }
   });
 });
-
-// ============================================================
-//  CLASS DEFINITIONS
-// ============================================================
 
 class Acolyte extends Player {
     constructor() {
@@ -818,7 +750,7 @@ class DivineKnight extends Player {
     }
 
     showAura() {
-        // Hide the legacy DOM aura element — visual is now handled by the canvas effect
+
         const aura = document.getElementById('holy-shield-aura');
         if (aura) aura.style.display = 'none';
         this.updateAuraVisual();
@@ -826,7 +758,7 @@ class DivineKnight extends Player {
 
     updateAuraVisual() {
         if (!this.weapon) return;
-        const radius   = this.weapon.globalRange * 0.965; // match old visible boundary
+        const radius   = this.weapon.globalRange;
         const fireMode = document.getElementById('holy-shield-aura')?.classList.contains('holy-fire-active') ?? false;
         if (typeof updateDivineAuraPulse === 'function') {
             updateDivineAuraPulse(this.position.x, this.position.y, radius, fireMode);

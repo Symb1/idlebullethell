@@ -1,5 +1,6 @@
+//Full documentation in docIR
 function initializeWeapon(playerClass, weaponName = null) {
-    // Remove old weapon's attack speed bonus before replacing
+    
     switch (playerClass) {
         case 'Acolyte':
             player.weapon = weaponName === 'Vortex Staff' ? new VortexStaff()
@@ -15,7 +16,7 @@ function initializeWeapon(playerClass, weaponName = null) {
             player.weapon = weaponName === 'Blessed Shield' ? new BlessedShield()
                           : weaponName === 'Smite Shield'   ? new SmiteShield()
                           : new BasicShield();
-            // Blessed Shield grants +5 max HP on selection, plus Martyr's Conviction HP and Oath of Dominion HP
+            
             if (weaponName === 'Blessed Shield') {
                 const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
                 const mcRanks = (dAlloc && dAlloc['martyrs_conviction']) || 0;
@@ -27,57 +28,57 @@ function initializeWeapon(playerClass, weaponName = null) {
             }
             break;
     }
-    // Apply Acolyte talent bonuses post-weapon init
+    
     if (player instanceof Acolyte) {
         const aAlloc = typeof alloc !== 'undefined' ? alloc : null;
-        // abyssal_core: +0.5 base damage per rank
+        
         if (aAlloc && aAlloc['abyssal_core'] > 0) {
             player.weapon.baseDamage += aAlloc['abyssal_core'] * 1.0;
             player.weapon.damage = player.weapon.baseDamage;
         }
-        // Umbral Collapse: +10% crit chance when Umbral Staff is equipped
+        
         if (aAlloc && aAlloc['umbral_collapse'] >= 1 && player.weapon && player.weapon.name === 'Umbral Staff') {
             player.adjustCritChance(0.10);
         }
-        // Group C Binding Vow — reduce penalties of chosen class shard
+        
         const chosen = player.classUpgradeChosen;
         if (chosen && aAlloc) {
-            // These bonuses would apply to weapon-specific penalty modifiers
-            // They are stored on the weapon for use in upgrade screens
+            
+            
             player.weapon.temporalExcellenceRanks    = aAlloc['temporal_excellence']    || 0;
             player.weapon.abyssalExcellenceRanks     = aAlloc['abyssal_excellence']     || 0;
             player.weapon.ravenousExcellenceRanks    = aAlloc['ravenous_excellence']    || 0;
         }
     }
 
-    // Apply Sorceress talent bonuses post-weapon init
+    
     if (player instanceof Sorceress) {
         const sAlloc = typeof sorcAlloc !== 'undefined' ? sorcAlloc : null;
-        // arcane_voltage: +1 base damage per rank
+        
         if (sAlloc && sAlloc['arcane_voltage'] > 0) {
             player.weapon.baseDamage += sAlloc['arcane_voltage'] * 1.0;
             player.weapon.damage = player.weapon.baseDamage;
         }
-        // unbroken_current: Chain Wand no chain damage penalty, +2 chain targets
+        
         if (sAlloc && sAlloc['unbroken_current'] >= 1 && player.weapon instanceof ChainWand) {
             player.weapon.chainDamageMultiplier = 1.0;
             player.weapon.chainCount += 1;
         }
-        // Excellence ranks stored on weapon
+        
         player.weapon.spellweaversExcellenceRanks = (sAlloc && sAlloc['spellweavers_excellence']) || 0;
         player.weapon.nexusExcellenceRanks        = (sAlloc && sAlloc['nexus_excellence'])        || 0;
         player.weapon.stormheartExcellenceRanks   = (sAlloc && sAlloc['stormheart_excellence'])   || 0;
     }
 
-    // Apply Divine Knight talent bonuses post-weapon init
+    
     if (player instanceof DivineKnight) {
         const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
-        // consecrated_steel: +1 base damage per rank
+        
         if (dAlloc && dAlloc['consecrated_steel'] > 0) {
             player.weapon.baseDamage += dAlloc['consecrated_steel'] * 1.0;
             player.weapon.damage = player.weapon.baseDamage;
         }
-        // Excellence ranks stored on weapon
+        
         player.weapon.sanctifiedExcellenceRanks = (dAlloc && dAlloc['sanctified_excellence']) || 0;
         player.weapon.vigilantExcellenceRanks   = (dAlloc && dAlloc['vigilant_excellence'])   || 0;
         player.weapon.eternalExcellenceRanks    = (dAlloc && dAlloc['eternal_excellence'])    || 0;
@@ -117,7 +118,7 @@ class Weapon {
         const playerElement = document.getElementById('player');
         if (!playerElement) return;
 
-        // Update facing direction for all classes
+        
         const nearestForFacing = enemies
             .filter(e => !e.isDying)
             .reduce((nearest, enemy) => {
@@ -143,7 +144,7 @@ class Weapon {
 
         if (player.class !== 'Acolyte') return;
 
-        // Cycle through attack sounds (1 → 2 → 3 → 1)
+        
         Weapon.attackSoundIndex = (Weapon.attackSoundIndex % 3) + 1;
         const attackAudio = document.getElementById(`acoattmu${Weapon.attackSoundIndex}`);
         if (attackAudio) {
@@ -159,7 +160,7 @@ class Weapon {
 
         playerElement.classList.remove('attacking');
         playerElement.style.animation = '';
-        void playerElement.offsetWidth; // Force reflow
+        void playerElement.offsetWidth; 
 
         playerElement.classList.add('attacking');
         playerElement.style.animation = `playerAttack ${animationDuration}ms steps(47) forwards`;
@@ -179,7 +180,7 @@ class Weapon {
     updateDamage() {
         if (!player) { this.damage = this.baseDamage; return; }
         let dmg = (this.baseDamage + player.getAmuletDamageBonus()) * player.damageModifier;
-        // Martyr's Conviction: +20% of max HP as multiplicative bonus (Blessed Shield only)
+        
         if (player instanceof DivineKnight && typeof dkAlloc !== 'undefined') {
             const mcRanks = dkAlloc['martyrs_conviction'] || 0;
             if (mcRanks > 0 && (this instanceof BlessedShield || this.name === 'Blessed Shield')) {
@@ -199,7 +200,7 @@ class Weapon {
         if (now - this.lastAbilityUseTime >= currentCooldown * 1000) {
             this._eternalTormentReset = false;
             this.performAbility();
-            // Only stamp the use time if Eternal Torment did NOT reset it during performAbility
+            
             if (!this._eternalTormentReset) {
                 this.lastAbilityUseTime = now;
             }
@@ -286,7 +287,7 @@ class BasicWand extends Weapon {
             drawSkyLightning(enemy.position.x + enemy.radius, enemy.position.y + enemy.radius);
         });
 
-        // Tempest Echo: chance to recast Lightning Storm after 1 sec
+        
         const echoRanks = typeof sorcAlloc !== 'undefined' ? sorcAlloc['tempest_echo'] : 0;
         if (echoRanks > 0 && Math.random() < echoRanks * 0.10) {
             setTimeout(() => {
@@ -310,32 +311,32 @@ class BasicWand extends Weapon {
             { x: target.position.x + target.radius, y: target.position.y + target.radius }
         ];
 
-        // Conductor's Oath: if first hit critted, all chains also crit (no crit penalty)
+        
         const conductorsOath = typeof sorcAlloc !== 'undefined' && sorcAlloc['conductors_oath'] >= 1;
-        // Chain Reverb only applies when a Chain Wand is equipped
+        
         const chainReverb    = (typeof sorcAlloc !== 'undefined' && this instanceof ChainWand) ? sorcAlloc['chain_reverb'] : 0;
 
         let remaining = this.chainCount;
         let currentDamage = initialDamage;
         let lastHit = target;
-        const hitEnemies = new Set([target]); // track all hit enemies to prevent re-hitting
-        // first chain crit reduction (-30%) unless Conductor's Oath + first hit crit
+        const hitEnemies = new Set([target]); 
+        
         let chainCritChance = (conductorsOath && isCritical) ? player.critChance : player.critChance * 0.70;
-        let chainStep = 1; // used for crit reduction accumulation
+        let chainStep = 1; 
 
         while (remaining > 0 && enemies.length > 0) {
             const next = this.findRandomEnemyInChainRange(lastHit, hitEnemies);
 
-            // Chain Reverb: no-target fallback — only the next 2 remaining chains can fall back to primary
+            
             if (!next) {
                 if (chainReverb > 0) {
                     const fallbackChance = chainReverb * 0.08;
-                    // Cap fallback attempts to 2 regardless of remaining chain count
+                    
                     const fallbackAttempts = Math.min(remaining, 2);
                     for (let fb = 0; fb < fallbackAttempts; fb++) {
                         if (Math.random() < fallbackChance) {
                             const fbDamage = currentDamage * Math.pow(this.chainDamageMultiplier, fb);
-                            // Conductor's Oath: if first hit critted, fallback hits also crit
+                            
                             const fbCritChance = (conductorsOath && isCritical) ? player.critChance : chainCritChance * Math.pow(0.70, fb);
                             const fbCrit = (conductorsOath && isCritical) ? true : Math.random() < fbCritChance;
                             const fbDmg  = fbCrit ? fbDamage * player.critDamage : fbDamage;
@@ -349,16 +350,16 @@ class BasicWand extends Weapon {
             }
 
             currentDamage *= this.chainDamageMultiplier;
-            // Conductor's Oath: if first hit critted, chain hits also crit (guaranteed)
+            
             const chainIsCrit = (conductorsOath && isCritical) ? true : Math.random() < chainCritChance;
             const chainDmg = chainIsCrit ? currentDamage * player.critDamage : currentDamage;
             this.dealDamageToEnemy(next, chainDmg, chainIsCrit);
             chainPath.push({ x: next.position.x + next.radius, y: next.position.y + next.radius });
             hitEnemies.add(next);
 
-            // Chain Reverb: chance to hit same chained target again (8% per rank)
+            
             if (chainReverb > 0 && Math.random() < chainReverb * 0.08) {
-                // Conductor's Oath: reverb echo also crits if first hit critted
+                
                 const echoIsCrit = (conductorsOath && isCritical) ? true : Math.random() < chainCritChance;
                 const echoDmg = echoIsCrit ? currentDamage * player.critDamage : currentDamage;
                 this.dealDamageToEnemy(next, echoDmg, echoIsCrit);
@@ -369,7 +370,7 @@ class BasicWand extends Weapon {
             lastHit = next;
             chainStep++;
             if (!(conductorsOath && isCritical)) {
-                chainCritChance *= 0.70; // another -30% reduction per subsequent chain
+                chainCritChance *= 0.70; 
             }
         }
 
@@ -407,9 +408,9 @@ class BasicShield extends Weapon {
 
     performAbility() {
         const originalRange = this.globalRange;
-        // Holy Radiance always expands range by 1.5x
+        
         let newRange = originalRange * 1.5;
-        // Aura Overflow: chance to expand range by an ADDITIONAL 25% on top of ability expansion
+        
         const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
         const aoRanks = (dAlloc && dAlloc['aura_overflow']) || 0;
         let auraOverflowActive = false;
@@ -420,7 +421,7 @@ class BasicShield extends Weapon {
         this.globalRange = newRange;
         player.updateAuraVisual();
         setTimeout(() => {
-            // Aura Overflow max rank: expanded range lingers 3 extra seconds with countdown
+            
             if (auraOverflowActive && aoRanks >= 3) {
                 showAuraOverflowLinger(3);
                 setTimeout(() => { showAuraOverflowLinger(2); }, 1000);
@@ -457,16 +458,14 @@ class BasicShield extends Weapon {
     }
 }
 
-// Eternal Torment: chance to reset ability cooldown on elite hit with ability
-// damageDealt: the damage this ability hit inflicted on the elite
 function checkEternalTormentReset(weapon, eliteTarget, damageDealt) {
     if (!(player instanceof Acolyte)) return;
     const ranks = (typeof alloc !== 'undefined' ? alloc['eternal_torment'] : 0) || 0;
     if (ranks === 0) return;
 
     const chance = ranks * 0.10;
-    // Rank 3 bonus: 100% reset if damage dealt was <= 25% of the elite's HP *before* this hit
-    // Second hit for 25 → now 50hp. 25 <= (50+25)*0.25=18.75 false
+    
+    
     const preHitHp = eliteTarget.hp + damageDealt;
     const bonusTrigger = ranks >= 3 && damageDealt <= preHitHp * 0.25;
 
@@ -481,7 +480,6 @@ function checkEternalTormentReset(weapon, eliteTarget, damageDealt) {
     }
 }
 
-// Aura Overflow max rank: show "+N" countdown linger indicator on the player element
 function showAuraOverflowLinger(seconds) {
     const playerEl = document.getElementById('player');
     if (!playerEl) return;
@@ -562,12 +560,12 @@ function showWeaponEvolutionScreen() {
 
         if (!isAuto) {
             wrap.addEventListener('click', () => {
-                // Immediately lock ALL cards to prevent double-picks
+                
                 row.querySelectorAll('.sf-wrap').forEach(w => w.style.pointerEvents = 'none');
-                // Play weapon level up sound
+                
                 const wepLvlUpSound = document.getElementById('weaponLvlUpSnd');
                 if (wepLvlUpSound) { wepLvlUpSound.currentTime = 0; wepLvlUpSound.volume = 0.5; wepLvlUpSound.play().catch(()=>{}); }
-                // Fade out briefly then select
+                
                 wrap.style.transition = 'opacity 0.25s, transform 0.25s';
                 wrap.style.opacity = '0';
                 wrap.style.transform = 'scale(0.92) translateY(-8px)';
@@ -635,10 +633,10 @@ class VortexStaff extends BasicStaff {
         this.globalRange = 350;
         this.splashRange = 65;
         this.splashMultiplier = 0.5;
-        // void_overflow talent: +5% splash damage per rank
+        
         if (typeof alloc !== 'undefined') {
             this.splashMultiplier += alloc['void_overflow'] * 0.05;
-            // abyssal_reach: splash range = 110
+            
             if (alloc['abyssal_reach'] >= 1) {
                 this.splashRange = 110;
             }
@@ -687,13 +685,13 @@ class VortexStaff extends BasicStaff {
     performAbility() {
         const target = this.findPriorityTarget();
         if (target) {
-            // rift_crit: ability can crit
+            
             const canCrit = typeof alloc !== 'undefined' && alloc['rift_crit'] >= 1;
             const isCrit = canCrit && Math.random() < player.critChance;
             const dmg = isCrit ? this.damage * 2 * 2 * player.critDamage : this.damage * 2 * 2;
             target.takeDamage(dmg, isCrit);
             drawVoidBlast(target.position.x + target.radius, target.position.y + target.radius, true);
-            // Eternal Torment: chance to reset cooldown on elite hit
+            
             if (target instanceof EliteEnemy) {
                 checkEternalTormentReset(this, target, dmg);
             }
@@ -708,7 +706,7 @@ class UmbralStaff extends BasicStaff {
         this.baseDamage = 36;
         this.baseCooldown = 25;
         this.globalRange = 450;
-        // umbral_zenith talent: -1s cooldown per rank
+        
         if (typeof alloc !== 'undefined') {
             this.baseCooldown = Math.max(5, this.baseCooldown - alloc['umbral_zenith']);
         }
@@ -736,7 +734,7 @@ class UmbralStaff extends BasicStaff {
 
     performAbility() {
         const fireShot = () => {
-            // void_ascension fires randomly, otherwise priority target
+            
             const isAscension = typeof alloc !== 'undefined' && alloc['void_ascension'] >= 1;
             const target = isAscension ? this.findRandomTarget() : this.findPriorityTarget();
             if (target) {
@@ -766,7 +764,7 @@ class ChainWand extends BasicWand {
         this.baseCooldown = 30;
         this.globalRange = 220;
         this.chainRange = 150;
-        this.chainCount = 4; // BasicWand 2 + extra 2
+        this.chainCount = 4; 
         this.chainDamageMultiplier = 0.85;
         this.damage = this.baseDamage;
         this.updateDamage();
@@ -828,7 +826,7 @@ class SparkWand extends BasicWand {
     }
 
     applyShock(enemy, isBoss = false) {
-        // Charged Dominance: +5% base chance per rank (+15% vs bosses per rank)
+        
         const cdRanks = typeof sorcAlloc !== 'undefined' ? sorcAlloc['charged_dominance'] : 0;
         const baseChance = 0.25 + (cdRanks * 0.05) + (isBoss ? cdRanks * 0.15 : 0);
         if (Math.random() < baseChance) {
@@ -838,7 +836,7 @@ class SparkWand extends BasicWand {
 
     getShockDamageMultiplier(enemy) {
         const stacks = enemy.shockStacks || 0;
-        // Overcharge: shockStackBonusOvercharge per stack instead of shockStackBonus
+        
         const overcharge = typeof sorcAlloc !== 'undefined' && sorcAlloc['overcharge'] >= 1;
         return 1 + stacks * (overcharge ? this.shockStackBonusOvercharge : this.shockStackBonus);
     }
@@ -848,7 +846,7 @@ class SparkWand extends BasicWand {
         if (target) {
             this.triggerPlayerAttackAnimation();
             enemies.forEach(enemy => {
-                // Crit is rolled independently per enemy
+                
                 const { damage, isCritical } = this.calculateDamage();
                 const isBoss = typeof Boss !== 'undefined' && enemy instanceof Boss;
                 const shockMult = this.getShockDamageMultiplier(enemy);
@@ -868,14 +866,14 @@ class SparkWand extends BasicWand {
         console.log(`[Flash Freeze] shockInfusionStacks: ${this.shockInfusionStacks} | shockStackBonus: ${this.shockStackBonus} | shockStackBonusOvercharge: ${this.shockStackBonusOvercharge}`);
         enemies.forEach(enemy => {
             this.stunEnemy(enemy);
-            // Shock Infusion: automatically apply shockInfusionStacks stacks of Shock on Flash Freeze
+            
             if (shockInfusion) {
                 enemy.shockStacks = (enemy.shockStacks || 0) + this.shockInfusionStacks;
                 console.log(`[Shock Infusion] Applied ${this.shockInfusionStacks} stacks to enemy. Total stacks: ${enemy.shockStacks}`);
             }
         });
 
-        // Tempest Echo: chance to recast Flash Freeze after 1 sec
+        
         const echoRanks = typeof sorcAlloc !== 'undefined' ? sorcAlloc['tempest_echo'] : 0;
         if (echoRanks > 0 && Math.random() < echoRanks * 0.10) {
             setTimeout(() => {
@@ -914,7 +912,7 @@ class BlessedShield extends BasicShield {
         this.baseDamage = 7;
         this.baseCooldown = 45;
         this.globalRange = 200;
-        this.abilityDuration = 10000;   // Holy Fire duration: 10s
+        this.abilityDuration = 10000;   
         this.abilityName = 'Holy Fire';
         this.damage = this.baseDamage;
         this._judgementInterval = null;
@@ -941,19 +939,19 @@ class BlessedShield extends BasicShield {
     }
 
     performAbility() {
-        // Clear any existing Holy Fire
+        
         this._clearHolyFire();
 
         this._holyFireActive = true;
 
-        // Shift aura to reddish tint
+        
         const aura = document.getElementById('holy-shield-aura');
         if (aura) aura.classList.add('holy-fire-active');
 
         const originalRange = this.globalRange;
-        // Holy Fire always expands range by 1.5x
+        
         let newRange = originalRange * 1.5;
-        // Aura Overflow: chance to expand range by an ADDITIONAL 25% on top of ability expansion
+        
         const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
         const aoRanks = (dAlloc && dAlloc['aura_overflow']) || 0;
         let auraOverflowActive = false;
@@ -967,24 +965,24 @@ class BlessedShield extends BasicShield {
         }
         player.updateAuraVisual();
 
-        // Oath of Judgement: Judgement deals 33% dmg (66% vs bosses)
+        
         const oathJudgement = dAlloc && dAlloc['oath_of_judgement'] >= 1;
 
-        // Apply Judgement debuff tick every 0.2s for the duration
+        
         this._judgementInterval = setInterval(() => {
             enemies.forEach(enemy => {
                 if (!this.isInRange(enemy)) return;
                 if (enemy.hasJudgement) {
-                    // Oath of Judgement changes multiplier: 33% normal, 66% vs boss
+                    
                     let dmgMult;
                     if (oathJudgement) {
                         dmgMult = enemy instanceof Boss ? 0.66 : 0.33;
                     } else {
                         dmgMult = 0.25;
                     }
-                    // this.damage already includes Martyr's Conviction multiplier via updateDamage()
+                    
                     const baseDmg = this.damage * dmgMult;
-                    // Judgement can crit if Sanctified Oath is chosen
+                    
                     const hasSanctified = player.classUpgradeChosen === 'Sanctified';
                     let finalDmg = baseDmg;
                     let isCrit = false;
@@ -995,7 +993,7 @@ class BlessedShield extends BasicShield {
                     enemy.takeDamage(finalDmg, false);
                     this._showJudgementNumber(enemy, finalDmg, isCrit);
                 } else {
-                    // Apply Judgement stack (only 1 allowed)
+                    
                     enemy.hasJudgement = true;
                 }
             });
@@ -1003,7 +1001,7 @@ class BlessedShield extends BasicShield {
 
         setTimeout(() => {
             this._clearHolyFire();
-            // Aura Overflow max rank: expanded range lingers 3 extra seconds with countdown
+            
             if (auraOverflowActive && aoRanks >= 3) {
                 showAuraOverflowLinger(3);
                 setTimeout(() => { showAuraOverflowLinger(2); }, 1000);
@@ -1026,10 +1024,10 @@ class BlessedShield extends BasicShield {
         }
         this._holyFireActive = false;
 
-        // Remove Judgement from all enemies
+        
         enemies.forEach(e => { e.hasJudgement = false; });
 
-        // Restore aura colour
+        
         const aura = document.getElementById('holy-shield-aura');
         if (aura) aura.classList.remove('holy-fire-active');
     }
@@ -1045,7 +1043,7 @@ class BlessedShield extends BasicShield {
 
         const offset = (enemy.damageIndicators ? enemy.damageIndicators.length : 0) * 20;
         el.style.top   = `-${20 + offset}px`;
-        el.style.right = `${-25 + offset}px`;   // slightly offset left from normal numbers
+        el.style.right = `${-25 + offset}px`;   
 
         enemy.element.appendChild(el);
 
@@ -1105,17 +1103,17 @@ class SmiteShield extends BasicShield {
             if (this.isInRange(enemy)) {
                 const { damage, isCritical } = this.calculateDamage();
                 enemy.takeDamage(damage, isCritical);
-                // Base slow from SmiteShield
+                
                 let totalSlowPct = this.slowPercent;
-                // Sanctified Domain: extra -5% move speed per rank in aura range
+                
                 if (sdRanks > 0) totalSlowPct += sdRanks * 5;
                 enemy.applySpeedEffect(1 - (totalSlowPct / 100), 1000);
-                // Sanctified Domain: -12% enemy attack speed per rank
+                
                 if (sdRanks > 0) {
                     enemy.sanctifiedDomainDebuff = sdRanks * 0.12;
                 }
             } else {
-                // Clear debuff when out of range
+                
                 if (enemy.sanctifiedDomainDebuff) enemy.sanctifiedDomainDebuff = 0;
             }
         });
@@ -1123,9 +1121,9 @@ class SmiteShield extends BasicShield {
 
     performAbility() {
         const originalRange = this.globalRange;
-        // Smite Shield ability always expands range by 2.5x
+        
         let newRange = originalRange * 2.5;
-        // Aura Overflow: chance to expand range by an ADDITIONAL 25% on top of ability expansion
+        
         const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
         const aoRanks = (dAlloc && dAlloc['aura_overflow']) || 0;
         let auraOverflowActive = false;
