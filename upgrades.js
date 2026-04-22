@@ -145,13 +145,17 @@ function getRarity() {
     return 'Normal';
 }
 
+const BASE_WEAPON_NAMES = new Set(['Basic Staff', 'Basic Wand', 'Basic Shield']);
+
 function getRandomUpgrades(count) {
-    if (player.level === 10) {
+    // Trigger weapon evolution once, at or after level 10, if still on base weapon
+    if (player.level >= 10 && player.weapon && BASE_WEAPON_NAMES.has(player.weapon.name)) {
         showWeaponEvolutionScreen();
         return [];
     }
 
-    if (player.level === 20 && !gameState.classUpgradeChosen) {
+    // Trigger class upgrade once, at or after level 20, if not yet chosen
+    if (player.level >= 20 && !gameState.classUpgradeChosen) {
         const shuffled = [...classUpgrades[player.class]].sort(() => 0.5 - Math.random());
         return shuffled.slice(0, count).map(u => ({ ...u, isClassUpgrade: true }));
     }
