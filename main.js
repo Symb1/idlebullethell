@@ -488,7 +488,12 @@ function gameLoop(timestamp) {
     if (allEnemiesDefeated()) {
         const completedWave = gameState.currentWave;
         checkAndGrantTalentPoints(completedWave);
-        
+
+        pendingMilestoneWaves.forEach(({ wave, stage }) => {
+            checkAndGrantTalentPoints(wave, stage);
+        });
+        pendingMilestoneWaves = [];
+
         gameState.lastFullyClearedStage = gameState.currentStage;
         gameState.lastFullyClearedWave  = completedWave;
         gameState.currentWave++;
@@ -690,7 +695,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const debugTalentBtn = document.createElement('button');
     debugTalentBtn.id = 'debug-talent-btn';
     debugTalentBtn.textContent = '+1 Talent';
-    debugTalentBtn.style.cssText = 'display:none;position:fixed;bottom:10px;left:10px;z-index:9999;padding:4px 10px;background:#2a1a3e;border:1px solid #9370DB;color:#c8aaff;font-size:11px;cursor:pointer;border-radius:4px;';
+    debugTalentBtn.style.cssText = 'display:none;;position:fixed;bottom:10px;left:10px;z-index:9999;padding:4px 10px;background:#2a1a3e;border:1px solid #9370DB;color:#c8aaff;font-size:11px;cursor:pointer;border-radius:4px;';
     debugTalentBtn.addEventListener('click', () => { talentPoints++; sorcTalentPoints++; dkTalentPoints++; renderTalents(); renderSorcTalents(); renderDKTalents(); saveGameState(); });
     document.body.appendChild(debugTalentBtn);
     const autoCastToggle = document.getElementById('auto-cast-toggle');

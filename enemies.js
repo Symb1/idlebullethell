@@ -233,18 +233,6 @@ class Enemy {
             }
         }
 
-        if (pendingMilestoneWaves.length > 0) {
-            pendingMilestoneWaves = pendingMilestoneWaves.filter(entry => {
-                const w = entry.wave !== undefined ? entry.wave : entry;
-                const s = entry.stage;
-                const wp = gameState.waveProgress[w];
-                if (wp && wp.killed >= wp.spawned) {
-                    checkAndGrantTalentPoints(w, s);
-                    return false;
-                }
-                return true;
-            });
-        }
         setTimeout(() => {
             this.element.remove();
             enemies = enemies.filter(e => e !== this);
@@ -475,7 +463,7 @@ function spawnEnemiesAdditive() {
         enemies.push(elite);
     }
     const wave = gameState.currentWave;
-    recordWaveSpawn(wave, enemies.filter(e => e.spawnWave === wave).length);
+    recordWaveSpawn(wave, enemies.filter(e => e.spawnWave === wave && !e.isDying).length);
 }
 
 function spawnGameText(className, text, duration) {
