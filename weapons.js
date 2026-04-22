@@ -179,7 +179,7 @@ class Weapon {
 
     updateDamage() {
         if (!player) { this.damage = this.baseDamage; return; }
-        let dmg = (this.baseDamage + player.getAmuletDamageBonus()) * player.damageModifier;
+        let dmg = (this.baseDamage + player.getAmuletDamageBonus()) * player.damageModifier * (player.weaknessDebuffFactor || 1);
         
         if (player instanceof DivineKnight && typeof dkAlloc !== 'undefined') {
             const mcRanks = dkAlloc['martyrs_conviction'] || 0;

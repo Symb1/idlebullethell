@@ -113,7 +113,7 @@ function updateAbilityButton() {
     const btn = document.getElementById('ability-button');
     if (!btn || !player?.weapon) return;
     const text = player.weapon.getAbilityButtonText();
-    btn.textContent = text;
+    btn.innerHTML = text;
     btn.disabled = text.startsWith('Cooldown');
 }
 
@@ -156,7 +156,7 @@ function showAscensionOverlay() {
             <p>${unlockText}</p>
             <p>${qolUnlockText}</p>
             <p>Talent points and talent tree are reset.</p>
-            ${gameState.ascensionLevel === 0 ? '<p>Adds a Skip Wave button, spawns up to 3 consecutive waves at once</p>' : ''}
+            ${gameState.ascensionLevel === 0 ? '<p>Adds a Skip Wave button <b>[E]</b>, spawns up to 3 consecutive waves at once</p>' : ''}
             <button onclick="ascend()">Confirm Ascension</button>
         </div>
     `;
@@ -731,10 +731,51 @@ function lbSwitchTab(cls) {
     if (btn)   btn.classList.add('lb-tab-active');
 }
 
+function getSoundEnabled() {
+    return localStorage.getItem('soundEnabled') !== 'false';
+}
+
+function setSoundEnabled(val) {
+    localStorage.setItem('soundEnabled', val ? 'true' : 'false');
+    applyGlobalSound(val);
+}
+
+function applyGlobalSound(enabled) {
+    document.querySelectorAll('audio').forEach(a => { a.muted = !enabled; });
+}
+
 function openLeaderboard() {
     renderLeaderboardModal();
     lbSwitchTab('acolyte');
     document.getElementById('leaderboard-menu').style.display = 'flex';
+    updateSoundToggleBtn();
+}
+
+function createSoundButton() {
+    if (document.getElementById('sound-toggle-button')) return;
+    const btn = document.createElement('button');
+    btn.id = 'sound-toggle-button';
+    btn.addEventListener('click', () => {
+        setSoundEnabled(!getSoundEnabled());
+        updateSoundToggleBtn();
+    });
+    ensureActionsPanel().appendChild(btn);
+    updateSoundToggleBtn();
+}
+
+function updateSoundToggleBtn() {
+    const on = getSoundEnabled();
+    const btn = document.getElementById('sound-toggle-button');
+    if (btn) {
+        btn.textContent = on ? 'Sound: ON' : 'Sound: OFF';
+        btn.classList.toggle('lb-sound-off', !on);
+    }
+    // also update old in-leaderboard button if present
+    const lbBtn = document.getElementById('lb-sound-toggle');
+    if (lbBtn) {
+        lbBtn.textContent = on ? 'Sound: ON' : 'Sound: OFF';
+        lbBtn.classList.toggle('lb-sound-off', !on);
+    }
 }
 
 function closeLeaderboard() {

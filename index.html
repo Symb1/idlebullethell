@@ -23,8 +23,8 @@
     </div>
 
     <div id="ui">
-        <button id="debug-skip-wave" style="display:none;">(Debug)</button>
-        <button id="debug-level-up" style="display:none;">(Debug2)</button>
+        <button id="debug-skip-wave" style="display:none">(Debug)</button>
+        <button id="debug-level-up" style="display:none">(Debug2)</button>
     </div>
     <div id="souls-menu"></div>
     <div id="qol-menu"></div>
@@ -63,7 +63,7 @@
                 <span class="unlock-text">( Beat stage 4 to unlock )</span>
             </div>
             <div class="plus-wrap">
-                <button class="plus-btn plus-btn-locked" id="divi-plus" onclick="openTalentsNotImplemented(this, 'Divine Knight'); event.stopPropagation();"><i>+</i></button>
+                <button class="plus-btn plus-btn-locked" id="divi-plus" onclick="openDKTalents(); event.stopPropagation();"><i>+</i></button>
                 <span class="plus-lbl">TALENTS</span>
             </div>
         </div>
@@ -124,6 +124,27 @@
     <div class="tw-body">
       <div class="canvas" id="sorc-canvas">
         <svg class="conn-svg" id="sorc-svg"></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="dk-backdrop">
+  <div id="dktw">
+    <div class="tw-head dk-tw-head">
+      <div>
+        <div class="tw-title">Divine Knight Talents</div>
+        <div class="tw-sub dk-tw-sub">Holy Mastery Tree</div>
+      </div>
+      <button class="tw-close" onclick="closeDKTalents()">✕</button>
+    </div>
+    <div class="tw-bar">
+      <div class="tw-pts">Unspent Points: <span id="dk-pts" class="dk-pts-val">0</span> &nbsp;·&nbsp; <span style="font-size:10px;color:var(--brown);">Hover a talent for details</span></div>
+      <button class="reset-btn" onclick="dkResetTalents()">↺ Reset All</button>
+    </div>
+    <div class="tw-body">
+      <div class="canvas" id="dk-canvas">
+        <svg id="dk-svg" class="conn-svg" viewBox="0 0 600 760" preserveAspectRatio="none"></svg>
       </div>
     </div>
   </div>

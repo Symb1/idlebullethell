@@ -2,7 +2,7 @@
 const classDescriptions = {
     'Acolyte': `
         <p>Void caster with slower base attack speed but heavy single-target damage. Starts with lower critical chance but far higher critical damage.</p>
-        <p><em>Ability:</em> Void Blast automatically launches into elites and bosses for instant elimination.</p>
+        <p><em>Ability <kbd>Q</kbd>:</em> Void Blast automatically launches into elites and bosses for instant elimination.</p>
         <p><em>Weapon Evolutions: (Level 10)</em></p>
         <ul>
             <li>Single target path: <b>Guaranteed crits</b> with Void Blast.</li>
@@ -12,7 +12,7 @@ const classDescriptions = {
     `,
     'Sorceress': `
     <p>Spellcaster with swift attacks and high base critical chance. Attacks chain to nearby enemies, dealing <b>25% less</b> damage and reducing crit chance by <b>30% per jump</b>.</p>
-    <p><em>Ability:</em> Lightning Storm calls down sky strikes on all enemies simultaneously.</p>
+    <p><em>Ability <kbd>Q</kbd>:</em> Lightning Storm calls down sky strikes on all enemies simultaneously.</p>
     <p><em>Weapon Evolutions: (Level 10)</em></p>
     <ul>
         <li>Chain path: More chain targets, higher chain damage retention, and a guaranteed crit ability.</li>
@@ -22,7 +22,7 @@ const classDescriptions = {
 `,
 'Divine Knight': `
     <p>Paladin who damages every enemy inside an aura. Has zero critical chance by default, but it can be later on modified.</p>
-    <p><em>Ability:</em> Holy Radiance temporarily expands the aura's reach.</p>
+    <p><em>Ability <kbd>Q</kbd>:</em> Holy Radiance temporarily expands the aura's reach.</p>
     <p><em>Weapon Evolutions: (Level 10)</em></p>
     <ul>
         <li>Blessed Shield: Replaces Holy Radiance with Holy Fire, on use applying Judgement to all enemies within range. Judgement ticks every <b>0.2s</b> dealing <b>25%</b> of your damage.</li>
@@ -420,32 +420,7 @@ function buildSorcTree() {
 
 function buildDKTree() {
 
-  if (!document.getElementById('dk-backdrop')) {
-    const backdrop = document.createElement('div');
-    backdrop.id = 'dk-backdrop';
-    backdrop.innerHTML = `
-      <div id="dktw">
-        <div class="tw-head dk-tw-head">
-          <div>
-            <div class="tw-title">Divine Knight Talents</div>
-            <div class="tw-sub dk-tw-sub">Holy Mastery Tree</div>
-          </div>
-          <button class="tw-close" onclick="closeDKTalents()">✕</button>
-        </div>
-        <div class="tw-bar">
-          <div class="tw-pts">Unspent Points: <span id="dk-pts" class="dk-pts-val">0</span> &nbsp;·&nbsp; <span style="font-size:10px;color:var(--brown);">Hover a talent for details</span></div>
-          <button class="reset-btn" onclick="dkResetTalents()">↺ Reset All</button>
-        </div>
-        <div class="tw-body">
-          <div class="canvas" id="dk-canvas">
-            <svg id="dk-svg" class="conn-svg" viewBox="0 0 600 760" preserveAspectRatio="none"></svg>
-          </div>
-        </div>
-      </div>`;
-    const root = document.getElementById('game-scale-root') || document.body;
-    root.appendChild(backdrop);
-    backdrop.addEventListener('click', e => { if (e.target.id === 'dk-backdrop') closeDKTalents(); });
-  }
+
   buildTalentTree({
     canvasId: 'dk-canvas', barSelector: '#dktw .tw-bar',
     nodes: DK_NODES, prefix: 'dk-',
@@ -649,7 +624,7 @@ function openDKTalents() {
   const btn = document.getElementById('divi-plus');
   if (btn && btn.classList.contains('plus-btn-locked')) return;
 
-  if (!document.getElementById('dk-backdrop') || !document.getElementById('dk-canvas')?.querySelector('.nwrap')) {
+  if (!document.getElementById('dk-canvas')?.querySelector('.nwrap')) {
     buildDKTree();
   }
   document.getElementById('dk-backdrop').classList.add('open');

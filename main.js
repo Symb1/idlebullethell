@@ -283,6 +283,7 @@ function showClassSelection() {
     updateInventoryUI();
     if (!document.getElementById('achievements-button')) createAchievementsButton();
     if (!document.getElementById('leaderboard-button')) createLeaderboardButton();
+    if (!document.getElementById('sound-toggle-button')) createSoundButton();
     createAchievementsMenu();
     checkAchievements();
 
@@ -342,6 +343,15 @@ function createGameArea() {
     stageInfo.id = 'stage-info';
     stageInfo.style.display = 'block';
     gameArea.appendChild(stageInfo);
+
+    const returnBtn = document.createElement('button');
+    returnBtn.id = 'return-to-menu-button';
+    returnBtn.innerHTML = '↩';
+    returnBtn.title = 'Return to class selection';
+    returnBtn.addEventListener('click', () => {
+        gameOver();
+    });
+    gameArea.appendChild(returnBtn);
 
     const abilityButton = document.createElement('button');
     abilityButton.id = 'ability-button';
@@ -627,7 +637,7 @@ function gameOver() {
     enemies.forEach(e => e.element?.remove());
     enemies = [];
 
-    ['ability-button', 'player-stats', 'stage-info', 'next-wave-button'].forEach(id => {
+    ['ability-button', 'player-stats', 'stage-info', 'next-wave-button', 'return-to-menu-button'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
@@ -680,8 +690,32 @@ function onGameResumed() {
     }
 }
 
+document.addEventListener('keydown', (e) => {
+    if (!gameState.gameRunning || gameState.isPaused) return;
+    const key = e.key.toLowerCase();
+    if (key === 'q') {
+        e.preventDefault();
+        const btn = document.getElementById('ability-button');
+        if (btn && btn.style.display !== 'none' && !btn.disabled) {
+            btn.classList.add('key-pressed');
+            setTimeout(() => btn.classList.remove('key-pressed'), 150);
+            btn.click();
+        }
+    }
+    if (key === 'e') {
+        e.preventDefault();
+        const btn = document.getElementById('next-wave-button');
+        if (btn && btn.style.display !== 'none' && !btn.disabled) {
+            btn.classList.add('key-pressed');
+            setTimeout(() => btn.classList.remove('key-pressed'), 150);
+            btn.click();
+        }
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     loadGameState();
+    applyGlobalSound(getSoundEnabled());
     createInventoryMenu();
     showClassSelection();
     buildTree();

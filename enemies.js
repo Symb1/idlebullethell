@@ -279,12 +279,12 @@ class EliteEnemy extends Enemy {
     }
 
     useWeakness() {
-        const originalDamage = player.weapon.damage;
-        player.weapon.damage *= 0.75;
+        player.weaknessDebuffFactor = 0.75;
+        player.weapon.updateDamage();
         const playerEl = document.getElementById('player');
         playerEl.classList.add('weakened');
         const effectId = Symbol('Weakness');
-        const effect = { id: effectId, name: 'Weakness', playerElement: playerEl, originalDamage };
+        const effect = { id: effectId, name: 'Weakness', playerElement: playerEl };
         const timer = setTimeout(() => this.endWeakness(effect), 10000);
         effect.timer = timer;
         this.activeEffects.push(effect);
@@ -292,20 +292,22 @@ class EliteEnemy extends Enemy {
     }
 
     endWeakness(effect) {
-        player.weapon.damage = effect.originalDamage;
+        delete player.weaknessDebuffFactor;
+        player.weapon.updateDamage();
         effect.playerElement.classList.remove('weakened');
         this.activeEffects = this.activeEffects.filter(e => e.id !== effect.id);
         if (typeof updatePlayerStats === 'function') updatePlayerStats();
     }
 
     useMindFreeze() {
-        const originalSpeed = player.attacksPerSecond;
-        player.attacksPerSecond *= 0.75;
+        const preDebuffSpeed = player.attacksPerSecond;
+        const debuffFactor = 0.75;
+        player.attacksPerSecond *= debuffFactor;
         const overlay = document.createElement('div');
         overlay.className = 'mind-freeze-overlay';
         document.getElementById('game-area').appendChild(overlay);
         const effectId = Symbol('MindFreeze');
-        const effect = { id: effectId, name: 'MindFreeze', overlay, originalSpeed };
+        const effect = { id: effectId, name: 'MindFreeze', overlay, preDebuffSpeed, debuffFactor };
         const timer = setTimeout(() => this.endMindFreeze(effect), 10000);
         effect.timer = timer;
         this.activeEffects.push(effect);
@@ -313,7 +315,11 @@ class EliteEnemy extends Enemy {
     }
 
     endMindFreeze(effect) {
-        player.attacksPerSecond = effect.originalSpeed;
+        // Attack speed is additive, so calculate any flat additions made during
+        // the debuff window and apply them on top of the original pre-debuff value.
+        const debuffedBase = effect.preDebuffSpeed * effect.debuffFactor;
+        const addedDuringDebuff = player.attacksPerSecond - debuffedBase;
+        player.attacksPerSecond = effect.preDebuffSpeed + addedDuringDebuff;
         effect.overlay.remove();
         this.activeEffects = this.activeEffects.filter(e => e.id !== effect.id);
         if (typeof updatePlayerStats === 'function') updatePlayerStats();
