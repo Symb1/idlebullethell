@@ -26,7 +26,7 @@ const classDescriptions = {
     <p><em>Weapon Evolutions: (Level 10)</em></p>
     <ul>
         <li>Blessed Shield: Replaces Holy Radiance with Holy Fire, on use applying Judgement to all enemies within range. Judgement ticks every <b>0.2s</b> dealing <b>25%</b> of your damage.</li>
-        <li>Smite Shield: Rapid Aura ticks, slows enemies inside the aura by <b>25%</b>, while freezes the extended area for <b>2 sec</b> on use.</li>
+        <li>Smite Shield: Rapid Aura ticks, slows enemies inside the aura by <b>15%</b>, while freezes the extended area for <b>2 sec</b> on use.</li>
     </ul>
     <p><em>Class Evolutions: (Level 20)</em> Increase your attack speed, unlock critical hits globally or get massive health and damage at the cost of a heavy cooldown recovery.</p>
 `,
@@ -125,8 +125,8 @@ const SORC_NODES = [
 
   { id:'chain_reverb',       label:'Chain Reverb',          abbr:'CR', cx:170, cy:420, max:5,
     req:'static_acceleration', reqPts:2,
-    desc: p => `Each chain has a <b>${p*8}%</b> chance to hit the same target again.<br>If no enemies to chain to, <b>${p*8}%</b> chance to fall back to the first target, max <b>2</b> chains.`,
-    per:'Double hit chance on chains is increased by 8% per rank.<br>Fallback return chance is increased by 8% per rank, max 2 chains.' },
+    desc: p => `Each chain has a <b>${p*12}%</b> chance to hit the same target again.<br>If no enemies to chain to, <b>${p*6}%</b> chance to fall back to the first target, max <b>2</b> chains.`,
+    per:'Double hit chance on chains is increased by 12% per rank.<br>Fallback return chance is increased by 6% per rank, max 2 chains.' },
 
   { id:'charged_dominance',  label:'Charged Dominance',     abbr:'CD', cx:430, cy:420, max:5,
     req:'static_acceleration', reqPts:2,
@@ -207,8 +207,8 @@ const DK_NODES = [
 
   { id:'martyrs_conviction',label:"Martyr's Conviction",  abbr:'MC', cx:170, cy:420, max:5,
     req:'divine_wrath', reqPts:2,
-    desc: p => `Adds +${p*3} Max HP. HP converts +${p*20}% to damage`,
-    per:'Blessed Shield: +3 HP per rank. HP converts +20% to damage per rank' },
+    desc: p => `Adds +${p*3} Max HP. HP converts +${p*25}% to damage`,
+    per:'Blessed Shield: +3 HP per rank. HP converts +25% to damage per rank' },
 
   { id:'executioners_faith',label:"Executioner's Faith",  abbr:'EF', cx:300, cy:210, max:5,
     req:'divine_wrath', reqPts:2,
@@ -216,7 +216,7 @@ const DK_NODES = [
     per:'+25% Boss Damage per rank', bonus:true },
 
   { id:'sanctified_domain', label:'Sanctified Domain',   abbr:'SD', cx:430, cy:420, max:5,
-    req:'divine_wrath', reqPts:3, ssOnly:true,
+    req:'divine_wrath', reqPts:2, ssOnly:true,
     desc: p => `Enemies in aura range: attack speed -${p*12}%, movement speed -${p*5}%`,
     per:'Smite Shield: -12% enemy attack speed per rank, -5% enemy move speed reduction per rank in aura' },
 
@@ -226,7 +226,7 @@ const DK_NODES = [
     ascNote:'Requires 1 Ascension' },
   { id:'oath_of_dominion',  label:'Oath of Dominion',    abbr:'OD', cx:225, cy:285, max:1, bvow:true, tgroup:'dk1', bsOnly:true,
     req:'martyrs_conviction', reqPts:3, reqAscension:1, desc:()=>'',
-    per:'<span style="color:#c084fc">Blessed Shield</span>: +15 HP and +150% Boss Damage.',
+    per:'<span style="color:#c084fc">Blessed Shield</span>: HP regen is disabled. +25 HP and +100% Boss Damage.',
     ascNote:'Requires 1 Ascension' },
 
   { id:'oath_of_eternity',  label:'Oath of Eternity',    abbr:'OE', cx:370, cy:285, max:1, bvow:true, tgroup:'dk2', ssOnly:true,
@@ -708,7 +708,7 @@ class Sorceress extends Player {
 class DivineKnight extends Player {
     constructor() {
         super('Divine Knight');
-        this.attacksPerSecond += 1.5;
+        this.attacksPerSecond += 1;
         this.critChance = 0;
 
         this.amuletDamage = 2;

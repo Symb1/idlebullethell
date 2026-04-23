@@ -50,7 +50,7 @@ function updatePlayerStats() {
     const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
     const hasBlessedShield = player.weapon instanceof BlessedShield;
     const hasSmiteShield   = player.weapon instanceof SmiteShield;
-    const oathJudgement = dAlloc && dAlloc['oath_of_judgement'] >= 1 && hasBlessedShield;
+    const oathJudgement = dAlloc && (dAlloc['oath_of_judgement'] >= 1 || dAlloc['oath_of_dominion'] >= 1) && hasBlessedShield;
     const oathEternity  = dAlloc && dAlloc['oath_of_eternity']  >= 1 && hasSmiteShield;
     const oathAegis     = dAlloc && dAlloc['oath_of_aegis']     >= 1 && hasSmiteShield;
     let regenText, regenStyle;

@@ -91,7 +91,7 @@ class Player {
             const efRanks = dkAlloc['executioners_faith'] || 0;
             bonus += efRanks >= 5 ? efRanks * 0.25 * 2 : efRanks * 0.25;
 
-            if (dkAlloc['oath_of_dominion'] >= 1 && this.weapon instanceof BlessedShield) bonus += 1.5;
+            if (dkAlloc['oath_of_dominion'] >= 1 && this.weapon instanceof BlessedShield) bonus += 1.0;
         }
         return bonus;
     }
@@ -140,6 +140,7 @@ class Player {
             const hasSmiteShield   = this.weapon instanceof SmiteShield;
 
             if (dkAlloc['oath_of_judgement'] >= 1 && hasBlessedShield) return;
+            if (dkAlloc['oath_of_dominion']  >= 1 && hasBlessedShield) return;
 
             if (dkAlloc['oath_of_eternity'] >= 1 && hasSmiteShield) {
                 this.hp = Math.min(this.hp + this.hpRegen * deltaTime, this.maxHp);

@@ -20,7 +20,7 @@ function initializeWeapon(playerClass, weaponName = null) {
             if (weaponName === 'Blessed Shield') {
                 const dAlloc = typeof dkAlloc !== 'undefined' ? dkAlloc : null;
                 const mcRanks = (dAlloc && dAlloc['martyrs_conviction']) || 0;
-                const odBonus = (dAlloc && dAlloc['oath_of_dominion'] >= 1) ? 15 : 0;
+                const odBonus = (dAlloc && dAlloc['oath_of_dominion'] >= 1) ? 25 : 0;
                 const bsHpBonus = 5 + (mcRanks * 3) + odBonus;
                 player.maxHp += bsHpBonus;
                 player.hp = Math.min(player.hp + bsHpBonus, player.maxHp);
@@ -62,7 +62,6 @@ function initializeWeapon(playerClass, weaponName = null) {
         
         if (sAlloc && sAlloc['unbroken_current'] >= 1 && player.weapon instanceof ChainWand) {
             player.weapon.chainDamageMultiplier = 1.0;
-            player.weapon.chainCount += 1;
         }
         
         player.weapon.spellweaversExcellenceRanks = (sAlloc && sAlloc['spellweavers_excellence']) || 0;
@@ -184,7 +183,7 @@ class Weapon {
         if (player instanceof DivineKnight && typeof dkAlloc !== 'undefined') {
             const mcRanks = dkAlloc['martyrs_conviction'] || 0;
             if (mcRanks > 0 && (this instanceof BlessedShield || this.name === 'Blessed Shield')) {
-                dmg *= (1 + mcRanks * 0.20 * player.maxHp / 100);
+                dmg *= (1 + mcRanks * 0.25 * player.maxHp / 100);
             }
         }
         this.damage = dmg;
@@ -330,15 +329,14 @@ class BasicWand extends Weapon {
             
             if (!next) {
                 if (chainReverb > 0) {
-                    const fallbackChance = chainReverb * 0.08;
-                    
-                    const fallbackAttempts = Math.min(remaining, 2);
-                    for (let fb = 0; fb < fallbackAttempts; fb++) {
-                        if (Math.random() < fallbackChance) {
+                    const fallbackChance = chainReverb * 0.06;
+                    const roll = Math.random();
+                    const unbrokenCurrent = typeof sorcAlloc !== 'undefined' && sorcAlloc['unbroken_current'] >= 1;
+                    const fallbackAttempts = unbrokenCurrent ? this.chainCount : Math.min(remaining, 2);
+                    if (roll < fallbackChance) {
+                        for (let fb = 0; fb < fallbackAttempts; fb++) {
                             const fbDamage = currentDamage * Math.pow(this.chainDamageMultiplier, fb);
-                            
-                            const fbCritChance = (conductorsOath && isCritical) ? player.critChance : chainCritChance * Math.pow(0.70, fb);
-                            const fbCrit = (conductorsOath && isCritical) ? true : Math.random() < fbCritChance;
+                            const fbCrit = conductorsOath ? Math.random() < player.critChance : Math.random() < chainCritChance * Math.pow(0.70, fb);
                             const fbDmg  = fbCrit ? fbDamage * player.critDamage : fbDamage;
                             this.dealDamageToEnemy(target, fbDmg, fbCrit);
                             chainPath.push({ x: target.position.x + target.radius, y: target.position.y + target.radius });
@@ -351,16 +349,15 @@ class BasicWand extends Weapon {
 
             currentDamage *= this.chainDamageMultiplier;
             
-            const chainIsCrit = (conductorsOath && isCritical) ? true : Math.random() < chainCritChance;
+            const chainIsCrit = conductorsOath ? Math.random() < player.critChance : Math.random() < chainCritChance;
             const chainDmg = chainIsCrit ? currentDamage * player.critDamage : currentDamage;
             this.dealDamageToEnemy(next, chainDmg, chainIsCrit);
             chainPath.push({ x: next.position.x + next.radius, y: next.position.y + next.radius });
             hitEnemies.add(next);
 
             
-            if (chainReverb > 0 && Math.random() < chainReverb * 0.08) {
-                
-                const echoIsCrit = (conductorsOath && isCritical) ? true : Math.random() < chainCritChance;
+            if (chainReverb > 0 && Math.random() < chainReverb * 0.12) {
+                const echoIsCrit = conductorsOath ? Math.random() < player.critChance : Math.random() < chainCritChance;
                 const echoDmg = echoIsCrit ? currentDamage * player.critDamage : currentDamage;
                 this.dealDamageToEnemy(next, echoDmg, echoIsCrit);
                 chainPath.push({ x: next.position.x + next.radius, y: next.position.y + next.radius });
@@ -369,8 +366,8 @@ class BasicWand extends Weapon {
             remaining--;
             lastHit = next;
             chainStep++;
-            if (!(conductorsOath && isCritical)) {
-                chainCritChance *= 0.70; 
+            if (!conductorsOath) {
+                chainCritChance *= 0.70;
             }
         }
 
@@ -760,7 +757,7 @@ class ChainWand extends BasicWand {
     constructor() {
         super();
         this.name = 'Chain Wand';
-        this.baseDamage = 16;
+        this.baseDamage = 20;
         this.baseCooldown = 30;
         this.globalRange = 220;
         this.chainRange = 150;
@@ -909,7 +906,7 @@ class BlessedShield extends BasicShield {
     constructor() {
         super();
         this.name = 'Blessed Shield';
-        this.baseDamage = 7;
+        this.baseDamage = 6;
         this.baseCooldown = 45;
         this.globalRange = 200;
         this.abilityDuration = 10000;   
@@ -970,6 +967,7 @@ class BlessedShield extends BasicShield {
 
         
         this._judgementInterval = setInterval(() => {
+            if (!gameState.gameRunning || gameState.isPaused) return;
             enemies.forEach(enemy => {
                 if (!this.isInRange(enemy)) return;
                 if (enemy.hasJudgement) {
@@ -1061,7 +1059,7 @@ class SmiteShield extends BasicShield {
         this.baseCooldown = 25;
         this.globalRange = 130;
         this.abilityDuration = 2000;
-        this.slowPercent = 25;
+        this.slowPercent = 15;
         this.attackSpeedBonus = 1.0;
         this.damage = this.baseDamage;
         this.updateDamage();

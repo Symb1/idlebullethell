@@ -39,6 +39,7 @@ const upgrades = [
             const v = this._val(rarity);
             player.maxHp += v;
             player.heal(v);
+            player.weapon?.updateDamage();
             applySecondary(rarity, secondaryUpgrade, secondaryRarity);
         },
         getValue(rarity) { return `+${this._val(rarity).toFixed(1)}`; },
@@ -148,13 +149,13 @@ function getRarity() {
 const BASE_WEAPON_NAMES = new Set(['Basic Staff', 'Basic Wand', 'Basic Shield']);
 
 function getRandomUpgrades(count) {
-    // Trigger weapon evolution once, at or after level 10, if still on base weapon
+
     if (player.level >= 10 && player.weapon && BASE_WEAPON_NAMES.has(player.weapon.name)) {
         showWeaponEvolutionScreen();
         return [];
     }
 
-    // Trigger class upgrade once, at or after level 20, if not yet chosen
+
     if (player.level >= 20 && !gameState.classUpgradeChosen) {
         const shuffled = [...classUpgrades[player.class]].sort(() => 0.5 - Math.random());
         return shuffled.slice(0, count).map(u => ({ ...u, isClassUpgrade: true }));
@@ -187,9 +188,9 @@ function classEffect(player, gameState, stats) {
     if (stats.critDamageDecrease)   player.critDamage -= stats.critDamageDecrease;
     if (stats.cooldownReduction)    player.adjustCooldownReduction(stats.cooldownReduction);
     if (stats.cooldownIncrease)     player.adjustCooldownReduction(-stats.cooldownIncrease);
-    if (stats.damageLoss && player.weapon) player.weapon.damage *= (1 - stats.damageLoss);
-    if (stats.damageIncrease && player.weapon) player.weapon.damage *= (1 + stats.damageIncrease);
-    if (stats.healthIncrease)       { player.hp += stats.healthIncrease; player.maxHp += stats.healthIncrease; }
+    if (stats.damageLoss)           { player.damageModifier *= (1 - stats.damageLoss); player.weapon?.updateDamage(); }
+    if (stats.damageIncrease)       { player.damageModifier *= (1 + stats.damageIncrease); player.weapon?.updateDamage(); }
+    if (stats.healthIncrease)       { player.hp += stats.healthIncrease; player.maxHp += stats.healthIncrease; player.weapon?.updateDamage(); }
     player.classUpgradeChosen = stats.shardName;
     gameState.classUpgradeChosen = stats.shardName;
     saveGameState();
@@ -622,7 +623,16 @@ function showLevelUpScreen() {
         });
         if (isAutoCard) {
             const priority = gameState.upgradePriority || DEFAULT_UPGRADE_PRIORITY;
-            const auto = priority.reduce((found, name) => found || availableUpgrades.find(u => u.name === name), null) || availableUpgrades[0];
+            const rarityScore = { Legendary: 3, Epic: 2, Magic: 1, Normal: 0 };
+            let auto = null;
+            for (const name of priority) {
+                const matches = availableUpgrades.filter(u => u.name === name);
+                if (matches.length) {
+                    auto = matches.reduce((best, u) => (rarityScore[u.rarity] || 0) > (rarityScore[best.rarity] || 0) ? u : best);
+                    break;
+                }
+            }
+            auto = auto || availableUpgrades[0];
             const idx  = availableUpgrades.indexOf(auto);
             row.querySelector(`[data-index="${idx}"]`)?.classList.add('sf-auto-glow');
             setTimeout(() => selectUpgrade(auto, idx), 3000);
@@ -645,6 +655,7 @@ function selectAutoClassUpgrade(availableUpgrades) {
 }
 
 function selectUpgrade(upgrade, index) {
+    if (!gameState.gameRunning) return;
     upgrade.isClassUpgrade
         ? upgrade.effect()
         : upgrade.effect(upgrade.rarity, upgrade.secondaryUpgrade, upgrade.secondaryRarity);
@@ -681,7 +692,7 @@ const soulsUpgrades = [
         name: 'Health+', baseCost: 125, valuePerUpgrade: 0.5,
         effect(gameState) {
             gameState.healthUpgrades = (gameState.healthUpgrades || 0) + 1;
-            if (player) { player.maxHp = player.getInitialHP(); player.hp += this.valuePerUpgrade; }
+            if (player) { player.maxHp = player.getInitialHP(); player.hp += this.valuePerUpgrade; player.weapon?.updateDamage(); }
         },
         canPurchase(gameState) { return (gameState.healthUpgrades || 0) < _ascMaxPurchases(gameState, 'healthUpgrades'); }
     },

@@ -322,9 +322,6 @@ function startGame(playerClass) {
     createGameArea();
     grantSkippedWaveExperience();
     startWave();
-
-    lastTimestamp = performance.now();
-    requestAnimationFrame(gameLoop);
 }
 
 function updateStageBg() {
@@ -606,6 +603,10 @@ function checkClassUnlock() {
 
 function gameOver() {
     gameState.gameRunning = false;
+    gameState.isPaused = false;
+    pendingLevelUps = 0;
+    levelUpScreenOpen = false;
+    document.getElementById('level-up')?.remove();
     cancelAnimationFrame(animationFrameId);
 
     if (player && player.weapon) {
@@ -729,7 +730,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const debugTalentBtn = document.createElement('button');
     debugTalentBtn.id = 'debug-talent-btn';
     debugTalentBtn.textContent = '+1 Talent';
-    debugTalentBtn.style.cssText = 'display:none;;position:fixed;bottom:10px;left:10px;z-index:9999;padding:4px 10px;background:#2a1a3e;border:1px solid #9370DB;color:#c8aaff;font-size:11px;cursor:pointer;border-radius:4px;';
+    debugTalentBtn.style.cssText = 'display:block;;position:fixed;bottom:10px;left:10px;z-index:9999;padding:4px 10px;background:#2a1a3e;border:1px solid #9370DB;color:#c8aaff;font-size:11px;cursor:pointer;border-radius:4px;';
     debugTalentBtn.addEventListener('click', () => { talentPoints++; sorcTalentPoints++; dkTalentPoints++; renderTalents(); renderSorcTalents(); renderDKTalents(); saveGameState(); });
     document.body.appendChild(debugTalentBtn);
     const autoCastToggle = document.getElementById('auto-cast-toggle');

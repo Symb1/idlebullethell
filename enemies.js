@@ -178,12 +178,12 @@ class Enemy {
         el.style.color    = isCritical ? 'orange' : 'yellow';
         el.style.fontSize = isCritical ? '25px'   : '16px';
 
-        const offset = this.damageIndicators.length * 20;
-        el.style.top   = `-${20 + offset}px`;
-        el.style.right = `${offset}px`;
-
         this.element.appendChild(el);
         this.damageIndicators.push(el);
+
+        const offset = (this.damageIndicators.length - 1) * 20;
+        el.style.top   = `-${20 + offset}px`;
+        el.style.right = `${offset}px`;
 
         setTimeout(() => { el.style.opacity = 1; el.style.top = `-${40 + offset}px`; }, 0);
         setTimeout(() => { el.style.opacity = 0; el.style.top = `-${60 + offset}px`; }, 500);
