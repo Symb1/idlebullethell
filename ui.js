@@ -2,6 +2,7 @@
 function initializeUI() {
 
     document.getElementById('ability-button')?.addEventListener('click', () => {
+        if (!gameState.gameRunning || gameState.isPaused) return;
         player?.weapon?.useAbility();
     });
 
@@ -770,7 +771,6 @@ function updateSoundToggleBtn() {
         btn.textContent = on ? 'Sound: ON' : 'Sound: OFF';
         btn.classList.toggle('lb-sound-off', !on);
     }
-    // also update old in-leaderboard button if present
     const lbBtn = document.getElementById('lb-sound-toggle');
     if (lbBtn) {
         lbBtn.textContent = on ? 'Sound: ON' : 'Sound: OFF';

@@ -98,6 +98,12 @@ class Weapon {
         this.lastAbilityUseTime = 0;
         this.globalRange = globalRange;
         this.chainRange = chainRange;
+        this._abilityEndTime = 0;
+        this._abilityOriginalRange = 0;
+        this._abilityExtraEndTime = 0;  
+        this._echoRecastAt = 0;         
+        this._echoRecastMax = false;
+        this._echoShockInfusion = false;
     }
 
     attack() {
@@ -416,42 +422,39 @@ class BasicShield extends Weapon {
             newRange *= 1.25;
         }
         this.globalRange = newRange;
+        this._abilityOriginalRange = originalRange;
+        this._abilityEndTime = Date.now() + this.abilityDuration;
+        this._abilityExtraEndTime = (auraOverflowActive && aoRanks >= 3) ? this._abilityEndTime + 3000 : 0;
         player.updateAuraVisual();
-        setTimeout(() => {
-            
-            if (auraOverflowActive && aoRanks >= 3) {
-                showAuraOverflowLinger(3);
-                setTimeout(() => { showAuraOverflowLinger(2); }, 1000);
-                setTimeout(() => { showAuraOverflowLinger(1); }, 2000);
-                setTimeout(() => {
-                    this.globalRange = originalRange;
-                    player.updateAuraVisual();
-                }, 3000);
-            } else {
-                this.globalRange = originalRange;
-                player.updateAuraVisual();
-            }
-        }, this.abilityDuration);
     }
 
     showAbilityCooldown() {
         const playerElement = document.getElementById('player');
         if (!playerElement) return;
+        playerElement.querySelectorAll('.ability-cooldown:not(.aura-overflow-linger)').forEach(el => el.remove());
         const cooldownElement = document.createElement('div');
         cooldownElement.className = 'ability-cooldown';
         playerElement.appendChild(cooldownElement);
+        this._cooldownDisplayEl = cooldownElement;
 
-        let remainingTime = Math.ceil(this.abilityDuration / 1000);
-        const updateCooldown = () => {
-            cooldownElement.textContent = remainingTime;
-            if (remainingTime > 0) {
-                remainingTime--;
-                setTimeout(updateCooldown, 1000);
+        const tick = () => {
+            if (!cooldownElement.isConnected) return;
+            if (gameState.isPaused) {
+                setTimeout(tick, 100);
+                return;
+            }
+            const remaining = this._abilityEndTime
+                ? Math.max(0, Math.ceil((this._abilityEndTime - Date.now()) / 1000))
+                : 0;
+            cooldownElement.textContent = remaining;
+            if (remaining > 0) {
+                setTimeout(tick, 250);
             } else {
                 cooldownElement.remove();
+                this._cooldownDisplayEl = null;
             }
         };
-        updateCooldown();
+        tick();
     }
 }
 
@@ -477,20 +480,47 @@ function checkEternalTormentReset(weapon, eliteTarget, damageDealt) {
     }
 }
 
-function showAuraOverflowLinger(seconds) {
-    const playerEl = document.getElementById('player');
-    if (!playerEl) return;
-    playerEl.querySelectorAll('.aura-overflow-linger').forEach(el => el.remove());
-    const el = document.createElement('div');
-    el.className = 'ability-cooldown aura-overflow-linger';
-    el.textContent = '+' + seconds;
-    playerEl.appendChild(el);
-    setTimeout(() => el.remove(), 950);
-}
 
 function updateWeapon() {
-    if (player && player.weapon) {
-        player.weapon.attack();
+    if (!player || !player.weapon) return;
+    player.weapon.attack();
+    tickWeaponAbilityEffect(player.weapon);
+}
+
+function tickWeaponAbilityEffect(weapon) {
+    if (weapon._echoRecastAt && Date.now() >= weapon._echoRecastAt) {
+        weapon._echoRecastAt = 0;
+        const shockInfusion = weapon._echoShockInfusion;
+        enemies.forEach(enemy => {
+            const dur = weapon._echoRecastMax ? weapon.freezeDuration * 2 : weapon.freezeDuration;
+            weapon._stunEnemyDuration(enemy, dur);
+            if (shockInfusion) {
+                enemy.shockStacks = (enemy.shockStacks || 0) + weapon.shockInfusionStacks;
+            }
+        });
+    }
+
+    if (!weapon._abilityEndTime) return;
+    const now = Date.now();
+
+    if (now < weapon._abilityEndTime) return;
+    weapon._abilityEndTime = 0;
+
+    if (weapon._abilityExtraEndTime) {
+        const lingerMs = weapon._abilityExtraEndTime - now;
+        if (lingerMs > 0) {
+            weapon._abilityEndTime = weapon._abilityExtraEndTime;
+            weapon._abilityExtraEndTime = 0;
+            return;
+        }
+    }
+
+    if (weapon._abilityOriginalRange) {
+        if (weapon instanceof BlessedShield) weapon._clearHolyFire();
+        weapon.globalRange = weapon._abilityOriginalRange;
+        weapon._abilityOriginalRange = 0;
+        weapon._abilityExtraEndTime = 0;
+        player.updateAuraVisual();
     }
 }
 
@@ -873,28 +903,17 @@ class SparkWand extends BasicWand {
         
         const echoRanks = typeof sorcAlloc !== 'undefined' ? sorcAlloc['tempest_echo'] : 0;
         if (echoRanks > 0 && Math.random() < echoRanks * 0.10) {
-            setTimeout(() => {
-                if (!player || !player.weapon) return;
-                const echoMax = echoRanks >= 3;
-                enemies.forEach(enemy => {
-                    const dur = echoMax ? this.freezeDuration * 2 : this.freezeDuration;
-                    this._stunEnemyDuration(enemy, dur);
-                    if (shockInfusion) {
-                        enemy.shockStacks = (enemy.shockStacks || 0) + this.shockInfusionStacks;
-                        console.log(`[Shock Infusion - Tempest Echo recast] Applied ${this.shockInfusionStacks} stacks to enemy. Total stacks: ${enemy.shockStacks}`);
-                    }
-                });
-            }, 1000);
+            this._echoRecastAt = Date.now() + 1000;
+            this._echoRecastMax = echoRanks >= 3;
+            this._echoShockInfusion = shockInfusion;
         }
     }
 
     _stunEnemyDuration(enemy, dur) {
-        enemy.applySpeedEffect(0, dur * 1000);
+        const ms = dur * 1000;
+        enemy.applySpeedEffect(0, ms);
         enemy.element.classList.add('frozen');
-        setTimeout(() => {
-            enemy.speed = enemy.baseSpeed;
-            enemy.element.classList.remove('frozen');
-        }, dur * 1000);
+        enemy.frozenUntil = Date.now() + ms;
     }
 
     stunEnemy(enemy) {
@@ -997,22 +1016,9 @@ class BlessedShield extends BasicShield {
             });
         }, 200);
 
-        setTimeout(() => {
-            this._clearHolyFire();
-            
-            if (auraOverflowActive && aoRanks >= 3) {
-                showAuraOverflowLinger(3);
-                setTimeout(() => { showAuraOverflowLinger(2); }, 1000);
-                setTimeout(() => { showAuraOverflowLinger(1); }, 2000);
-                setTimeout(() => {
-                    this.globalRange = originalRange;
-                    player.updateAuraVisual();
-                }, 3000);
-            } else {
-                this.globalRange = originalRange;
-                player.updateAuraVisual();
-            }
-        }, this.abilityDuration);
+        this._abilityOriginalRange = originalRange;
+        this._abilityEndTime = Date.now() + this.abilityDuration;
+        this._abilityExtraEndTime = (auraOverflowActive && aoRanks >= 3) ? this._abilityEndTime + 3000 : 0;
     }
 
     _clearHolyFire() {
@@ -1136,19 +1142,8 @@ class SmiteShield extends BasicShield {
                 enemy.applySpeedEffect(0.2, 5000);
             }
         });
-        setTimeout(() => {
-            if (auraOverflowActive && aoRanks >= 3) {
-                showAuraOverflowLinger(3);
-                setTimeout(() => { showAuraOverflowLinger(2); }, 1000);
-                setTimeout(() => { showAuraOverflowLinger(1); }, 2000);
-                setTimeout(() => {
-                    this.globalRange = originalRange;
-                    player.updateAuraVisual();
-                }, 3000);
-            } else {
-                this.globalRange = originalRange;
-                player.updateAuraVisual();
-            }
-        }, this.abilityDuration);
+        this._abilityOriginalRange = originalRange;
+        this._abilityEndTime = Date.now() + this.abilityDuration;
+        this._abilityExtraEndTime = (auraOverflowActive && aoRanks >= 3) ? this._abilityEndTime + 3000 : 0;
     }
 }

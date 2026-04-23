@@ -87,10 +87,27 @@ class Enemy {
         this.speedEffects.push(effect);
         this.element.classList.toggle('slowed', factor < 1);
         this.element.classList.toggle('sped-up', factor > 1);
-        setTimeout(() => {
-            this.speedEffects = this.speedEffects.filter(e => e !== effect);
-            this.element.classList.remove('slowed', 'sped-up');
-        }, duration);
+    }
+
+    tickSpeedEffects() {
+        const now = Date.now();
+        const before = this.speedEffects.length;
+        this.speedEffects = this.speedEffects.filter(e => e.endTime > now);
+        if (this.speedEffects.length < before) {
+            const hasSlowed = this.speedEffects.some(e => e.factor < 1);
+            const hasSpedup = this.speedEffects.some(e => e.factor > 1);
+            this.element.classList.toggle('slowed',  hasSlowed);
+            this.element.classList.toggle('sped-up', hasSpedup);
+        }
+        if (this.frozenUntil && now >= this.frozenUntil) {
+            this.frozenUntil = 0;
+            this.element.classList.remove('frozen');
+        }
+    }
+
+    shiftEffectTimers(ms) {
+        this.speedEffects.forEach(e => e.endTime += ms);
+        if (this.frozenUntil) this.frozenUntil += ms;
     }
 
     getCurrentSpeed() {
@@ -315,8 +332,6 @@ class EliteEnemy extends Enemy {
     }
 
     endMindFreeze(effect) {
-        // Attack speed is additive, so calculate any flat additions made during
-        // the debuff window and apply them on top of the original pre-debuff value.
         const debuffedBase = effect.preDebuffSpeed * effect.debuffFactor;
         const addedDuringDebuff = player.attacksPerSecond - debuffedBase;
         player.attacksPerSecond = effect.preDebuffSpeed + addedDuringDebuff;
@@ -487,6 +502,7 @@ function updateEnemies(deltaTime) {
     enemies.forEach(enemy => {
         if (enemy.isDying) return;
         enemy.move(deltaTime);
+        enemy.tickSpeedEffects();
         if (enemy instanceof EliteEnemy) enemy.useAbilities();
     });
 }

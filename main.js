@@ -354,7 +354,10 @@ function createGameArea() {
     abilityButton.id = 'ability-button';
     abilityButton.style.display = 'block';
     abilityButton.textContent = 'Use Ability';
-    abilityButton.addEventListener('click', () => player?.weapon?.useAbility());
+    abilityButton.addEventListener('click', () => {
+        if (!gameState.gameRunning || gameState.isPaused) return;
+        player?.weapon?.useAbility();
+    });
     gameArea.appendChild(abilityButton);
 
     const nextWaveBtn = document.createElement('button');
@@ -685,10 +688,17 @@ function onGameResumed() {
     if (!_pauseStartTime) return;
     const pausedMs = Date.now() - _pauseStartTime;
     _pauseStartTime = 0;
-    
-    if (player?.weapon && pausedMs > 0) {
+    if (pausedMs <= 0) return;
+    if (player?.weapon) {
         player.weapon.lastAbilityUseTime += pausedMs;
+        if (player.weapon._abilityEndTime > 0)
+            player.weapon._abilityEndTime += pausedMs;
+        if (player.weapon._abilityExtraEndTime > 0)
+            player.weapon._abilityExtraEndTime += pausedMs;
+        if (player.weapon._echoRecastAt > 0)
+            player.weapon._echoRecastAt += pausedMs;
     }
+    enemies.forEach(e => e.shiftEffectTimers(pausedMs));
 }
 
 document.addEventListener('keydown', (e) => {
@@ -730,7 +740,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const debugTalentBtn = document.createElement('button');
     debugTalentBtn.id = 'debug-talent-btn';
     debugTalentBtn.textContent = '+1 Talent';
-    debugTalentBtn.style.cssText = 'display:block;;position:fixed;bottom:10px;left:10px;z-index:9999;padding:4px 10px;background:#2a1a3e;border:1px solid #9370DB;color:#c8aaff;font-size:11px;cursor:pointer;border-radius:4px;';
+    debugTalentBtn.style.cssText = 'display:none;;position:fixed;bottom:10px;left:10px;z-index:9999;padding:4px 10px;background:#2a1a3e;border:1px solid #9370DB;color:#c8aaff;font-size:11px;cursor:pointer;border-radius:4px;';
     debugTalentBtn.addEventListener('click', () => { talentPoints++; sorcTalentPoints++; dkTalentPoints++; renderTalents(); renderSorcTalents(); renderDKTalents(); saveGameState(); });
     document.body.appendChild(debugTalentBtn);
     const autoCastToggle = document.getElementById('auto-cast-toggle');
